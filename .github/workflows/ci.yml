@@ -41,14 +41,14 @@ jobs:
           persist-credentials: false
       - name: Install XcodeGen
         run: brew install xcodegen
-      - name: Build release app
+      - name: Build and package release DMG
         run: |
           xcodegen generate
           xcodebuild -project Droidective.xcodeproj -scheme App -configuration Release -derivedDataPath DerivedData build CODE_SIGNING_ALLOWED=NO
-          cd "DerivedData/Build/Products/Release" && zip -r -y "Droidective-${GITHUB_REF_NAME}.zip" "Droidective.app"
+          ./scripts/package-dmg.sh "${GITHUB_REF_NAME}"
       - name: Publish release with build
         uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191  # v2.0.8
         with:
-          files: DerivedData/Build/Products/Release/Droidective-*.zip
+          files: DerivedData/Build/Products/Release/Droidective-*.dmg
           body_path: RELEASE_NOTES.md
           fail_on_unmatched_files: true
