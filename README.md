@@ -70,15 +70,18 @@ The app runs **without the App Sandbox** (it must spawn `adb`, `scrcpy`,
 
 ## Install a release build
 
-Release `.app` zips are attached to each [GitHub release](../../releases) and
-built by CI. Because the build is unsigned/unnotarized, macOS Gatekeeper will
-quarantine it on first download — clear it once:
+Each [GitHub release](../../releases) ships a `Droidective-<version>.dmg` built
+by CI. Open it and drag **Droidective** into **Applications**.
+
+The build is ad-hoc signed but not notarized (no paid Apple Developer account),
+so on first launch macOS quarantine shows *"Droidective is damaged and can't be
+opened."* Clear the quarantine once:
 
 ```sh
-xattr -d com.apple.quarantine "Droidective.app"
+xattr -dr com.apple.quarantine "/Applications/Droidective.app"
 ```
 
-Or just build from source, which avoids the quarantine entirely.
+Then open it normally. Building from source avoids the quarantine entirely.
 
 ## Architecture
 

@@ -1,4 +1,4 @@
-.PHONY: generate build test run clean
+.PHONY: generate build test run dmg clean
 
 generate:
 	xcodegen generate
@@ -11,6 +11,10 @@ test:
 
 run: build
 	open "DerivedData/Build/Products/Debug/Droidective.app"
+
+dmg: generate
+	xcodebuild -project Droidective.xcodeproj -scheme App -configuration Release -derivedDataPath DerivedData build
+	./scripts/package-dmg.sh $(VERSION)
 
 clean:
 	rm -rf DerivedData ADBKit/.build *.xcodeproj
