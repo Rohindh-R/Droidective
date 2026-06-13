@@ -44,12 +44,16 @@ device asks where to save.
 
 ### Install
 
-Download `Droidective-v1.0.0.zip` below and unzip. The build is ad-hoc signed
-(not notarized), so clear the Gatekeeper quarantine once:
+Download the `.dmg` below, open it, and drag **Droidective** into
+**Applications**.
+
+The build is ad-hoc signed but not notarized, so on first launch macOS shows
+*"Droidective is damaged and can't be opened."* Clear the Gatekeeper quarantine
+once:
 
 ```sh
-xattr -d com.apple.quarantine "Droidective.app"
+xattr -dr com.apple.quarantine "/Applications/Droidective.app"
 ```
 
-Or build from source (`brew install xcodegen && make run`), which avoids the
-quarantine entirely.
+Then open it normally. Building from source (`brew install xcodegen && make run`)
+avoids the quarantine entirely.
