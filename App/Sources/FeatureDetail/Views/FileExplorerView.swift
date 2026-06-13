@@ -240,23 +240,14 @@ struct FileExplorerView: View {
     }
 
     /// ⌘V: Finder file URLs are pushed to the device; otherwise an internal
-    /// copy/cut is pasted device-side.
+    /// copy/cut is pasted device-side. Reads file URLs straight off the
+    /// general pasteboard — simpler and SDK-stable vs async NSItemProvider.
     private func handlePaste(_ providers: [NSItemProvider]) {
-        let urlProviders = providers.filter { $0.hasItemConformingToTypeIdentifier("public.file-url") }
-        if !urlProviders.isEmpty {
-            Task {
-                var urls: [URL] = []
-                for provider in urlProviders {
-                    if let data = try? await provider.loadItem(forTypeIdentifier: "public.file-url") as? Data,
-                       let url = URL(dataRepresentation: data, relativeTo: nil) {
-                        urls.append(url)
-                    }
-                }
-                push(urls)
-            }
-            return
-        }
-        if clipboard != nil {
+        let urls = (NSPasteboard.general.readObjects(forClasses: [NSURL.self]) as? [URL]) ?? []
+        let fileURLs = urls.filter(\.isFileURL)
+        if !fileURLs.isEmpty {
+            push(fileURLs)
+        } else if clipboard != nil {
             paste()
         }
     }
