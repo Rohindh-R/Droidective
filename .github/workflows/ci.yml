@@ -1,0 +1,54 @@
+name: CI
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - name: Run ADBKit tests
+        run: cd ADBKit && swift test
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Build app
+        run: |
+          xcodegen generate
+          xcodebuild -project Droidective.xcodeproj -scheme App -configuration Debug -derivedDataPath DerivedData build CODE_SIGNING_ALLOWED=NO
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, build]
+    runs-on: macos-15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Build release app
+        run: |
+          xcodegen generate
+          xcodebuild -project Droidective.xcodeproj -scheme App -configuration Release -derivedDataPath DerivedData build CODE_SIGNING_ALLOWED=NO
+          cd "DerivedData/Build/Products/Release" && zip -r -y "Droidective-${GITHUB_REF_NAME}.zip" "Droidective.app"
+      - name: Publish release with build
+        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191  # v2.0.8
+        with:
+          files: DerivedData/Build/Products/Release/Droidective-*.zip
+          body_path: RELEASE_NOTES.md
+          fail_on_unmatched_files: true
