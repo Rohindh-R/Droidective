@@ -265,8 +265,11 @@ public struct AppInspectionService: Sendable {
     }
 
     public func sandboxPull(serial: String, packageId: String, filePath: String, to destination: URL? = nil) async throws -> URL {
+        // `exec-out` escapes each argument itself (unlike `adb shell`, which runs the
+        // joined command through a device shell), so the path goes raw — a shellQuote'd
+        // path would reach `cat` with the literal quotes and fail to resolve.
         let output = try await client.runBinary(
-            on: serial, ["exec-out", "run-as", packageId, "cat", shellQuote(filePath)], timeout: .seconds(120)
+            on: serial, ["exec-out", "run-as", packageId, "cat", filePath], timeout: .seconds(120)
         )
         if Self.isNotDebuggable(output.stderrText) {
             throw PullError.notDebuggable
