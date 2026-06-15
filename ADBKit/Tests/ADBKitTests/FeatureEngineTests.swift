@@ -107,6 +107,34 @@ import Testing
         #expect(result.message.contains("ADBKeyboard"))
     }
 
+    @Test func networkTogglesReportsSuccessWhenAllCommandsSucceed() async {
+        let runner = MockProcessRunner()
+        runner.script(argsPrefix: ["-s"], stdout: "")
+        let engine = await makeEngine(runner)
+
+        let result = await engine.run(
+            featureID: "network-toggles", serial: "S1",
+            params: ["wifi": .bool(false), "data": .bool(true), "airplane": .bool(false)]
+        )
+        #expect(result.ok)
+        #expect(result.message.contains("Wi-Fi off"))
+    }
+
+    @Test func networkTogglesReportsFailureInsteadOfFalseSuccess() async {
+        let runner = MockProcessRunner()
+        runner.script(argsPrefix: ["-s"], stdout: "")
+        // `svc data disable` is rejected on this ROM.
+        runner.script(argsPrefix: ["-s", "S1", "shell", "svc", "data"], stderr: "Permission denial", exitCode: 1)
+        let engine = await makeEngine(runner)
+
+        let result = await engine.run(
+            featureID: "network-toggles", serial: "S1",
+            params: ["wifi": .bool(true), "data": .bool(false), "airplane": .bool(false)]
+        )
+        #expect(!result.ok)
+        #expect(result.message.contains("data"))
+    }
+
     @Test func unimplementedFeatureReportsPlaceholder() async {
         let runner = MockProcessRunner()
         let engine = await makeEngine(runner)

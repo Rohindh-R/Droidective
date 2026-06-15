@@ -253,11 +253,21 @@ public struct FeatureEngine: Sendable {
             let wifi = params["wifi"]?.boolValue ?? true
             let data = params["data"]?.boolValue ?? true
             let airplane = params["airplane"]?.boolValue ?? false
-            _ = try await client.run(on: serial, ["shell", "svc", "wifi", wifi ? "enable" : "disable"])
-            _ = try await client.run(on: serial, ["shell", "svc", "data", data ? "enable" : "disable"])
-            _ = try await client.run(on: serial, [
+            let wifiResult = try await client.run(on: serial, ["shell", "svc", "wifi", wifi ? "enable" : "disable"])
+            let dataResult = try await client.run(on: serial, ["shell", "svc", "data", data ? "enable" : "disable"])
+            let airplaneResult = try await client.run(on: serial, [
                 "shell", "cmd", "connectivity", "airplane-mode", airplane ? "enable" : "disable",
             ])
+            var failed: [String] = []
+            if !wifiResult.succeeded { failed.append("Wi-Fi") }
+            if !dataResult.succeeded { failed.append("data") }
+            if !airplaneResult.succeeded { failed.append("airplane") }
+            guard failed.isEmpty else {
+                return FeatureResult(
+                    ok: false,
+                    message: "Couldn't set \(failed.joined(separator: ", ")) — the ROM may not allow it over adb."
+                )
+            }
             return FeatureResult(
                 ok: true,
                 message: "Wi-Fi \(wifi ? "on" : "off") · data \(data ? "on" : "off") · airplane \(airplane ? "on" : "off")"
