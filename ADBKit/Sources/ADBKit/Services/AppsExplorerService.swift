@@ -34,7 +34,7 @@ public struct AppsExplorerService: Sendable {
     public static func parseVersions(_ dump: String) -> [String: String] {
         var versions: [String: String] = [:]
         var currentPackage: String?
-        for line in dump.split(separator: "\n") {
+        for line in dump.split(whereSeparator: \.isNewline) {
             if let match = line.firstMatch(of: /Package \[([\w.]+)\]/) {
                 currentPackage = String(match.1)
             } else if let package = currentPackage,
@@ -55,14 +55,14 @@ public struct AppsExplorerService: Sendable {
 
         let userList = try await client.run(on: serial, ["shell", "pm", "list", "packages", "-3"])
         let userPackages = Set(
-            userList.stdout.split(separator: "\n")
-                .map { $0.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "package:", with: "") }
+            userList.stdout.split(whereSeparator: \.isNewline)
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "package:", with: "") }
                 .filter { !$0.isEmpty }
         )
 
         let allList = try await client.run(on: serial, ["shell", "pm", "list", "packages"])
-        let allPackages = allList.stdout.split(separator: "\n")
-            .map { $0.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "package:", with: "") }
+        let allPackages = allList.stdout.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "package:", with: "") }
             .filter { !$0.isEmpty }
 
         return allPackages

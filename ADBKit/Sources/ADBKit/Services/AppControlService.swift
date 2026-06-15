@@ -69,8 +69,8 @@ public struct AppControlService: Sendable {
         }
         let result = try await client.run(on: serial, args)
         return result.stdout
-            .split(separator: "\n")
-            .map { $0.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "package:", with: "") }
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "package:", with: "") }
             .filter { !$0.isEmpty }
             .sorted()
     }

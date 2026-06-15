@@ -55,6 +55,21 @@ import Testing
         #expect(packages == ["com.alpha", "com.middle", "com.zebra"])
     }
 
+    @Test func listInstalledPackagesStripsCarriageReturns() async throws {
+        // CRLF device-shell output must not leave a trailing \r on package ids,
+        // or downstream force-stop/clear/uninstall silently fail to match.
+        let runner = MockProcessRunner()
+        runner.script(
+            argsPrefix: ["-s", "S1", "shell", "pm", "list", "packages", "-3"],
+            stdout: "package:com.zebra\r\npackage:com.alpha\r\n"
+        )
+        let service = await makeService(runner)
+
+        let packages = try await service.listInstalledPackages(serial: "S1")
+        #expect(packages == ["com.alpha", "com.zebra"])
+        #expect(!packages.contains { $0.contains("\r") })
+    }
+
     @Test func deepLinkLaunchDetectsActivityErrors() async throws {
         let runner = MockProcessRunner()
         runner.script(

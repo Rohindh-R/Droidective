@@ -34,9 +34,11 @@ public struct DeviceOverview: Sendable, Equatable {
 
     /// `df -k /data` → (totalKb, usedKb, availableKb).
     public static func parseDf(_ output: String) -> (total: Int?, used: Int?, available: Int?) {
-        let lines = output.split(separator: "\n")
+        let lines = output.split(whereSeparator: \.isNewline)
         guard lines.count >= 2 else { return (nil, nil, nil) }
-        let fields = lines[1].split(separator: " ", omittingEmptySubsequences: true)
+        // Split on any whitespace (incl. a trailing CR on CRLF output) so the
+        // last numeric column parses cleanly.
+        let fields = lines[1].split(whereSeparator: \.isWhitespace)
         guard fields.count >= 4 else { return (nil, nil, nil) }
         return (Int(fields[1]), Int(fields[2]), Int(fields[3]))
     }
@@ -61,7 +63,7 @@ public struct DeviceOverview: Sendable, Equatable {
     }
 
     static func countPackages(_ output: String) -> Int {
-        output.split(separator: "\n").filter { $0.hasPrefix("package:") }.count
+        output.split(whereSeparator: \.isNewline).filter { $0.hasPrefix("package:") }.count
     }
 
     // MARK: - Fetch

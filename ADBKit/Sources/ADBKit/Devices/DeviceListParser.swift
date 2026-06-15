@@ -4,12 +4,12 @@ import Foundation
 /// daemon-startup noise.
 public enum DeviceListParser {
     public static func parse(_ output: String) -> [Device] {
-        output.split(separator: "\n", omittingEmptySubsequences: true)
+        output.split(omittingEmptySubsequences: true, whereSeparator: \.isNewline)
             .compactMap { parseLine(String($0)) }
     }
 
     public static func parseLine(_ line: String) -> Device? {
-        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return nil }
         if trimmed.hasPrefix("List of devices") { return nil }
         if trimmed.hasPrefix("*") || trimmed.hasPrefix("adb server") { return nil }

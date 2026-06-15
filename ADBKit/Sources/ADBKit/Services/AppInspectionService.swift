@@ -61,7 +61,7 @@ public struct AppInspectionService: Sendable {
     public static func parsePermissions(_ dump: String) -> [PermissionEntry] {
         var permissions: [PermissionEntry] = []
         var inRuntime = false
-        for line in dump.split(separator: "\n", omittingEmptySubsequences: false) {
+        for line in dump.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline) {
             if line.range(of: "runtime permissions:", options: .caseInsensitive) != nil {
                 inRuntime = true
                 continue
@@ -136,8 +136,8 @@ public struct AppInspectionService: Sendable {
 
     func firstApkPath(serial: String, packageId: String) async throws(AdbError) -> String? {
         let output = try await client.run(on: serial, ["shell", "pm", "path", packageId])
-        return output.stdout.split(separator: "\n")
-            .map { $0.replacingOccurrences(of: "package:", with: "").trimmingCharacters(in: .whitespaces) }
+        return output.stdout.split(whereSeparator: \.isNewline)
+            .map { $0.replacingOccurrences(of: "package:", with: "").trimmingCharacters(in: .whitespacesAndNewlines) }
             .first { !$0.isEmpty }
     }
 
@@ -234,8 +234,8 @@ public struct AppInspectionService: Sendable {
 
     public static func parseLsOutput(_ output: String) -> [FsEntry] {
         var entries: [FsEntry] = []
-        for line in output.split(separator: "\n") {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
+        for line in output.split(whereSeparator: \.isNewline) {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.isEmpty || trimmed.hasPrefix("total ") { continue }
             let parts = trimmed.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
             guard parts.count >= 8 else { continue }
