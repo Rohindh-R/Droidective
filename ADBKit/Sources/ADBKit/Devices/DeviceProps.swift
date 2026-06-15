@@ -5,8 +5,8 @@ public enum DeviceProps {
     /// Parse a full `getprop` dump (`[key]: [value]` lines) into a map.
     public static func parse(_ output: String) -> [String: String] {
         var props: [String: String] = [:]
-        for line in output.split(separator: "\n") {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
+        for line in output.split(whereSeparator: \.isNewline) {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             guard let match = trimmed.wholeMatch(of: /\[(.+?)\]:\s*\[(.*?)\]/) else { continue }
             props[String(match.1)] = String(match.2)
         }

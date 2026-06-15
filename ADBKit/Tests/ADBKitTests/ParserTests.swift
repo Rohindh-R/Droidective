@@ -15,6 +15,16 @@ import Testing
         #expect(props["ro.empty"] == "")
         #expect(props.count == 3)
     }
+
+    @Test func parsesPropDumpWithCrlf() {
+        // `adb shell getprop` over a CRLF device shell leaves a trailing \r;
+        // `wholeMatch` fails unless it's trimmed off.
+        let output = "[ro.product.model]: [Pixel 7]\r\n[ro.build.version.release]: [14]\r\n"
+        let props = DeviceProps.parse(output)
+        #expect(props["ro.product.model"] == "Pixel 7")
+        #expect(props["ro.build.version.release"] == "14")
+        #expect(props.count == 2)
+    }
 }
 
 @Suite struct IpParseTests {

@@ -24,6 +24,15 @@ import Testing
         #expect(available == 34_057_940)
     }
 
+    @Test func parsesDfWithCrlf() {
+        // A trailing \r on the data row must not break the last (Available) column.
+        let output = "Filesystem 1K-blocks Used Available Use% Mounted on\r\n/dev/block/dm-5 56371708 22152504 34057940 40% /data\r\n"
+        let (total, used, available) = DeviceOverview.parseDf(output)
+        #expect(total == 56_371_708)
+        #expect(used == 22_152_504)
+        #expect(available == 34_057_940)
+    }
+
     @Test func parsesBatteryWithHealthAndCycles() {
         let output = """
         Current Battery Service state:
@@ -117,5 +126,24 @@ import Testing
         #expect(listing.matches("2.4"))
         #expect(listing.matches("example"))
         #expect(!listing.matches("nomatch"))
+    }
+
+    @Test func listAllResolvesVersionsAcrossCrlfOutput() async throws {
+        // With CRLF output the package-list ids must be trimmed so they match
+        // the clean keys from parseVersions — otherwise every app shows nil.
+        let runner = MockProcessRunner()
+        runner.script(
+            argsPrefix: ["-s", "S1", "shell", "dumpsys", "package", "packages"],
+            stdout: "Package [com.foo] (x):\r\n    versionName=1.0\r\n"
+        )
+        runner.script(argsPrefix: ["-s", "S1", "shell", "pm", "list", "packages"], stdout: "package:com.foo\r\n")
+        runner.script(argsPrefix: ["-s", "S1", "shell", "pm", "list", "packages", "-3"], stdout: "package:com.foo\r\n")
+        let service = AppsExplorerService(client: await makeTestClient(runner: runner))
+
+        let listing = try await service.listAll(serial: "S1")
+        #expect(listing.count == 1)
+        #expect(listing.first?.packageId == "com.foo")
+        #expect(listing.first?.versionName == "1.0")
+        #expect(listing.first?.isSystem == false)
     }
 }

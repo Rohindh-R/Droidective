@@ -27,7 +27,7 @@ public struct CrashExtractor: Sendable {
     }
 
     public static func extractLastCrash(_ text: String) -> String {
-        let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).map(String.init)
         var index = -1
         for i in stride(from: lines.count - 1, through: 0, by: -1) {
             if lines[i].range(of: crashPattern, options: .regularExpression) != nil {

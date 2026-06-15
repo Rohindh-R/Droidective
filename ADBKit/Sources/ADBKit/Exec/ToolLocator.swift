@@ -103,9 +103,9 @@ public actor ToolLocator {
         )
         guard output.exitCode == 0 else { return nil }
         let resolved = output.stdoutText
-            .split(separator: "\n")
+            .split(whereSeparator: \.isNewline)
             .last
-            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
         guard let resolved, fileManager.isExecutableFile(atPath: resolved) else { return nil }
         return resolved
     }

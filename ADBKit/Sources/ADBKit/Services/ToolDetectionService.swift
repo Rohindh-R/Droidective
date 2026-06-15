@@ -38,7 +38,7 @@ public struct ToolDetectionService: Sendable {
             executable: path, arguments: versionArgs, timeout: .seconds(8), maxOutputBytes: 1024 * 1024
         )
         let text = output.stdoutText.isEmpty ? output.stderrText : output.stdoutText
-        let version = text.split(separator: "\n").first.map { $0.trimmingCharacters(in: .whitespaces) }
+        let version = text.split(whereSeparator: \.isNewline).first.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
         return ToolStatus(installed: true, path: path, version: version, installHint: hint)
     }
 
@@ -62,7 +62,7 @@ public struct ToolDetectionService: Sendable {
             await locator.clearCache()
             return FeatureResult(ok: true, message: "\(tool.rawValue) installed successfully.")
         }
-        let reason = output.stderrText.split(separator: "\n").last.map(String.init) ?? "brew failed"
+        let reason = output.stderrText.split(whereSeparator: \.isNewline).last.map(String.init) ?? "brew failed"
         return FeatureResult(ok: false, message: "Couldn't install \(tool.rawValue): \(reason)")
     }
 }

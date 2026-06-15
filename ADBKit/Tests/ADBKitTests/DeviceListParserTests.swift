@@ -27,6 +27,20 @@ import Testing
         #expect(devices[0].serial == "192.168.1.42:5555")
     }
 
+    @Test func parsesCrlfOutputWithoutStrandedCarriageReturns() {
+        // `\r\n` is a single grapheme, so splitting on "\n" leaves the whole
+        // dump as one line. The reader must split on any newline so a CRLF
+        // device is still recognized as wireless and ready.
+        let output = "List of devices attached\r\n192.168.1.42:5555   device model:Pixel_7\r\n"
+        let devices = DeviceListParser.parse(output)
+        #expect(devices.count == 1)
+        let device = try! #require(devices.first)
+        #expect(device.serial == "192.168.1.42:5555")
+        #expect(device.state == "device")
+        #expect(device.isWireless)
+        #expect(device.isReady)
+    }
+
     @Test func parsesUnauthorizedAndOffline() {
         let output = """
         List of devices attached
