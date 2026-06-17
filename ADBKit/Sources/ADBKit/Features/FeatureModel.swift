@@ -35,6 +35,20 @@ public enum FeatureCategory: String, Sendable, Codable, CaseIterable {
         case .toolUX: return "Tool UX"
         }
     }
+
+    /// SF Symbol name representing the category (UI is free to use it).
+    public var icon: String {
+        switch self {
+        case .input: return "keyboard"
+        case .connection: return "wifi"
+        case .reactNative: return "atom"
+        case .screen: return "rectangle.on.rectangle"
+        case .deviceState: return "slider.horizontal.3"
+        case .appManagement: return "square.stack.3d.up"
+        case .logs: return "scroll"
+        case .toolUX: return "wrench.and.screwdriver"
+        }
+    }
 }
 
 public enum OverrideKind: String, Sendable, Codable, CaseIterable {

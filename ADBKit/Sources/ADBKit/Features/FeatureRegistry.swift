@@ -72,6 +72,15 @@ public enum FeatureRegistry {
             keywords: ["emulator", "avd", "virtual", "simulator", "launch", "boot"],
             category: .connection, icon: "play.display", kind: .view, defaultEnabled: true, needsDevice: false
         ),
+        FeatureDef(
+            id: "network-speed", num: 41, title: "Network Speed",
+            subtitle: "Live download & upload throughput with recording",
+            keywords: [
+                "network", "speed", "bandwidth", "throughput", "upload", "download",
+                "data", "traffic", "rx", "tx", "wifi", "cellular", "mbps",
+            ],
+            category: .connection, icon: "speedometer", kind: .view, defaultEnabled: true
+        ),
 
         // ── React Native ─────────────────────────────────────────────────
         FeatureDef(
@@ -112,8 +121,8 @@ public enum FeatureRegistry {
         FeatureDef(
             id: "scrcpy", num: 13, title: "Mirror Screen",
             subtitle: "Mirror and control the device with scrcpy",
-            keywords: ["scrcpy", "mirror", "screen", "cast", "control"],
-            category: .screen, icon: "display", kind: .instantAction, defaultEnabled: true, needsScrcpy: true
+            keywords: ["scrcpy", "mirror", "screen", "cast", "control", "record", "bitrate", "fps"],
+            category: .screen, icon: "display", kind: .view, defaultEnabled: true, needsScrcpy: true
         ),
         FeatureDef(
             id: "screenshot", num: 14, title: "Screenshot",
@@ -314,6 +323,16 @@ public enum FeatureRegistry {
             subtitle: "Zip screenshot + logs + device info + version",
             keywords: ["bug report", "zip", "bundle", "diagnostics", "export"],
             category: .logs, icon: "doc.zipper", kind: .instantAction, defaultEnabled: false
+        ),
+        FeatureDef(
+            id: "performance", num: 35, title: "Performance Monitor",
+            subtitle: "Live CPU, RAM & FPS with recording and export",
+            keywords: [
+                "performance", "perf", "cpu", "core", "ram", "memory", "fps",
+                "frame", "jank", "profiler", "monitor", "gfxinfo", "graph",
+                "network", "speed", "bandwidth", "throughput", "upload", "download",
+            ],
+            category: .logs, icon: "chart.line.uptrend.xyaxis", kind: .view, defaultEnabled: true
         ),
 
         // ── Tool UX (system) ─────────────────────────────────────────────

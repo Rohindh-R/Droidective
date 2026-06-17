@@ -61,11 +61,21 @@ public struct LayoutState: Codable, Sendable, Equatable {
     /// Registry ids this layout has seen — lets a brand-new default-enabled
     /// feature appear once for users with an explicit enabledIds set.
     public var knownIds: [String]?
+    /// User's custom order for the ungrouped sidebar (feature ids). Ids not
+    /// listed fall back to registry order after the listed ones. Optional so
+    /// files written before the field existed still decode.
+    public var sidebarOrder: [String]?
 
-    public init(enabledIds: [String]? = nil, favorites: [String] = [], knownIds: [String]? = nil) {
+    public init(
+        enabledIds: [String]? = nil,
+        favorites: [String] = [],
+        knownIds: [String]? = nil,
+        sidebarOrder: [String]? = nil
+    ) {
         self.enabledIds = enabledIds
         self.favorites = favorites
         self.knownIds = knownIds
+        self.sidebarOrder = sidebarOrder
     }
 
     /// The effective enabled set: explicit user choice or registry defaults,
@@ -132,21 +142,17 @@ public struct Prefs: Codable, Sendable, Equatable {
     /// Feature id selected when the app was last used (restored at launch).
     /// Optional so files written before the field existed still decode.
     public var lastFeatureId: String?
-    /// featureId → run count, drives the sidebar "Frequent" section.
-    public var runCounts: [String: Int]?
 
     public init(
         selectedSerial: String? = nil,
         runOnAll: Bool = false,
         selectedBundleId: String? = nil,
-        lastFeatureId: String? = nil,
-        runCounts: [String: Int]? = nil
+        lastFeatureId: String? = nil
     ) {
         self.selectedSerial = selectedSerial
         self.runOnAll = runOnAll
         self.selectedBundleId = selectedBundleId
         self.lastFeatureId = lastFeatureId
-        self.runCounts = runCounts
     }
 }
 

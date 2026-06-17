@@ -40,14 +40,14 @@ public actor ScreenRecorder {
         remotePath.map { ($0 as NSString).lastPathComponent }
     }
 
-    public func start(serial: String) async throws {
+    public func start(serial: String, options: ScreenRecordOptions = ScreenRecordOptions()) async throws {
         guard child == nil else { throw RecordingError.alreadyRecording }
         let adbPath = try await client.locator.adbPath()
         let remote = "/sdcard/droidective-\(ScreenCaptureService.stamp()).mp4"
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: adbPath)
-        process.arguments = ["-s", serial, "shell", "screenrecord", "--bit-rate", "8000000", remote]
+        process.arguments = ["-s", serial, "shell", "screenrecord"] + options.args() + [remote]
         process.standardInput = FileHandle.nullDevice
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice

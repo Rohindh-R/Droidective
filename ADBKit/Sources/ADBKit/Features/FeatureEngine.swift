@@ -52,7 +52,10 @@ public struct FeatureEngine: Sendable {
     public let adbKeyboard: AdbKeyboardInstaller
     public let fileExplorer: FileExplorerService
     public let appsExplorer: AppsExplorerService
+    public let appIcons: AppIconService
     public let emulators: EmulatorService
+    public let performance: PerformanceService
+    public let networkSpeed: NetworkSpeedService
     let textInput: TextInputService
     let screenCapture: ScreenCaptureService
 
@@ -71,7 +74,10 @@ public struct FeatureEngine: Sendable {
         self.adbKeyboard = AdbKeyboardInstaller(client: client)
         self.fileExplorer = FileExplorerService(client: client)
         self.appsExplorer = AppsExplorerService(client: client)
+        self.appIcons = AppIconService(client: client)
         self.emulators = EmulatorService(client: client, locator: locator)
+        self.performance = PerformanceService(client: client)
+        self.networkSpeed = NetworkSpeedService(client: client)
         self.textInput = TextInputService(client: client)
         self.screenCapture = ScreenCaptureService(client: client)
     }
@@ -88,7 +94,7 @@ public struct FeatureEngine: Sendable {
         "meminfo", "sandbox-browser", "monkey", "device-info",
         "screen-record", "crash-catcher", "bug-report", "wireless-adb",
         "rn-dev-host", "process-death", "custom-commands",
-        "file-explorer", "apps", "emulators",
+        "file-explorer", "apps", "emulators", "performance", "network-speed",
     ]
 
     public func scope(for featureID: String) -> RunScope {
@@ -323,7 +329,11 @@ public struct FeatureEngine: Sendable {
     ///
     /// scrcpy resolves `adb` itself via $ADB or PATH — a Finder-launched app
     /// has neither, so both must be injected or scrcpy dies instantly.
-    private func launchScrcpy(serial: String) async -> FeatureResult {
+    public func launchScrcpy(
+        serial: String,
+        options: ScrcpyOptions = ScrcpyOptions(),
+        recordingPath: String? = nil
+    ) async -> FeatureResult {
         guard let scrcpyPath = await locator.resolve(.scrcpy) else {
             return FeatureResult(ok: false, message: "scrcpy isn't installed. Run `brew install scrcpy`, then try again.")
         }
@@ -332,7 +342,7 @@ public struct FeatureEngine: Sendable {
         }
         let process = Process()
         process.executableURL = URL(fileURLWithPath: scrcpyPath)
-        process.arguments = ["-s", serial]
+        process.arguments = ["-s", serial] + options.args(recordingPath: recordingPath)
         var environment = ProcessInfo.processInfo.environment
         environment["ADB"] = adbPath
         let extraPaths = [

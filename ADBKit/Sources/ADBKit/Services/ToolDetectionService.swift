@@ -13,6 +13,18 @@ public struct ToolDetectionService: Sendable {
     static let installHints: [Tool: String] = [
         .adb: "Install Android platform-tools — `brew install --cask android-platform-tools` (or Android Studio).",
         .scrcpy: "Install scrcpy to mirror the screen — `brew install scrcpy`.",
+        .ffmpeg: "Install ffmpeg for GIF export — `brew install ffmpeg`.",
+        .emulator: "Bundled with the Android SDK — install it via Android Studio → SDK Manager.",
+        .brew: "Install Homebrew from https://brew.sh, then re-check.",
+    ]
+
+    /// The flag each tool prints its version with.
+    static let versionArgs: [Tool: [String]] = [
+        .adb: ["version"],
+        .scrcpy: ["--version"],
+        .emulator: ["-version"],
+        .ffmpeg: ["-version"],
+        .brew: ["--version"],
     ]
 
     let locator: ToolLocator
@@ -27,6 +39,22 @@ public struct ToolDetectionService: Sendable {
         async let adb = detectOne(.adb, versionArgs: ["version"])
         async let scrcpy = detectOne(.scrcpy, versionArgs: ["--version"])
         return await (adb, scrcpy)
+    }
+
+    /// Detect every external tool the app can use, for the setup Doctor.
+    public func detectAll() async -> [Tool: ToolStatus] {
+        await withTaskGroup(of: (Tool, ToolStatus).self) { group in
+            for tool in Tool.allCases {
+                group.addTask {
+                    (tool, await detectOne(tool, versionArgs: Self.versionArgs[tool] ?? ["--version"]))
+                }
+            }
+            var report: [Tool: ToolStatus] = [:]
+            for await (tool, status) in group {
+                report[tool] = status
+            }
+            return report
+        }
     }
 
     func detectOne(_ tool: Tool, versionArgs: [String]) async -> ToolStatus {
