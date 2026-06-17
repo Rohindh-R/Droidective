@@ -41,7 +41,10 @@ spawn adb/scrcpy/emulator/brew).
   ffmpeg/emulator via SDK paths → Homebrew → `zsh -lc` fallback, cached.
   `AdbClient` (structured `AdbResult`, never throws on non-zero exit, only on
   `.adbNotFound`). `CommandLog` (actor; records only inside
-  `CommandLog.$isUserInitiated.withValue(true)` — background polling stays out).
+  `CommandLog.$isUserInitiated.withValue(true)` — background polling stays out —
+  and tags each entry with `$currentFeatureID`, set via
+  `CommandLog.userInitiated(feature:)`, so the command bar's Recent tab can
+  filter by feature).
 - `Devices/`: `DeviceMonitor` (actor, 2s poll, `AsyncStream<[Device]>`),
   `DeviceListParser`, `DeviceProps` (getprop), `DeviceOverview` (RAM/storage/
   battery/CPU/app counts), `DeviceDetails` (picker enrichment).
@@ -52,7 +55,9 @@ spawn adb/scrcpy/emulator/brew).
 - `Services/`: one per domain — TextInput, AppControl, AppInspection (perms/
   info/meminfo/sandbox), AppsExplorer, FileExplorer, Overrides, ScreenCapture,
   ScreenRecorder, Crash, BugReport, Connection (wireless), CustomCommand,
-  ToolDetection, AdbKeyboardInstaller, Emulator, Performance (CPU/RAM/FPS).
+  ToolDetection, AdbKeyboardInstaller, Emulator, AppIcon, Performance
+  (per-core CPU/RAM/FPS/per-process), NetworkSpeed (`/proc/net/dev` throughput).
+  `ScreenTools` holds the pure `ScrcpyOptions`/`ScreenRecordOptions` arg builders.
 - `Persistence/`: `JSONStore<T>` (actor, atomic write, sets aside corrupt
   files as `.corrupt`), `Stores` (Bundles, DeepLinks, CustomCommands,
   LayoutState, Presets, OverridesMap, Prefs) in
@@ -92,6 +97,16 @@ for existing users via a `knownIds` migration.
   otherwise the whole VStack centers and the toolbar floats mid-window.
 - **`HSplitView` ignores SwiftUI safe-area insets** (it's NSSplitView-backed) —
   content renders under the device bar. Use a plain HStack split.
+- **Command bar Recent tab filters CommandLog by featureID.** A view-feature
+  that runs adb directly (logcat, device-info, file-explorer…) must wrap its
+  user-initiated calls in `CommandLog.userInitiated(feature: <id>)` or its Recent
+  tab stays empty. Keep background polling OUT (don't wrap it). Every feature's
+  how-it-works note now renders inline beneath its content (the old ⓘ popover is
+  gone), and `FeatureRegistry.commands(for:)` powers the Commands tab.
+- **⌘=/⌘- font zoom is a `scaleEffect` on RootView, not dynamic type.** macOS
+  ignores SwiftUI `dynamicTypeSize` for rendering, so the content is laid out at
+  `size/scale` and scaled up. It's bypassed entirely at 1.0× because the
+  transform breaks `.help` tooltips (and `chartXSelection`/hover) underneath it.
 - Every pull asks for a save location (`askSaveLocation`/`askSaveFolder`);
   defaults to `~/Downloads/Droidective`.
 - UI automation for verification: prefer AX element refs over coordinate

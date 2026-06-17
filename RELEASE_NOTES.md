@@ -1,3 +1,38 @@
+## Droidective v2.0.0
+
+A round of new tools and workflow upgrades on top of v1. Now 39 features; ADBKit
+has 146 unit tests.
+
+### New features
+
+- **Performance Monitor** — per-core CPU, system + per-process RAM, app FPS/jank,
+  and network throughput, charted live with dynamic axes and a hover crosshair.
+  Record a session and export it to JSON + CSV.
+- **Network Speed** — a dedicated download/upload monitor (device-wide and
+  per-interface) with session totals, recording, and export.
+- **Home screen + welcome tour** — a getting-started landing page and a
+  first-launch walkthrough (replayable anytime).
+- **Per-feature command bar** — Recent runs (the exact adb commands + output),
+  the Commands a feature uses (copyable), and an embedded terminal, beneath every
+  feature.
+
+### Improvements
+
+- **Mirror Screen (scrcpy)** options — max size, bit-rate, FPS, record-to-file,
+  view-only, always-on-top, fullscreen, keep-awake, turn-screen-off.
+- **Screen Record** options — resolution, bit-rate, time limit, rotate, timestamp
+  overlay. **Screenshot** — capture delay and copy-to-clipboard.
+- **Sidebar** — VS Code-style flat list, drag-to-reorder (when ungrouped),
+  `⌘1`–`⌘9` quick-select, pinned items, category-grouping toggle.
+- **Setup Doctor** verifies the toolchain (adb / scrcpy / emulator / ffmpeg /
+  Homebrew). App icons in the Apps list. `⌘=`/`⌘-` font zoom. The device + bundle
+  pickers lock while a recording is in flight.
+
+### Notes
+
+The "Frequent" sidebar section was removed. Each feature's how-it-works note now
+shows inline beneath the feature rather than in a toolbar popover.
+
 ## Droidective v1.0.0
 
 The first public release of **Droidective** — a native macOS companion for

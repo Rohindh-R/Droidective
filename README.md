@@ -12,18 +12,21 @@ needs a new UI layer.
 
 ## Features
 
-A searchable palette (`⌘K`) of 37 adb actions, organised by category. Enable
+A searchable palette (`⌘K`) of 39 adb actions, organised by category. Enable
 or hide any of them from the in-app catalog.
 
 - **Input & clipboard** — send text (Unicode via ADBKeyboard, auto-offered),
   copy the device's Wi-Fi IP.
 - **Connection** — reverse ports, wireless ADB wizard (tcpip + Android 11
   pairing), disconnect, run-on-all fan-out, **emulator manager** (list / launch
-  / cold-boot / wipe / stop your Android Studio AVDs).
+  / cold-boot / wipe / stop your Android Studio AVDs), and a live **network
+  speed** monitor (download/upload over time, per-interface, recorded + exported).
 - **React Native** — dev menu, reload JS, saved deep links per app, simulate
   process death, set dev-server host.
-- **Screen & capture** — scrcpy mirroring, screenshots with in-app preview and
-  drag-out, screen recording with optional GIF, demo mode.
+- **Screen & capture** — scrcpy mirroring with common options (max size,
+  bit-rate, FPS, record-to-file, view-only, turn screen off…), screenshots with
+  a capture delay, auto-copy, in-app preview and drag-out, screen recording with
+  resolution / bit-rate / time-limit / rotate options and optional GIF, demo mode.
 - **Device state** — searchable device info (RAM, storage, battery health &
   cycle count, CPU, app counts, every getprop), **file explorer** (browse,
   copy/cut/paste, delete, new folder, push from Mac, pull), fake battery, dark
@@ -35,13 +38,18 @@ or hide any of them from the in-app catalog.
   activity, foreground bundle id, live memory, run-as sandbox browser, monkey.
 - **Logs & diagnostics** — live logcat (level/app/tag/text filters,
   follow-to-bottom, export), crash catcher with Slack/Jira formatting, one-click
-  bug-report zip.
+  bug-report zip, and a **performance monitor** (per-core CPU, RAM, FPS, network,
+  and per-process usage charted live, recorded, and exported to JSON/CSV).
 - **Tool UX** — custom adb macros with `{bundleId}`/`{serial}` placeholders,
-  feature catalog with favorites, per-feature + global hotkeys, menu-bar quick
+  feature catalog with pinned items, per-feature + global hotkeys, menu-bar quick
   actions.
 
-Every feature has an ⓘ "how it works" note in its toolbar. Files pulled from the
-device always ask where to save (default `~/Downloads/Droidective`).
+Every feature has a how-it-works description and a command bar beneath it with
+**Recent** runs (the exact adb commands + output), the **Commands** it uses (copyable),
+and an embedded **Terminal**. A **Home** screen and first-launch tour explain the
+basics; the sidebar adds drag-to-reorder, `⌘1`–`⌘9` quick-select, and `⌘=`/`⌘-`
+font zoom. Files pulled from the device always ask where to save (default
+`~/Downloads/Droidective`).
 
 ## Requirements
 
@@ -89,11 +97,13 @@ Then open it normally. Building from source avoids the quarantine entirely.
 ADBKit/   Swift package — all logic, zero UI dependencies (swift test)
   Exec/         adb process execution, tool location, scoped command log
   Devices/      discovery (2s polling), getprop, hardware/usage overview
-  Features/     declarative 37-feature registry + runners + how-to notes
+  Features/     declarative 39-feature registry + runners + how-to notes
   Services/     logcat streaming, overrides, file/apps explorers, capture,
-                screen record, crash, bug report, wireless, emulators…
+                screen record, crash, bug report, wireless, emulators,
+                performance + network monitors, scrcpy/screenrecord options…
   Persistence/  JSON stores in ~/Library/Application Support/Droidective
 App/      SwiftUI macOS app — command palette, device bar, feature views,
+          Home + tour, per-feature command bar with an embedded terminal,
           settings, menu-bar extra, ⌘K search window
 ```
 

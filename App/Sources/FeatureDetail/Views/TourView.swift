@@ -24,7 +24,7 @@ struct TourView: View {
              body: "Press the shortcut from anywhere to search every feature and jump straight to one.",
              shortcut: "⌘K"),
         Step(icon: "sidebar.left", title: "Your feature sidebar",
-             body: "Features are grouped by category on the left. Right-click any one to pin, enable, or disable it. The shortcut hides the sidebar.",
+             body: "Features are grouped by category — toggle grouping off to drag them into your own order. Right-click any one to pin, enable, or disable it. With the search field focused, hold ⌘ to jump to a row with ⌘1–⌘9. The shortcut hides the sidebar.",
              shortcut: "⌘B"),
         Step(icon: "iphone.badge.play", title: "The device bar",
              body: "The bar up top shows the connected device and selected app bundle. It stays put as you move between features.",
@@ -32,8 +32,11 @@ struct TourView: View {
         Step(icon: "chevron.up.square", title: "Commands, Recent & Terminal",
              body: "Every feature has a bottom bar with the exact adb commands it runs, your recent runs and their output, and a real embedded terminal. The shortcut minimizes it.",
              shortcut: "⌘J"),
+        Step(icon: "chart.line.uptrend.xyaxis", title: "Monitor performance",
+             body: "Performance Monitor charts per-core CPU, RAM, FPS, and per-process usage live; Network Speed tracks download/upload. Record a session and export it to JSON or CSV.",
+             shortcut: nil),
         Step(icon: "checkmark.seal", title: "You're all set",
-             body: "Open the Feature Catalog to switch on more tools, and Settings for theme and the setup Doctor. Revisit this tour anytime from Home.",
+             body: "Open the Feature Catalog to switch on more tools, and Settings for theme and the setup Doctor. ⌘= / ⌘- zoom the whole UI. Revisit this tour anytime from Home.",
              shortcut: "⌘,"),
     ]
 
