@@ -45,26 +45,27 @@ spawn adb/scrcpy/emulator/brew).
 - `Devices/`: `DeviceMonitor` (actor, 2s poll, `AsyncStream<[Device]>`),
   `DeviceListParser`, `DeviceProps` (getprop), `DeviceOverview` (RAM/storage/
   battery/CPU/app counts), `DeviceDetails` (picker enrichment).
-- `Features/`: `FeatureRegistry` (37 features, declarative), `FeatureModel`,
+- `Features/`: `FeatureRegistry` (39 features, declarative), `FeatureModel`,
   `FeatureEngine` (runner dispatch +
   `implementedIDs` + every sub-service), `FeatureNotes` (the ⓘ how-it-works
   text — every feature must have one; a test enforces it).
 - `Services/`: one per domain — TextInput, AppControl, AppInspection (perms/
   info/meminfo/sandbox), AppsExplorer, FileExplorer, Overrides, ScreenCapture,
   ScreenRecorder, Crash, BugReport, Connection (wireless), CustomCommand,
-  ToolDetection, AdbKeyboardInstaller, Emulator.
+  ToolDetection, AdbKeyboardInstaller, Emulator, Performance (CPU/RAM/FPS).
 - `Persistence/`: `JSONStore<T>` (actor, atomic write, sets aside corrupt
   files as `.corrupt`), `Stores` (Bundles, DeepLinks, CustomCommands,
   LayoutState, Presets, OverridesMap, Prefs) in
   `~/Library/Application Support/Droidective/`.
 
-## The 37 features
+## The 39 features
 
-13 view-features have bespoke SwiftUI panels (file-explorer, apps, emulators,
+15 view-features have bespoke SwiftUI panels (file-explorer, apps, emulators,
 device-info, logcat, crash-catcher, app-management, permissions, app-info,
-meminfo, sandbox-browser, deep-link, wireless-adb, screen-record + the
-custom-commands/catalog system panels). The rest are generic instant-action /
-form-action / toggle-action driven by the registry. Default-enabled set is 14;
+meminfo, sandbox-browser, deep-link, wireless-adb, screen-record, performance,
+network-speed + the custom-commands/catalog system panels). The rest are generic
+instant-action /
+form-action / toggle-action driven by the registry. Default-enabled set is 16;
 `LayoutState.adoptNewDefaults()` auto-enables newly-shipped default features
 for existing users via a `knownIds` migration.
 
