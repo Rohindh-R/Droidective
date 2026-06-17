@@ -49,7 +49,7 @@ jobs:
       - name: Extract notes for this release
         run: awk '/^## /{c++} c==1{print} c==2{exit}' RELEASE_NOTES.md > release-body.md
       - name: Publish release with build
-        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191  # v2.0.8
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda  # v3.0.0
         with:
           files: DerivedData/Build/Products/Release/Droidective-*.dmg
           body_path: release-body.md
