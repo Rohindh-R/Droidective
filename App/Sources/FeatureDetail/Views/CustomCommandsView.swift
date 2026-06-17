@@ -143,7 +143,7 @@ struct CustomCommandsView: View {
         let serial = state.targetSerials.first ?? ""
         let bundleId = state.selectedBundle?.packageId
         Task {
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated(feature: "custom-commands") {
                 let result = await state.env.engine.customCommands.run(
                     command: command, bundleId: bundleId, serial: serial
                 )

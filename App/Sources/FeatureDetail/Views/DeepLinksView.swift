@@ -156,7 +156,7 @@ struct DeepLinksView: View {
             return
         }
         Task {
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated(feature: "deep-link") {
                 for serial in targets {
                     let result = (try? await state.env.engine.appControl.launchDeepLink(serial: serial, url: link.url))
                         ?? FeatureResult(ok: false, message: "adb not found")

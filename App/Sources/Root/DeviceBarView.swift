@@ -10,7 +10,19 @@ struct DeviceBarView: View {
 
     var body: some View {
         @Bindable var state = state
-        Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
+        HStack(spacing: 10) {
+            Button {
+                state.toggleSidebar()
+            } label: {
+                Image(systemName: "sidebar.left")
+                    .font(.title3)
+                    .frame(width: 30, height: 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Show or hide the sidebar (⌘B)")
+
+            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
             GridRow {
                 Image(systemName: "iphone")
                     .foregroundStyle(.secondary)
@@ -39,6 +51,7 @@ struct DeviceBarView: View {
                     Toggle("Run on all", isOn: $state.runOnAll)
                         .toggleStyle(.switch)
                         .controlSize(.mini)
+                        .disabled(state.recordingActive)
                         .onChange(of: state.runOnAll) { state.persistSelection() }
 
                     Button {
@@ -71,8 +84,9 @@ struct DeviceBarView: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity)
-        .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity)
+            .fixedSize(horizontal: false, vertical: true)
+        }
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
         .background(.ultraThinMaterial)
@@ -102,7 +116,8 @@ struct DeviceBarView: View {
             }
             .labelsHidden()
             .controlSize(.small)
-            .disabled(state.runOnAll)
+            .disabled(state.runOnAll || state.recordingActive)
+            .help(state.recordingActive ? "Stop the recording to change the device" : "")
             .onChange(of: state.selectedSerial) { state.persistSelection() }
         }
     }
@@ -113,7 +128,10 @@ struct DeviceBarView: View {
     private var bundleRowVisible: Bool {
         guard let id = state.selectedFeatureID,
               let feature = FeatureRegistry.byID[id] else { return false }
-        return feature.needsBundle || feature.id == "custom-commands" || feature.id == "logcat"
+        return feature.needsBundle
+            || feature.id == "custom-commands"
+            || feature.id == "logcat"
+            || feature.id == "performance"
     }
 
     /// One menu does everything: pick (auto-selects), add from the device's
@@ -156,6 +174,8 @@ struct DeviceBarView: View {
                 .lineLimit(1)
         }
         .controlSize(.small)
+        .disabled(state.recordingActive)
+        .help(state.recordingActive ? "Stop the recording to change the app bundle" : "")
     }
 
 }

@@ -8,8 +8,8 @@ struct SettingsView: View {
         TabView {
             GeneralSettingsView()
                 .tabItem { Label("General", systemImage: "gear") }
-            ToolsSettingsView()
-                .tabItem { Label("Tools", systemImage: "wrench.and.screwdriver") }
+            DoctorSettingsView()
+                .tabItem { Label("Doctor", systemImage: "stethoscope") }
             HotkeysSettingsView()
                 .tabItem { Label("Hotkeys", systemImage: "keyboard") }
             DataSettingsView()
@@ -32,7 +32,7 @@ func applyStoredTheme() {
 
 struct GeneralSettingsView: View {
     @AppStorage("theme") private var theme = "auto"
-    @AppStorage("showFrequent") private var showFrequent = true
+    @AppStorage("groupSidebar") private var groupSidebar = true
     @AppStorage("restoreLastFeature") private var restoreLastFeature = true
 
     var body: some View {
@@ -48,8 +48,8 @@ struct GeneralSettingsView: View {
             }
 
             Section("Sidebar") {
-                Toggle("Show Frequent section", isOn: $showFrequent)
-                Text("Your most-run features float to the top of the list.")
+                Toggle("Group features by category", isOn: $groupSidebar)
+                Text("Turn off to drag features into your own order.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -62,46 +62,158 @@ struct GeneralSettingsView: View {
     }
 }
 
-struct ToolsSettingsView: View {
+/// Setup Doctor: verifies the external toolchain (adb / scrcpy / emulator /
+/// ffmpeg / Homebrew), shows each tool's version and path, and offers a
+/// Homebrew install for the brew-installable ones.
+struct DoctorSettingsView: View {
     @Environment(AppState.self) private var state
+    @State private var report: [Tool: ToolStatus] = [:]
+    @State private var detecting = false
+
+    private struct Check {
+        let tool: Tool
+        let name: String
+        let purpose: String
+        /// false for tools we can't `brew install` (emulator ships with the
+        /// SDK; brew installs itself).
+        let brewInstallable: Bool
+    }
+
+    private static let checks: [Check] = [
+        Check(tool: .adb, name: "adb", purpose: "Required — powers every device action", brewInstallable: true),
+        Check(tool: .scrcpy, name: "scrcpy", purpose: "Mirror Screen", brewInstallable: true),
+        Check(tool: .emulator, name: "emulator", purpose: "Launch & manage Android emulators", brewInstallable: false),
+        Check(tool: .ffmpeg, name: "ffmpeg", purpose: "GIF export in Screen Record", brewInstallable: true),
+        Check(tool: .brew, name: "Homebrew", purpose: "Installs the tools above", brewInstallable: false),
+    ]
+
+    /// Missing tools that actually block features (Homebrew alone isn't one).
+    private var blockingMissing: [Tool] {
+        Self.checks
+            .filter { $0.tool != .brew && report[$0.tool]?.installed == false }
+            .map(\.tool)
+    }
 
     var body: some View {
         Form {
-            toolRow(name: "adb", status: state.adbStatus, tool: .adb)
-            toolRow(name: "scrcpy", status: state.scrcpyStatus, tool: .scrcpy)
-            Button("Re-detect tools") {
-                Task {
-                    await state.env.locator.clearCache()
-                    await state.refreshToolStatus()
+            Section { summary }
+            Section("Toolchain") {
+                ForEach(Self.checks, id: \.tool) { check in
+                    row(check)
                 }
+            }
+            Section {
+                Button {
+                    Task { await redetect() }
+                } label: {
+                    Label(detecting ? "Checking…" : "Re-check setup", systemImage: "arrow.clockwise")
+                }
+                .disabled(detecting)
             }
         }
         .formStyle(.grouped)
-        .task { await state.refreshToolStatus() }
+        .task { await redetect() }
+        .onChange(of: state.installingTool) { _, installing in
+            // A brew install finished — refresh so the row flips to installed.
+            if installing == nil { Task { await redetect() } }
+        }
     }
 
     @ViewBuilder
-    private func toolRow(name: String, status: ToolStatus?, tool: Tool) -> some View {
-        LabeledContent(name) {
-            if let status {
-                if status.installed {
-                    VStack(alignment: .trailing) {
-                        Label(status.version ?? "installed", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                        if let path = status.path {
-                            Text(path).font(.caption).foregroundStyle(.secondary)
+    private var summary: some View {
+        if report.isEmpty {
+            Label("Checking your setup…", systemImage: "stethoscope")
+                .foregroundStyle(.secondary)
+        } else if blockingMissing.isEmpty {
+            Label("All set — every required tool is installed.", systemImage: "checkmark.seal.fill")
+                .foregroundStyle(.green)
+        } else {
+            let n = blockingMissing.count
+            Label(
+                "\(n) tool\(n == 1 ? "" : "s") missing — some features won't work until installed.",
+                systemImage: "exclamationmark.triangle.fill"
+            )
+            .foregroundStyle(.orange)
+        }
+    }
+
+    /// One compact row: a status icon + the tool name, expandable to reveal
+    /// version, path, and (when missing) the install action.
+    @ViewBuilder
+    private func row(_ check: Check) -> some View {
+        let status = report[check.tool]
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(check.purpose)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                if let status {
+                    if let version = status.version {
+                        detail("Version", version)
+                    }
+                    if let path = status.path {
+                        detail("Path", path)
+                    }
+                    if !status.installed {
+                        if check.brewInstallable {
+                            Button(state.installingTool == check.tool ? "Installing…" : "Install via Homebrew") {
+                                state.installTool(check.tool)
+                            }
+                            .disabled(state.installingTool != nil)
+                        } else {
+                            Text(status.installHint)
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
-                } else {
-                    Button(state.installingTool == tool ? "Installing…" : "Install via Homebrew") {
-                        state.installTool(tool)
-                    }
-                    .disabled(state.installingTool != nil)
                 }
-            } else {
-                ProgressView().controlSize(.small)
+            }
+            .padding(.vertical, 4)
+        } label: {
+            HStack(spacing: 8) {
+                statusIcon(status)
+                Text(check.name)
+                Spacer()
+                if let status, !status.installed {
+                    Text("not installed")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
+    }
+
+    @ViewBuilder
+    private func statusIcon(_ status: ToolStatus?) -> some View {
+        if let status {
+            Image(systemName: status.installed ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .foregroundStyle(status.installed ? Color.green : Color.orange)
+        } else {
+            ProgressView().controlSize(.small)
+        }
+    }
+
+    @ViewBuilder
+    private func detail(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(label)
+                .foregroundStyle(.secondary)
+                .frame(width: 56, alignment: .leading)
+            Text(value)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .font(.callout)
+    }
+
+    private func redetect() async {
+        detecting = true
+        await state.env.locator.clearCache()
+        report = await state.env.engine.toolDetection.detectAll()
+        // Keep the device-bar adb gate in sync with what the Doctor just found.
+        await state.refreshToolStatus()
+        detecting = false
     }
 }
 

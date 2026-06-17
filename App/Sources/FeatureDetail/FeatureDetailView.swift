@@ -7,27 +7,31 @@ struct FeatureDetailView: View {
     let featureID: String?
 
     var body: some View {
-        if featureID == "catalog" {
+        if featureID == "home" {
+            HomeView()
+        } else if featureID == "catalog" {
             CatalogView()
                 .navigationTitle("Feature Catalog")
         } else if let featureID, let feature = FeatureRegistry.byID[featureID] {
-            detail(for: feature)
+            featureBody(for: feature)
                 .navigationTitle(feature.title)
-                .toolbar {
-                    if let note = FeatureRegistry.howTo(for: feature.id) {
-                        ToolbarItem(placement: .automatic) {
-                            FeatureHelpButton(note: note)
-                        }
-                    }
-                }
-        } else if state.devices.isEmpty {
-            DeviceSetupCard()
         } else {
-            ContentUnavailableView(
-                "Select a feature",
-                systemImage: "square.grid.2x2",
-                description: Text("Pick an action from the list, or press ⌘K to search.")
-            )
+            HomeView()
+        }
+    }
+
+    /// Every feature shows its "how it works" description beneath its content,
+    /// then a command bar with the adb commands + executed output — both
+    /// pinned below the feature's own (often centered) content so they never
+    /// shift or clip it.
+    private func featureBody(for feature: FeatureDef) -> some View {
+        VStack(spacing: 0) {
+            detail(for: feature)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if let note = FeatureRegistry.howTo(for: feature.id) {
+                FeatureDescription(note: note)
+            }
+            FeatureCommandBar(feature: feature)
         }
     }
 
@@ -75,6 +79,12 @@ struct FeatureDetailView: View {
                 AppsExplorerView()
             case "emulators":
                 EmulatorsView()
+            case "performance":
+                PerformanceView()
+            case "network-speed":
+                NetworkView()
+            case "scrcpy":
+                ScrcpyView()
             default:
                 ComingSoonView(feature: feature)
             }
@@ -100,24 +110,25 @@ struct FeatureDetailView: View {
     }
 }
 
-/// ⓘ in the toolbar: what the feature does and how, in two sentences.
-struct FeatureHelpButton: View {
+/// The feature's "how it works" note, rendered as a description strip beneath
+/// the feature's content (above the command bar) — replaces the old ⓘ popover.
+struct FeatureDescription: View {
     let note: String
-    @State private var showing = false
 
     var body: some View {
-        Button {
-            showing.toggle()
-        } label: {
+        HStack(alignment: .top, spacing: 8) {
             Image(systemName: "info.circle")
-        }
-        .help("How this feature works")
-        .popover(isPresented: $showing, arrowEdge: .bottom) {
+                .foregroundStyle(.secondary)
             Text(.init(note))
                 .font(.callout)
-                .padding(14)
-                .frame(width: 340)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
         }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .top) { Divider() }
     }
 }
 

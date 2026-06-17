@@ -167,9 +167,11 @@ struct DeviceInfoView: View {
         props = nil
         overview = nil
         guard let serial = state.targetSerials.first else { return }
-        async let propsResult = (try? DeviceProps.all(client: state.env.client, serial: serial)) ?? [:]
-        async let overviewResult = DeviceOverview.fetch(client: state.env.client, serial: serial)
-        let (fetchedProps, fetchedOverview) = await (propsResult, overviewResult)
+        let (fetchedProps, fetchedOverview) = await CommandLog.userInitiated(feature: "device-info") {
+            async let propsResult = (try? DeviceProps.all(client: state.env.client, serial: serial)) ?? [:]
+            async let overviewResult = DeviceOverview.fetch(client: state.env.client, serial: serial)
+            return await (propsResult, overviewResult)
+        }
         guard !Task.isCancelled else { return }
         props = fetchedProps
         overview = fetchedOverview

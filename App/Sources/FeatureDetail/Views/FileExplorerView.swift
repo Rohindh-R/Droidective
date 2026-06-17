@@ -258,7 +258,7 @@ struct FileExplorerView: View {
         let destination = currentPath
         let explorer = state.env.engine.fileExplorer
         Task {
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated(feature: "file-explorer") {
                 for url in urls {
                     let result = await state.withOperation("Pushing \(url.lastPathComponent)…") {
                         (try? await explorer.push(serial: serial, localPath: url.path, toDir: destination))
@@ -361,7 +361,9 @@ struct FileExplorerView: View {
         .task(id: entry.id) {
             infoDetails = nil
             guard let serial = state.targetSerials.first else { return }
-            infoDetails = try? await state.env.engine.fileExplorer.info(serial: serial, path: path(for: entry))
+            infoDetails = await CommandLog.userInitiated(feature: "file-explorer") {
+                try? await state.env.engine.fileExplorer.info(serial: serial, path: path(for: entry))
+            }
         }
     }
 
@@ -379,7 +381,9 @@ struct FileExplorerView: View {
     private func load() async {
         entries = nil
         guard let serial = state.targetSerials.first else { return }
-        let result = try? await state.env.engine.fileExplorer.list(serial: serial, dir: currentPath)
+        let result = await CommandLog.userInitiated(feature: "file-explorer") {
+            try? await state.env.engine.fileExplorer.list(serial: serial, dir: currentPath)
+        }
         guard !Task.isCancelled else { return }
         entries = result ?? []
         selection = selection.intersection(Set((entries ?? []).map(\.id)))
@@ -391,7 +395,7 @@ struct FileExplorerView: View {
         let target = currentPath + "/" + name
         let explorer = state.env.engine.fileExplorer
         Task {
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated(feature: "file-explorer") {
                 let result = await state.withOperation("Creating \(name)…") {
                     (try? await explorer.makeDirectory(serial: serial, path: target))
                         ?? FeatureResult(ok: false, message: "adb not found")
@@ -408,7 +412,7 @@ struct FileExplorerView: View {
         let label = targets.count == 1 ? targets[0].name : "\(targets.count) items"
         let explorer = state.env.engine.fileExplorer
         Task {
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated(feature: "file-explorer") {
                 await state.withOperation("Deleting \(label)…") {
                     for path in paths {
                         let result = (try? await explorer.delete(serial: serial, path: path))
@@ -435,7 +439,7 @@ struct FileExplorerView: View {
         self.clipboard = nil
         let explorer = state.env.engine.fileExplorer
         Task {
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated(feature: "file-explorer") {
                 await state.withOperation("\(clipboard.isCut ? "Moving" : "Copying") \(label)…") {
                     for source in clipboard.paths {
                         let result = clipboard.isCut
@@ -471,7 +475,7 @@ struct FileExplorerView: View {
 
         let explorer = state.env.engine.fileExplorer
         Task {
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated(feature: "file-explorer") {
                 var lastDest: URL?
                 for item in destinations {
                     do {

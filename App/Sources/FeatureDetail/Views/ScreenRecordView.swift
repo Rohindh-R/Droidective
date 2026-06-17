@@ -1,51 +1,97 @@
 import ADBKit
 import SwiftUI
 
-/// Record the device screen, auto-pull on stop, optional GIF conversion.
+/// Record the device screen, auto-pull on stop, optional GIF conversion, with
+/// common screenrecord options.
 struct ScreenRecordView: View {
     @Environment(AppState.self) private var state
     @State private var recorder: ScreenRecorder?
     @State private var isRecording = false
     @State private var isStarting = false
     @State private var isSaving = false
-    @State private var makeGif = false
     @State private var startedAt: Date?
 
+    @AppStorage("recSize") private var size = ""
+    @AppStorage("recBitRate") private var bitRateMbps = 8
+    @AppStorage("recTimeLimit") private var timeLimit = 0
+    @AppStorage("recRotate") private var rotate = false
+    @AppStorage("recBugreport") private var bugreport = false
+    @AppStorage("recMakeGif") private var makeGif = false
+
+    private var recordOptions: ScreenRecordOptions {
+        let dimensions = size.split(separator: "x").compactMap { Int($0) }
+        let (width, height) = dimensions.count == 2 ? (dimensions[0], dimensions[1]) : (0, 0)
+        return ScreenRecordOptions(
+            bitRateMbps: bitRateMbps, sizeWidth: width, sizeHeight: height,
+            timeLimitSeconds: timeLimit, rotate: rotate, bugreport: bugreport
+        )
+    }
+
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "video")
-                .font(.system(size: 36))
-                .foregroundStyle(isRecording ? .red : .secondary)
-                .symbolEffect(.pulse, isActive: isRecording)
-
-            if isRecording, let startedAt {
-                Text(startedAt, style: .timer)
-                    .font(.system(.title2, design: .monospaced))
+        Form {
+            Section {
+                HStack(spacing: 10) {
+                    Image(systemName: "video")
+                        .font(.title2)
+                        .foregroundStyle(isRecording ? .red : .secondary)
+                        .symbolEffect(.pulse, isActive: isRecording)
+                    if isRecording, let startedAt {
+                        Text(startedAt, style: .timer)
+                            .font(.system(.title3, design: .monospaced))
+                    } else {
+                        Text("Ready to record").foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
             }
 
-            Toggle("Convert to GIF when done (needs ffmpeg)", isOn: $makeGif)
-                .disabled(isRecording)
-
-            Button {
-                isRecording ? stop() : start()
-            } label: {
-                Label(
-                    isSaving ? "Saving…" : (isRecording ? "Stop & Save" : "Record"),
-                    systemImage: isRecording ? "stop.fill" : "record.circle"
-                )
-                .frame(minWidth: 140)
+            Section("Options") {
+                Picker("Resolution", selection: $size) {
+                    Text("Device default").tag("")
+                    Text("1280 × 720").tag("1280x720")
+                    Text("854 × 480").tag("854x480")
+                    Text("640 × 360").tag("640x360")
+                }
+                Picker("Bit rate", selection: $bitRateMbps) {
+                    Text("4 Mbps").tag(4)
+                    Text("8 Mbps").tag(8)
+                    Text("12 Mbps").tag(12)
+                    Text("16 Mbps").tag(16)
+                    Text("20 Mbps").tag(20)
+                }
+                Picker("Time limit", selection: $timeLimit) {
+                    Text("Max (~3 min)").tag(0)
+                    Text("30s").tag(30)
+                    Text("60s").tag(60)
+                    Text("120s").tag(120)
+                }
+                Toggle("Rotate 90°", isOn: $rotate)
+                Toggle("Timestamp overlay (bug report)", isOn: $bugreport)
+                Toggle("Convert to GIF when done (needs ffmpeg)", isOn: $makeGif)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(isRecording ? .red : .accentColor)
-            .controlSize(.large)
-            .disabled(isStarting || isSaving || state.targetSerials.isEmpty)
+            .disabled(isRecording)
 
-            Text("screenrecord caps at ~3 minutes, has no audio, and stops on rotation.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            Section {
+                Button {
+                    isRecording ? stop() : start()
+                } label: {
+                    Label(
+                        isSaving ? "Saving…" : (isRecording ? "Stop & Save" : "Record"),
+                        systemImage: isRecording ? "stop.fill" : "record.circle"
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(isRecording ? .red : .accentColor)
+                .controlSize(.large)
+                .disabled(isStarting || isSaving || state.targetSerials.isEmpty)
+
+                Text("screenrecord has no audio and stops on rotation.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
+        .formStyle(.grouped)
         .onDisappear {
             if isRecording {
                 let recorder = recorder
@@ -59,9 +105,10 @@ struct ScreenRecordView: View {
         isStarting = true
         let recorder = ScreenRecorder(client: state.env.client)
         self.recorder = recorder
+        let options = recordOptions
         Task {
             do {
-                try await recorder.start(serial: serial)
+                try await recorder.start(serial: serial, options: options)
                 isRecording = true
                 startedAt = Date()
             } catch {
@@ -82,7 +129,7 @@ struct ScreenRecordView: View {
                 isSaving = false
                 return
             }
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated(feature: "screen-record") {
                 do {
                     let output = try await state.withOperation(
                         makeGif ? "Saving recording + GIF…" : "Saving recording…"

@@ -118,22 +118,26 @@ struct EmulatorsView: View {
             return
         }
         emulatorMissing = false
-        let result = await state.env.engine.emulators.listAvds(devices: state.devices)
+        let result = await CommandLog.userInitiated(feature: "emulators") {
+            await state.env.engine.emulators.listAvds(devices: state.devices)
+        }
         guard !Task.isCancelled else { return }
         avds = result
     }
 
     private func launch(_ avd: Avd, options: EmulatorService.LaunchOptions) {
         Task {
-            let result = await state.env.engine.emulators.launch(avd: avd.name, options: options)
-            state.showToast(Toast(message: result.message, ok: result.ok))
-            // The device monitor picks the emulator up once adb sees it.
+            await CommandLog.userInitiated(feature: "emulators") {
+                let result = await state.env.engine.emulators.launch(avd: avd.name, options: options)
+                state.showToast(Toast(message: result.message, ok: result.ok))
+                // The device monitor picks the emulator up once adb sees it.
+            }
         }
     }
 
     private func stop(serial: String, name: String) {
         Task {
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated(feature: "emulators") {
                 let result = (try? await state.env.engine.emulators.stop(serial: serial))
                     ?? FeatureResult(ok: false, message: "adb not found")
                 state.showToast(Toast(message: result.ok ? "Stopping \(name)…" : result.message, ok: result.ok))

@@ -12,6 +12,8 @@ struct PaletteWindowView: View {
     @State private var highlighted = 0
     @FocusState private var fieldFocused: Bool
 
+    private static let digitKeys: [KeyEquivalent] = ["1", "2", "3", "4", "5", "6", "7", "8"]
+
     private var matches: [FeatureDef] {
         let enabled = state.layout.effectiveEnabledIDs
         let all = FeatureRegistry.all.filter { $0.matches(query) }
@@ -25,25 +27,26 @@ struct PaletteWindowView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
-                    .font(.title3)
+                    .font(.title)
                     .foregroundStyle(.secondary)
                 TextField("Search features…", text: $query)
                     .textFieldStyle(.plain)
-                    .font(.title3)
+                    .font(.title)
                     .focused($fieldFocused)
                     .onSubmit { open(at: highlighted) }
                     .onKeyPress(.downArrow) { move(1); return .handled }
                     .onKeyPress(.upArrow) { move(-1); return .handled }
             }
-            .padding(14)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
 
             if !visibleMatches.isEmpty {
                 Divider()
                 VStack(spacing: 0) {
                     ForEach(Array(visibleMatches.enumerated()), id: \.element.id) { index, feature in
-                        paletteRow(feature, isHighlighted: index == highlighted)
+                        paletteRow(feature, index: index, isHighlighted: index == highlighted)
                             .onTapGesture { open(at: index) }
                     }
                 }
@@ -56,8 +59,22 @@ struct PaletteWindowView: View {
                     .padding(14)
             }
         }
+        // Natural height so the window tracks content (.windowResizability
+        // .contentSize) — it shrinks to the search row alone when nothing
+        // matches and grows with results. ignoresSafeArea lets the material
+        // fill under the hidden title bar so there's no dead strip on top.
         .frame(width: 520)
         .background(.regularMaterial)
+        .ignoresSafeArea()
+        .background {
+            // ⌘1–⌘8 jump straight to the Nth visible result.
+            ForEach(Array(Self.digitKeys.enumerated()), id: \.offset) { index, key in
+                Button("") { open(at: index) }
+                    .keyboardShortcut(key, modifiers: .command)
+                    .frame(width: 0, height: 0)
+                    .opacity(0)
+            }
+        }
         .onExitCommand { close() }
         .onAppear {
             query = ""
@@ -80,7 +97,7 @@ struct PaletteWindowView: View {
         }
     }
 
-    private func paletteRow(_ feature: FeatureDef, isHighlighted: Bool) -> some View {
+    private func paletteRow(_ feature: FeatureDef, index: Int, isHighlighted: Bool) -> some View {
         HStack(spacing: 10) {
             Image(systemName: feature.icon)
                 .frame(width: 22)
@@ -99,6 +116,9 @@ struct PaletteWindowView: View {
                 Text("disabled")
                     .font(.caption2)
                     .foregroundStyle(isHighlighted ? .white.opacity(0.75) : .secondary)
+            }
+            if index < 8 {
+                KeyHint("⌘\(index + 1)", prominent: isHighlighted)
             }
         }
         .padding(.horizontal, 10)
@@ -139,11 +159,36 @@ struct PaletteWindowView: View {
         window.level = .floating
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
+        window.styleMask.insert(.fullSizeContentView)
         window.standardWindowButton(.closeButton)?.isHidden = true
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         window.standardWindowButton(.zoomButton)?.isHidden = true
         window.isMovableByWindowBackground = true
         window.center()
         window.makeKeyAndOrderFront(nil)
+    }
+}
+
+/// A small keycap-style hint badge (e.g. ⌘K, ⌘1). `prominent` styles it for a
+/// highlighted/accent background.
+struct KeyHint: View {
+    let text: String
+    var prominent = false
+
+    init(_ text: String, prominent: Bool = false) {
+        self.text = text
+        self.prominent = prominent
+    }
+
+    var body: some View {
+        Text(text)
+            .font(.caption2.weight(.medium))
+            .foregroundStyle(prominent ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(
+                prominent ? AnyShapeStyle(.white.opacity(0.22)) : AnyShapeStyle(.quaternary),
+                in: RoundedRectangle(cornerRadius: 4)
+            )
     }
 }

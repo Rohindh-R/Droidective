@@ -9,6 +9,8 @@ struct ScreenshotView: View {
     @State private var capturing = false
     @State private var lastCapture: URL?
     @State private var lastImage: NSImage?
+    @AppStorage("screenshotDelay") private var captureDelay = 0
+    @AppStorage("screenshotAutoCopy") private var autoCopy = false
 
     var body: some View {
         VStack(spacing: 14) {
@@ -37,6 +39,19 @@ struct ScreenshotView: View {
                 )
                 .frame(maxHeight: 300)
             }
+
+            HStack(spacing: 16) {
+                Picker("Delay", selection: $captureDelay) {
+                    Text("No delay").tag(0)
+                    Text("3s").tag(3)
+                    Text("5s").tag(5)
+                    Text("10s").tag(10)
+                }
+                .pickerStyle(.menu)
+                .fixedSize()
+                Toggle("Copy to clipboard after capture", isOn: $autoCopy)
+            }
+            .disabled(capturing)
 
             HStack(spacing: 10) {
                 Button {
@@ -85,10 +100,14 @@ struct ScreenshotView: View {
     private func capture() {
         capturing = true
         Task {
-            await state.runScreenshot()
+            await state.runScreenshot(delaySeconds: captureDelay)
             if let entry = state.lastResults["screenshot"], entry.result.ok, let path = entry.result.revealPath {
                 lastCapture = URL(fileURLWithPath: path)
                 lastImage = NSImage(contentsOfFile: path)
+                if autoCopy, let image = lastImage {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.writeObjects([image])
+                }
             }
             capturing = false
         }

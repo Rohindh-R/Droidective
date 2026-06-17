@@ -31,6 +31,35 @@ struct ADTApp: App {
                 }
                 .keyboardShortcut(".", modifiers: .command)
             }
+
+            CommandGroup(after: .sidebar) {
+                Button("Toggle Sidebar") {
+                    appState.toggleSidebar()
+                }
+                .keyboardShortcut("b", modifiers: .command)
+
+                Button(appState.commandBarExpanded ? "Minimize Command Bar" : "Expand Command Bar") {
+                    appState.commandBarExpanded.toggle()
+                }
+                .keyboardShortcut("j", modifiers: .command)
+            }
+
+            CommandGroup(after: .toolbar) {
+                Button("Increase Font Size") {
+                    appState.increaseFontSize()
+                }
+                .keyboardShortcut("=", modifiers: .command)
+
+                Button("Decrease Font Size") {
+                    appState.decreaseFontSize()
+                }
+                .keyboardShortcut("-", modifiers: .command)
+
+                Button("Actual Size") {
+                    appState.resetFontSize()
+                }
+                .keyboardShortcut("0", modifiers: .command)
+            }
         }
 
         Window("Search", id: "palette") {

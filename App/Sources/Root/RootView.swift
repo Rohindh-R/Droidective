@@ -1,35 +1,118 @@
 import ADBKit
+import AppKit
 import SwiftUI
 
 struct RootView: View {
     @Environment(AppState.self) private var state
     @Environment(\.openWindow) private var openWindow
+    @AppStorage("sidebarWidth") private var sidebarWidth = 280.0
+    @AppStorage("hasSeenTour") private var hasSeenTour = false
 
     var body: some View {
         @Bindable var state = state
-        NavigationSplitView {
-            SidebarPaletteView()
-                .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 360)
-        } detail: {
-            FeatureDetailView(featureID: state.selectedFeatureID)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    VStack(spacing: 0) {
-                        DeviceBarView()
-                        if let operation = state.runningOperation {
-                            OperationProgressStrip(operation: operation)
-                        }
+        zoomedContent
+            .overlay(alignment: .bottom) {
+                ToastOverlay()
+            }
+            .sheet(isPresented: $state.presentTour) {
+                TourView()
+            }
+            .onAppear {
+                state.openMainWindow = { openWindow(id: "main") }
+                state.openPalette = { openWindow(id: "palette") }
+                applyStoredTheme()
+                if !hasSeenTour {
+                    state.presentTour = true
+                }
+            }
+    }
+
+    /// macOS ignores SwiftUI dynamic type, so ⌘=/⌘- zoom is done by scaling the
+    /// content: it's laid out at size/scale, then scaled up to fill the window,
+    /// which enlarges every font and reflows the layout. The transform breaks
+    /// `.help` tooltips, so at 1.0× (the default) the content renders untouched.
+    @ViewBuilder
+    private var zoomedContent: some View {
+        if state.fontScale == 1.0 {
+            split
+        } else {
+            GeometryReader { geo in
+                split
+                    .frame(
+                        width: geo.size.width / state.fontScale,
+                        height: geo.size.height / state.fontScale
+                    )
+                    .scaleEffect(state.fontScale, anchor: .topLeading)
+            }
+        }
+    }
+
+    /// Plain HStack split (not NavigationSplitView) for a flat, flush,
+    /// full-height VS Code-style sidebar with a single continuous divider.
+    private var split: some View {
+        HStack(spacing: 0) {
+            if state.sidebarVisible {
+                SidebarPaletteView()
+                    .frame(width: sidebarWidth)
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+                ResizeHandle(value: $sidebarWidth, range: 200...460)
+            }
+            VStack(spacing: 0) {
+                // The catalog has no device context, so its device bar is hidden.
+                if state.selectedFeatureID != "catalog" {
+                    DeviceBarView()
+                    if let operation = state.runningOperation {
+                        OperationProgressStrip(operation: operation)
                     }
                 }
+                FeatureDetailView(featureID: state.selectedFeatureID)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .overlay(alignment: .bottom) {
-            ToastOverlay()
-        }
-        .onAppear {
-            state.openMainWindow = { openWindow(id: "main") }
-            state.openPalette = { openWindow(id: "palette") }
-            applyStoredTheme()
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// A draggable divider that resizes an adjacent pane. `value` is the pane's
+/// size (bound to a persisted @AppStorage). `inverted` is for panes that grow
+/// when dragging toward the start (e.g. a bottom bar dragged upward).
+struct ResizeHandle: View {
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    var axis: Axis = .horizontal
+    var inverted = false
+    @State private var startValue: Double?
+
+    var body: some View {
+        Divider()
+            .overlay {
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(
+                        width: axis == .horizontal ? 8 : nil,
+                        height: axis == .vertical ? 8 : nil
+                    )
+                    .contentShape(Rectangle())
+                    .onHover { inside in
+                        if inside {
+                            (axis == .horizontal ? NSCursor.resizeLeftRight : NSCursor.resizeUpDown).set()
+                        } else {
+                            NSCursor.arrow.set()
+                        }
+                    }
+                    .gesture(
+                        DragGesture()
+                            .onChanged { gesture in
+                                let base = startValue ?? value
+                                if startValue == nil { startValue = value }
+                                let delta = axis == .horizontal ? gesture.translation.width : gesture.translation.height
+                                let next = base + (inverted ? -delta : delta)
+                                value = min(max(next, range.lowerBound), range.upperBound)
+                            }
+                            .onEnded { _ in startValue = nil }
+                    )
+            }
     }
 }
 

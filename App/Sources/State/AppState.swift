@@ -2,6 +2,7 @@ import ADBKit
 import AppKit
 import Foundation
 import Observation
+import SwiftUI
 
 struct Toast: Identifiable, Equatable {
     let id = UUID()
@@ -24,6 +25,46 @@ final class AppState {
     var layout = LayoutState()
     var toasts: [Toast] = []
     var isRunningFeature = false
+
+    // Layout toggles: ⌘B (sidebar) and ⌘J (minimize/maximize the command bar).
+    var sidebarVisible = true
+    var commandBarExpanded = false
+    var commandBarTab: CommandBarTab = .commands
+    /// Drives the first-launch / replayable welcome tour sheet.
+    var presentTour = false
+    /// True while a performance/network recording is in flight — locks the
+    /// device and bundle pickers so the captured series stays consistent.
+    var recordingActive = false
+    /// The command bar's Terminal tab — a real PTY-backed shell, shared
+    /// app-wide so it persists across features.
+    let terminalSession = TerminalSession()
+
+    func toggleSidebar() {
+        withAnimation(.easeInOut(duration: 0.18)) { sidebarVisible.toggle() }
+    }
+
+    // MARK: - Font scaling (⌘= / ⌘- / ⌘0)
+
+    /// UI zoom factors ⌘=/⌘- step through (1.0 = default). macOS doesn't honor
+    /// SwiftUI dynamic type, so the window content is scaled instead — which
+    /// grows every font, icon, and control together and reflows the layout.
+    private static let scales: [Double] = [0.8, 0.9, 1.0, 1.15, 1.3, 1.5, 1.75, 2.0]
+    private static let defaultScaleIndex = 2
+
+    /// Index into `scales`; persisted so the chosen size survives relaunch.
+    var fontScaleStep = AppState.defaultScaleIndex
+
+    /// Applied to the window content via a scaleEffect zoom.
+    var fontScale: Double { Self.scales[fontScaleStep] }
+
+    func increaseFontSize() { setFontScale(fontScaleStep + 1) }
+    func decreaseFontSize() { setFontScale(fontScaleStep - 1) }
+    func resetFontSize() { setFontScale(Self.defaultScaleIndex) }
+
+    private func setFontScale(_ step: Int) {
+        fontScaleStep = min(max(step, 0), Self.scales.count - 1)
+        UserDefaults.standard.set(fontScaleStep, forKey: "fontScaleStep")
+    }
 
     var bundles: [AppBundle] = []
     var selectedBundleId: String?
@@ -115,8 +156,6 @@ final class AppState {
     }
     /// Last result per feature id, shown inline in the detail pane.
     var lastResults: [String: (result: FeatureResult, at: Date)] = [:]
-    /// featureId → run count (persisted; drives the Frequent section).
-    var runCounts: [String: Int] = [:]
     /// Per-serial enrichment for the device picker (version, battery).
     var deviceDetails: [String: DeviceDetails] = [:]
 
@@ -136,6 +175,8 @@ final class AppState {
 
     init(env: AppEnvironment) {
         self.env = env
+        let savedStep = UserDefaults.standard.object(forKey: "fontScaleStep") as? Int ?? Self.defaultScaleIndex
+        fontScaleStep = min(max(savedStep, 0), Self.scales.count - 1)
         Task { await bootstrap() }
     }
 
@@ -144,7 +185,6 @@ final class AppState {
         selectedSerial = prefs.selectedSerial
         runOnAll = prefs.runOnAll
         selectedBundleId = prefs.selectedBundleId
-        runCounts = prefs.runCounts ?? [:]
         let restoreLast = UserDefaults.standard.object(forKey: "restoreLastFeature") as? Bool ?? true
         if restoreLast, let last = prefs.lastFeatureId, FeatureRegistry.byID[last] != nil {
             selectedFeatureID = last
@@ -229,8 +269,9 @@ final class AppState {
 
     func resetOverride(_ kind: OverrideKind) {
         guard let serial = selectedSerial else { return }
+        let featureID = FeatureRegistry.all.first { $0.overrideKind == kind }?.id
         Task {
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated(feature: featureID) {
                 do {
                     try await env.engine.overrides.reset(serial: serial, kind: kind)
                     showToast(Toast(message: "\(kind.label) reset", ok: true))
@@ -245,7 +286,7 @@ final class AppState {
     func resetAllOverrides() {
         guard let serial = selectedSerial else { return }
         Task {
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated {
                 do {
                     try await env.engine.overrides.resetAll(serial: serial)
                     showToast(Toast(message: "All overrides reset", ok: true))
@@ -287,6 +328,20 @@ final class AppState {
         enabledFeatures.filter { $0.matches(searchText) }
     }
 
+    /// Enabled, non-pinned features in the user's saved sidebar order (registry
+    /// order for any not yet placed). Drives the flat (ungrouped) sidebar and
+    /// its drag-to-reorder.
+    var orderedEnabledFeatures: [FeatureDef] {
+        let base = enabledFeatures.filter { !layout.favorites.contains($0.id) }
+        let order = layout.sidebarOrder ?? []
+        let rank = Dictionary(order.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+        let registryIndex = Dictionary(uniqueKeysWithValues: base.enumerated().map { ($1.id, $0) })
+        return base.sorted {
+            (rank[$0.id] ?? Int.max, registryIndex[$0.id] ?? 0)
+                < (rank[$1.id] ?? Int.max, registryIndex[$1.id] ?? 0)
+        }
+    }
+
     /// Disabled features matching the current search (shown in their own
     /// sidebar section, runnable without enabling).
     var disabledMatches: [FeatureDef] {
@@ -304,25 +359,9 @@ final class AppState {
 
     // MARK: - Feature running
 
-    /// Top non-favorite features by run count, for the Frequent section.
-    var frequentFeatures: [FeatureDef] {
-        let enabled = layout.effectiveEnabledIDs
-        return runCounts
-            .filter { $0.value >= 2 && enabled.contains($0.key) && !layout.favorites.contains($0.key) }
-            .sorted { $0.value > $1.value }
-            .prefix(5)
-            .compactMap { FeatureRegistry.byID[$0.key] }
-    }
-
     func run(feature: FeatureDef, params: [String: FeatureValue]) async {
         isRunningFeature = true
         defer { isRunningFeature = false }
-
-        runCounts[feature.id, default: 0] += 1
-        let counts = runCounts
-        Task {
-            try? await env.stores.prefs.update { $0.runCounts = counts }
-        }
 
         // Screenshot always asks where to save, whichever entry point ran it
         // (sidebar ⏎, hotkey, menu bar, or the Screenshot view).
@@ -345,7 +384,7 @@ final class AppState {
         }
 
         let engine = env.engine
-        await CommandLog.$isUserInitiated.withValue(true) {
+        await CommandLog.userInitiated(feature: feature.id) {
             if engine.scope(for: feature.id) == .global || !feature.needsDevice {
                 let result = await engine.run(featureID: feature.id, serial: "", params: params)
                 self.lastResults[feature.id] = (result, Date())
@@ -416,6 +455,14 @@ final class AppState {
         showToast(Toast(message: "Default feature set restored", ok: true))
     }
 
+    /// Reorder the flat sidebar (only meaningful when grouping is off).
+    func moveFeature(from source: IndexSet, to destination: Int) {
+        var ordered = orderedEnabledFeatures.map(\.id)
+        ordered.move(fromOffsets: source, toOffset: destination)
+        layout.sidebarOrder = ordered
+        persistLayout()
+    }
+
     func toggleFavorite(_ featureID: String) {
         if let index = layout.favorites.firstIndex(of: featureID) {
             layout.favorites.remove(at: index)
@@ -477,9 +524,30 @@ final class AppState {
         }
     }
 
+    /// Launch scrcpy with the chosen options. When `recordToFile`, asks where
+    /// to save the recording first.
+    func launchMirror(options: ScrcpyOptions, recordToFile: Bool) {
+        guard let serial = targetSerials.first else {
+            showToast(Toast(message: "No device connected.", ok: false))
+            return
+        }
+        var recordingPath: String?
+        if recordToFile {
+            guard let url = askSaveLocation(suggestedName: "scrcpy_\(ScreenCaptureService.stamp()).mp4") else { return }
+            recordingPath = url.path
+        }
+        Task {
+            await CommandLog.userInitiated(feature: "scrcpy") {
+                let result = await env.engine.launchScrcpy(serial: serial, options: options, recordingPath: recordingPath)
+                showToast(Toast(message: result.message, ok: result.ok))
+            }
+        }
+    }
+
     /// Capture → ask for a location → save. Records the result so the
-    /// Screenshot view's preview updates regardless of entry point.
-    func runScreenshot() async {
+    /// Screenshot view's preview updates regardless of entry point. An optional
+    /// delay gives you time to arrange the device screen first.
+    func runScreenshot(delaySeconds: Int = 0) async {
         guard let serial = targetSerials.first else {
             showToast(Toast(message: "No device connected.", ok: false))
             return
@@ -487,7 +555,11 @@ final class AppState {
         guard let dest = askSaveLocation(suggestedName: "screenshot_\(ScreenCaptureService.stamp()).png") else {
             return
         }
-        await CommandLog.$isUserInitiated.withValue(true) {
+        if delaySeconds > 0 {
+            showToast(Toast(message: "Capturing in \(delaySeconds)s…", ok: true))
+            try? await Task.sleep(for: .seconds(delaySeconds))
+        }
+        await CommandLog.userInitiated(feature: "screenshot") {
             do {
                 let file = try await withOperation("Capturing screenshot…") {
                     try await env.engine.captureScreenshot(serial: serial, to: dest)
@@ -512,7 +584,7 @@ final class AppState {
             return
         }
         Task {
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated {
                 guard let packageId = try? await env.engine.inspection.getForegroundPackage(serial: serial) else {
                     showToast(Toast(message: "Couldn't read the foreground app — is the screen on?", ok: false))
                     return
@@ -533,7 +605,7 @@ final class AppState {
         guard let serial = targetSerials.first else { return }
         showToast(Toast(message: "Downloading ADBKeyboard…", ok: true))
         Task {
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated(feature: "send-text") {
                 let result = await env.engine.adbKeyboard.install(serial: serial)
                 showToast(Toast(message: result.message, ok: result.ok))
             }

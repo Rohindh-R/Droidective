@@ -63,8 +63,9 @@ struct AppInfoView: View {
         info = nil
         guard let serial = state.targetSerials.first,
               let packageId = state.selectedBundle?.packageId else { return }
-        let result = (try? await state.env.engine.inspection.getAppInfo(serial: serial, packageId: packageId))
-            ?? .notInstalled
+        let result = await CommandLog.userInitiated(feature: "app-info") {
+            (try? await state.env.engine.inspection.getAppInfo(serial: serial, packageId: packageId)) ?? .notInstalled
+        }
         guard !Task.isCancelled else { return }
         info = result
     }
@@ -75,7 +76,7 @@ struct AppInfoView: View {
         guard let dest = state.askSaveLocation(suggestedName: "\(packageId).apk") else { return }
         pulling = true
         Task {
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated(feature: "app-info") {
                 do {
                     let saved = try await state.withFileProgress(
                         "Pulling APK…", destination: dest, expectedBytes: info?.apkSizeBytes

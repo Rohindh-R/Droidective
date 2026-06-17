@@ -319,6 +319,9 @@ struct LogcatView: View {
             streamingPid = nil
         }
 
+        // Record the launched logcat command once per filter/device change so
+        // it shows in the feature's Recent tab; the pid polling stays out.
+        var recordedCommand = false
         while !Task.isCancelled {
             // An app filter means *that app's* logs: if it isn't running,
             // wait for it instead of silently streaming everything.
@@ -337,6 +340,16 @@ struct LogcatView: View {
 
             let filters = LogcatFilters(level: level == "All" ? nil : level, pid: pid)
             guard let stream = try? await streamer.start(serial: serial, filters: filters) else { return }
+
+            if !recordedCommand {
+                recordedCommand = true
+                let command = "adb " + LogcatLineParser.buildArgs(serial: serial, filters: filters).joined(separator: " ")
+                await CommandLog.userInitiated(feature: "logcat") {
+                    await state.env.commandLog.record(
+                        command: command, exitCode: 0, duration: .zero, stdout: "", stderr: ""
+                    )
+                }
+            }
 
             // `logcat --pid` goes silent forever if the app dies or relaunches
             // with a new pid — watch for that and stop the streamer, which

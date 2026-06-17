@@ -74,7 +74,7 @@ struct CrashView: View {
         guard let serial = state.targetSerials.first else { return }
         loading = true
         defer { loading = false }
-        let result = await CommandLog.$isUserInitiated.withValue(true) {
+        let result = await CommandLog.userInitiated(feature: "crash-catcher") {
             try? await state.env.engine.crash.lastCrash(serial: serial, format: format)
         }
         if !Task.isCancelled {

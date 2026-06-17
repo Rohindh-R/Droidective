@@ -62,7 +62,9 @@ struct PermissionsView: View {
         permissions = nil
         guard let serial = state.targetSerials.first,
               let packageId = state.selectedBundle?.packageId else { return }
-        let result = (try? await state.env.engine.inspection.listPermissions(serial: serial, packageId: packageId)) ?? []
+        let result = await CommandLog.userInitiated(feature: "permissions") {
+            (try? await state.env.engine.inspection.listPermissions(serial: serial, packageId: packageId)) ?? []
+        }
         guard !Task.isCancelled else { return }
         permissions = result
     }
@@ -72,7 +74,7 @@ struct PermissionsView: View {
               let packageId = state.selectedBundle?.packageId else { return }
         mutating = entry.name
         Task {
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated(feature: "permissions") {
                 let result = (try? await state.env.engine.inspection.setPermission(
                     serial: serial, packageId: packageId, permission: entry.name, grant: granted
                 )) ?? FeatureResult(ok: false, message: "adb not found")

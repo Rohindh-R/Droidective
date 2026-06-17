@@ -123,9 +123,11 @@ struct SandboxBrowserView: View {
         debuggable = true
         guard let serial = state.targetSerials.first,
               let packageId = state.selectedBundle?.packageId else { return }
-        let result = try? await state.env.engine.inspection.sandboxList(
-            serial: serial, packageId: packageId, dir: currentPath
-        )
+        let result = await CommandLog.userInitiated(feature: "sandbox-browser") {
+            try? await state.env.engine.inspection.sandboxList(
+                serial: serial, packageId: packageId, dir: currentPath
+            )
+        }
         guard !Task.isCancelled else { return }
         guard let result else {
             entries = []
@@ -141,7 +143,7 @@ struct SandboxBrowserView: View {
         guard let dest = state.askSaveLocation(suggestedName: entry.name) else { return }
         let filePath = currentPath + "/" + entry.name
         Task {
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated(feature: "sandbox-browser") {
                 do {
                     let saved = try await state.withOperation("Pulling \(entry.name)…") {
                         try await state.env.engine.inspection.sandboxPull(

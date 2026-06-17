@@ -1,4 +1,5 @@
 import ADBKit
+import AppKit
 import SwiftUI
 
 /// Every installed app (user + system) with search across name, version,
@@ -8,7 +9,7 @@ struct AppsExplorerView: View {
     @Environment(AppState.self) private var state
     @State private var apps: [AppListing]?
     @State private var search = ""
-    @State private var scope = Scope.all
+    @State private var scope = Scope.user
     @State private var selectedPackage: String?
 
     enum Scope: String, CaseIterable {
@@ -16,6 +17,8 @@ struct AppsExplorerView: View {
         case user = "User"
         case system = "System"
     }
+
+    private var serial: String { state.targetSerials.first ?? "" }
 
     private var visibleApps: [AppListing] {
         (apps ?? []).filter { app in
@@ -70,21 +73,25 @@ struct AppsExplorerView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
                         List(visibleApps, selection: $selectedPackage) { app in
-                            VStack(alignment: .leading, spacing: 1) {
-                                HStack(spacing: 6) {
-                                    Text(app.displayName)
-                                    if app.isSystem {
-                                        Text("system")
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                            .padding(.horizontal, 4)
-                                            .background(.quaternary, in: Capsule())
+                            HStack(spacing: 8) {
+                                AppIconView(packageId: app.packageId, name: app.displayName, serial: serial)
+                                    .frame(width: 28, height: 28)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    HStack(spacing: 6) {
+                                        Text(app.displayName)
+                                        if app.isSystem {
+                                            Text("system")
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                                .padding(.horizontal, 4)
+                                                .background(.quaternary, in: Capsule())
+                                        }
                                     }
+                                    Text("\(app.packageId)\(app.versionName.map { " · v\($0)" } ?? "")")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
                                 }
-                                Text("\(app.packageId)\(app.versionName.map { " · v\($0)" } ?? "")")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
                             }
                             .tag(app.packageId)
                         }
@@ -124,7 +131,9 @@ struct AppsExplorerView: View {
         apps = nil
         selectedPackage = nil
         guard let serial = state.targetSerials.first else { return }
-        let result = try? await state.env.engine.appsExplorer.listAll(serial: serial)
+        let result = await CommandLog.userInitiated(feature: "apps") {
+            try? await state.env.engine.appsExplorer.listAll(serial: serial)
+        }
         guard !Task.isCancelled else { return }
         apps = result ?? []
     }
@@ -135,6 +144,10 @@ private struct AppDetailPane: View {
     @Environment(AppState.self) private var state
     let packageId: String
 
+    private var derivedName: String {
+        packageId.split(separator: ".").last.map { $0.prefix(1).uppercased() + $0.dropFirst() } ?? packageId
+    }
+
     @State private var info: AppInfo?
     @State private var permissions: [PermissionEntry]?
     @State private var showPermissions = false
@@ -144,8 +157,12 @@ private struct AppDetailPane: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent("Bundle") {
-                    Text(packageId).textSelection(.enabled)
+                HStack(spacing: 12) {
+                    AppIconView(packageId: packageId, name: derivedName, serial: state.targetSerials.first ?? "")
+                        .frame(width: 40, height: 40)
+                    Text(packageId)
+                        .font(.callout)
+                        .textSelection(.enabled)
                 }
                 if let info, info.installed {
                     LabeledContent("Version", value: info.versionName)
@@ -220,9 +237,11 @@ private struct AppDetailPane: View {
         info = nil
         permissions = nil
         guard let serial = state.targetSerials.first else { return }
-        async let infoResult = try? state.env.engine.inspection.getAppInfo(serial: serial, packageId: packageId)
-        async let permissionsResult = try? state.env.engine.inspection.listPermissions(serial: serial, packageId: packageId)
-        let (fetchedInfo, fetchedPermissions) = await (infoResult, permissionsResult)
+        let (fetchedInfo, fetchedPermissions) = await CommandLog.userInitiated(feature: "apps") {
+            async let infoResult = try? state.env.engine.inspection.getAppInfo(serial: serial, packageId: packageId)
+            async let permissionsResult = try? state.env.engine.inspection.listPermissions(serial: serial, packageId: packageId)
+            return await (infoResult, permissionsResult)
+        }
         guard !Task.isCancelled else { return }
         info = fetchedInfo ?? .notInstalled
         permissions = fetchedPermissions ?? []
@@ -233,7 +252,7 @@ private struct AppDetailPane: View {
         guard let dest = state.askSaveLocation(suggestedName: "\(packageId).apk") else { return }
         pullingApk = true
         Task {
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated(feature: "apps") {
                 do {
                     let saved = try await state.withFileProgress(
                         "Pulling \(packageId)…", destination: dest, expectedBytes: info?.apkSizeBytes
@@ -253,7 +272,7 @@ private struct AppDetailPane: View {
         guard let serial = state.targetSerials.first else { return }
         mutating = true
         Task {
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated(feature: "apps") {
                 let result = (try? await state.env.engine.inspection.setPermission(
                     serial: serial, packageId: packageId, permission: permission.name, grant: granted
                 )) ?? FeatureResult(ok: false, message: "adb not found")
@@ -264,4 +283,92 @@ private struct AppDetailPane: View {
             mutating = false
         }
     }
+}
+
+/// App launcher icon with a monogram fallback. Real icons are streamed off the
+/// device (only the icon entry, never the whole APK) and cached; apps that ship
+/// no raster icon keep the monogram.
+struct AppIconView: View {
+    @Environment(AppState.self) private var state
+    let packageId: String
+    let name: String
+    let serial: String
+
+    @State private var image: NSImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .interpolation(.medium)
+                    .scaledToFit()
+            } else {
+                MonogramIcon(name: name, seed: packageId)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .task(id: packageId) { await load() }
+    }
+
+    private func load() async {
+        if let cached = AppIconCache.shared.image(for: packageId) {
+            image = cached
+            return
+        }
+        guard !serial.isEmpty, !AppIconCache.shared.didAttempt(packageId) else { return }
+        let data = await state.env.engine.appIcons.iconData(serial: serial, packageId: packageId)
+        AppIconCache.shared.markAttempted(packageId)
+        guard !Task.isCancelled else { return }
+        if let data, let loaded = NSImage(data: data) {
+            AppIconCache.shared.store(loaded, for: packageId)
+            image = loaded
+        }
+    }
+}
+
+/// Colored rounded square with the app's initial — the launcher-style fallback
+/// shown until (or instead of) a real icon.
+struct MonogramIcon: View {
+    let name: String
+    let seed: String
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 6)
+            .fill(color.gradient)
+            .overlay(
+                Text(initial)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .minimumScaleFactor(0.6)
+            )
+    }
+
+    private var initial: String {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        return trimmed.first.map { String($0).uppercased() } ?? "?"
+    }
+
+    private var color: Color {
+        // Deterministic hue from the package id — String.hashValue is randomized
+        // per process, so roll a stable hash for a consistent color.
+        let hash = seed.unicodeScalars.reduce(5381) { ($0 &* 33) &+ Int($1.value) }
+        return Color(hue: Double(abs(hash) % 360) / 360, saturation: 0.45, brightness: 0.65)
+    }
+}
+
+/// Process-lifetime cache of decoded icons, shared across rows so scrolling
+/// never refetches. `attempted` remembers icon-less apps so their rows don't
+/// re-probe the device each time they reappear.
+@MainActor
+final class AppIconCache {
+    static let shared = AppIconCache()
+
+    private var images: [String: NSImage] = [:]
+    private var attempted: Set<String> = []
+
+    func image(for packageId: String) -> NSImage? { images[packageId] }
+    func store(_ image: NSImage, for packageId: String) { images[packageId] = image }
+    func didAttempt(_ packageId: String) -> Bool { attempted.contains(packageId) }
+    func markAttempted(_ packageId: String) { attempted.insert(packageId) }
 }

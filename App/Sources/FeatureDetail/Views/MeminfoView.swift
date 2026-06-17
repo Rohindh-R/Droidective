@@ -74,11 +74,18 @@ struct MeminfoView: View {
         info = nil
         guard let serial = state.targetSerials.first,
               let packageId = state.selectedBundle?.packageId else { return }
+        // The first read is user-initiated so it lands in the Recent log; the
+        // 2s polling that follows stays out of the log (background).
+        let first = await CommandLog.userInitiated(feature: "meminfo") {
+            try? await state.env.engine.inspection.getMemInfo(serial: serial, packageId: packageId)
+        }
+        guard !Task.isCancelled else { return }
+        info = first
         while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(2))
             let result = try? await state.env.engine.inspection.getMemInfo(serial: serial, packageId: packageId)
             guard !Task.isCancelled else { return }
             info = result
-            try? await Task.sleep(for: .seconds(2))
         }
     }
 }

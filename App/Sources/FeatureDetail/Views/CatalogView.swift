@@ -36,7 +36,7 @@ struct CatalogView: View {
             }
         }
         .confirmationDialog(
-            "Restore the default feature set? Your favorites are kept; enabled/disabled choices reset.",
+            "Restore the default feature set? Your pinned features are kept; enabled/disabled choices reset.",
             isPresented: $confirmReset
         ) {
             Button("Restore Defaults") {
@@ -63,11 +63,11 @@ struct CatalogView: View {
             Button {
                 state.toggleFavorite(feature.id)
             } label: {
-                Image(systemName: state.layout.favorites.contains(feature.id) ? "star.fill" : "star")
-                    .foregroundStyle(state.layout.favorites.contains(feature.id) ? .yellow : .secondary)
+                Image(systemName: state.layout.favorites.contains(feature.id) ? "pin.fill" : "pin")
+                    .foregroundStyle(state.layout.favorites.contains(feature.id) ? .orange : .secondary)
             }
             .buttonStyle(.plain)
-            .help("Favorite")
+            .help("Pin to top")
 
             Toggle("", isOn: Binding(
                 get: { state.layout.effectiveEnabledIDs.contains(feature.id) },

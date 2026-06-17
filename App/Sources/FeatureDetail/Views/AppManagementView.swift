@@ -104,7 +104,7 @@ struct AppManagementView: View {
         guard let packageId = state.selectedBundle?.packageId else { return }
         pendingAction = action
         Task {
-            await CommandLog.$isUserInitiated.withValue(true) {
+            await CommandLog.userInitiated(feature: "app-management") {
                 for serial in state.targetSerials {
                     let result = (try? await state.env.engine.appControl.control(
                         serial: serial, packageId: packageId, action: action

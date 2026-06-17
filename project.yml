@@ -10,6 +10,9 @@ packages:
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
     from: 1.10.0
+  SwiftTerm:
+    url: https://github.com/migueldeicaza/SwiftTerm
+    from: 1.13.0
 targets:
   App:
     type: application
@@ -22,6 +25,8 @@ targets:
         product: ADBKit
       - package: KeyboardShortcuts
         product: KeyboardShortcuts
+      - package: SwiftTerm
+        product: SwiftTerm
     settings:
       base:
         PRODUCT_NAME: Droidective
