@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/icon.png" width="120" alt="Droidective app icon">
+</p>
+
 # Droidective
 
 A native macOS companion for Android and React Native debugging. One-click adb
