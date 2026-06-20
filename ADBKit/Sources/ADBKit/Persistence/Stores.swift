@@ -65,17 +65,23 @@ public struct LayoutState: Codable, Sendable, Equatable {
     /// listed fall back to registry order after the listed ones. Optional so
     /// files written before the field existed still decode.
     public var sidebarOrder: [String]?
+    /// Feature ids the user chose to show in the menu-bar menu. nil/empty falls
+    /// back to pinned features (then enabled instant actions). Optional so files
+    /// written before the field existed still decode.
+    public var menuBarItems: [String]?
 
     public init(
         enabledIds: [String]? = nil,
         favorites: [String] = [],
         knownIds: [String]? = nil,
-        sidebarOrder: [String]? = nil
+        sidebarOrder: [String]? = nil,
+        menuBarItems: [String]? = nil
     ) {
         self.enabledIds = enabledIds
         self.favorites = favorites
         self.knownIds = knownIds
         self.sidebarOrder = sidebarOrder
+        self.menuBarItems = menuBarItems
     }
 
     /// The effective enabled set: explicit user choice or registry defaults,

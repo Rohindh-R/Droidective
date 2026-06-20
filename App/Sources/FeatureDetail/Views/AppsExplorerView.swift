@@ -8,9 +8,14 @@ import SwiftUI
 struct AppsExplorerView: View {
     @Environment(AppState.self) private var state
     @State private var apps: [AppListing]?
+    @State private var states: [String: AppLifecycle] = [:]
     @State private var search = ""
     @State private var scope = Scope.user
     @State private var selectedPackage: String?
+    /// Packages an uninstall attempt proved can't actually be removed (it
+    /// reported success but the package stayed). Their Uninstall button is
+    /// dropped, leaving Disable.
+    @State private var notRemovable: Set<String> = []
 
     enum Scope: String, CaseIterable {
         case all = "All"
@@ -63,6 +68,12 @@ struct AppsExplorerView: View {
                     }
                     .pickerStyle(.segmented)
                     .frame(width: 160)
+                    Button {
+                        Task { await loadApps(showLoading: false) }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .help("Refresh")
                 }
                 .padding(8)
                 Divider()
@@ -86,6 +97,7 @@ struct AppsExplorerView: View {
                                                 .padding(.horizontal, 4)
                                                 .background(.quaternary, in: Capsule())
                                         }
+                                        lifecycleBadge(for: app.packageId)
                                     }
                                     Text("\(app.packageId)\(app.versionName.map { " · v\($0)" } ?? "")")
                                         .font(.footnote)
@@ -114,8 +126,14 @@ struct AppsExplorerView: View {
             Divider()
 
             if let selectedPackage {
-                AppDetailPane(packageId: selectedPackage)
-                    .frame(maxWidth: .infinity)
+                AppDetailPane(
+                    packageId: selectedPackage,
+                    lifecycle: states[selectedPackage],
+                    canUninstall: canUninstall(selectedPackage),
+                    onNotRemovable: { notRemovable.insert($0) },
+                    onChanged: { Task { await loadApps(showLoading: false) } }
+                )
+                .frame(maxWidth: .infinity)
             } else {
                 ContentUnavailableView(
                     "Select an app",
@@ -127,15 +145,47 @@ struct AppsExplorerView: View {
         }
     }
 
-    private func loadApps() async {
-        apps = nil
-        selectedPackage = nil
+    @ViewBuilder
+    private func lifecycleBadge(for packageId: String) -> some View {
+        if let lifecycle = states[packageId], lifecycle.removed {
+            badge("removed", .red)
+        } else if let lifecycle = states[packageId], lifecycle.disabled {
+            badge("disabled", .orange)
+        }
+    }
+
+    /// Whether to offer Uninstall. The framework package and auto-generated
+    /// resource overlays are never removable; the rest are offered until an
+    /// attempt proves otherwise.
+    private func canUninstall(_ packageId: String) -> Bool {
+        if notRemovable.contains(packageId) { return false }
+        if packageId == "android" { return false }
+        if packageId.contains("auto_generated_rro") || packageId.hasSuffix(".overlay") { return false }
+        return true
+    }
+
+    private func badge(_ text: String, _ color: Color) -> some View {
+        Text(text)
+            .font(.caption2)
+            .foregroundStyle(color)
+            .padding(.horizontal, 4)
+            .background(color.opacity(0.15), in: Capsule())
+    }
+
+    private func loadApps(showLoading: Bool = true) async {
+        if showLoading {
+            apps = nil
+            selectedPackage = nil
+        }
         guard let serial = state.targetSerials.first else { return }
-        let result = await CommandLog.userInitiated(feature: "apps") {
-            try? await state.env.engine.appsExplorer.listAll(serial: serial)
+        let (listing, lifecycle) = await CommandLog.userInitiated(feature: "apps") {
+            async let listing = try? state.env.engine.appsExplorer.listAll(serial: serial)
+            async let lifecycle = state.env.engine.systemApps.states(serial: serial)
+            return await (listing, lifecycle)
         }
         guard !Task.isCancelled else { return }
-        apps = result ?? []
+        apps = listing ?? []
+        states = lifecycle
     }
 }
 
@@ -143,6 +193,10 @@ struct AppsExplorerView: View {
 private struct AppDetailPane: View {
     @Environment(AppState.self) private var state
     let packageId: String
+    var lifecycle: AppLifecycle?
+    var canUninstall = true
+    var onNotRemovable: (String) -> Void = { _ in }
+    var onChanged: () -> Void = {}
 
     private var derivedName: String {
         packageId.split(separator: ".").last.map { $0.prefix(1).uppercased() + $0.dropFirst() } ?? packageId
@@ -153,6 +207,10 @@ private struct AppDetailPane: View {
     @State private var showPermissions = false
     @State private var mutating = false
     @State private var pullingApk = false
+    @State private var managing = false
+    @State private var showFiles = false
+
+    private var serial: String { state.targetSerials.first ?? "" }
 
     var body: some View {
         Form {
@@ -225,11 +283,106 @@ private struct AppDetailPane: View {
                     Label(pullingApk ? "Pulling…" : "Pull APK", systemImage: "arrow.down.circle")
                 }
                 .disabled(pullingApk)
+                Button {
+                    showFiles = true
+                } label: {
+                    Label("Explore files", systemImage: "folder")
+                }
+            }
+
+            Section("Manage") {
+                if lifecycle?.removed == true {
+                    Button {
+                        manage { try await $0.setRemoved(serial: serial, packageId: packageId, false) }
+                    } label: {
+                        Label("Restore", systemImage: "arrow.uturn.left")
+                    }
+                    .disabled(managing)
+                } else {
+                    let isDisabled = lifecycle?.disabled ?? false
+                    Button {
+                        manage { try await $0.setDisabled(serial: serial, packageId: packageId, !isDisabled) }
+                    } label: {
+                        Label(isDisabled ? "Enable" : "Disable", systemImage: isDisabled ? "eye" : "eye.slash")
+                    }
+                    .disabled(managing)
+                    if canUninstall {
+                        Button(role: .destructive) {
+                            uninstall()
+                        } label: {
+                            Label("Uninstall", systemImage: "trash")
+                        }
+                        .disabled(managing)
+                    }
+                }
+                if managing {
+                    HStack { ProgressView().controlSize(.small); Text("Working…").foregroundStyle(.secondary) }
+                }
             }
         }
         .formStyle(.grouped)
         .task(id: "\(packageId)|\(state.targetSerials.first ?? "")") {
             await load()
+        }
+        .sheet(isPresented: $showFiles) {
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Files · \(packageId)")
+                        .font(.headline)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer()
+                    Button("Done") { showFiles = false }
+                }
+                .padding(12)
+                Divider()
+                SandboxBrowserView(packageId: packageId)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(width: 580, height: 460)
+        }
+    }
+
+    /// Uninstall-for-user, then verify it actually went away — protected system
+    /// apps report success but the package manager keeps them. When it didn't
+    /// stick, flag it non-removable so the button disappears.
+    private func uninstall() {
+        managing = true
+        Task {
+            await CommandLog.userInitiated(feature: "apps") {
+                do {
+                    _ = try await state.env.engine.systemApps.setRemoved(serial: serial, packageId: packageId, true)
+                    let removed = await state.env.engine.systemApps.states(serial: serial)[packageId]?.removed ?? false
+                    if removed {
+                        state.showToast(Toast(message: "\(packageId) uninstalled for this user", ok: true))
+                    } else {
+                        onNotRemovable(packageId)
+                        state.showToast(Toast(message: "Can't uninstall \(packageId) — it's protected. Disable it instead.", ok: false))
+                    }
+                } catch {
+                    state.showToast(Toast(message: error.localizedDescription, ok: false))
+                }
+            }
+            managing = false
+            onChanged()
+        }
+    }
+
+    private func manage(_ operation: @escaping (SystemAppsService) async throws -> AdbResult) {
+        managing = true
+        Task {
+            await CommandLog.userInitiated(feature: "apps") {
+                do {
+                    let result = try await operation(state.env.engine.systemApps)
+                    let ok = result.succeeded && !result.stdout.localizedCaseInsensitiveContains("failure")
+                    let detail = result.stderr.isEmpty ? result.stdout : result.stderr
+                    state.showToast(Toast(message: ok ? "\(packageId) updated" : "Failed — \(detail)", ok: ok))
+                } catch {
+                    state.showToast(Toast(message: error.localizedDescription, ok: false))
+                }
+            }
+            managing = false
+            onChanged()
         }
     }
 
@@ -312,10 +465,10 @@ struct AppIconView: View {
     }
 
     private func load() async {
-        if let cached = AppIconCache.shared.image(for: packageId) {
-            image = cached
-            return
-        }
+        // Reset to *this* package's cached icon (nil when it has none) so a
+        // reused view never lingers on the previously shown app's icon.
+        image = AppIconCache.shared.image(for: packageId)
+        if image != nil { return }
         guard !serial.isEmpty, !AppIconCache.shared.didAttempt(packageId) else { return }
         let data = await state.env.engine.appIcons.iconData(serial: serial, packageId: packageId)
         AppIconCache.shared.markAttempted(packageId)

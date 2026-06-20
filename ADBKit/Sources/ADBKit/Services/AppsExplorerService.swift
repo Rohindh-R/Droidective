@@ -19,9 +19,10 @@ public struct AppListing: Sendable, Equatable, Identifiable {
     }
 }
 
-/// Lists every installed app (user + system) with versions in two adb calls:
-/// one `dumpsys package packages` parse for versions, one `pm list -3` for
-/// the user-installed set — no per-app round-trips.
+/// Lists every app (user + system, including those uninstalled for the current
+/// user so they can be restored) with versions: one `dumpsys package packages`
+/// parse for versions, one `pm list -3` for the user-installed set, and
+/// `pm list -u` for the full set — no per-app round-trips.
 public struct AppsExplorerService: Sendable {
     let client: AdbClient
 
@@ -60,7 +61,9 @@ public struct AppsExplorerService: Sendable {
                 .filter { !$0.isEmpty }
         )
 
-        let allList = try await client.run(on: serial, ["shell", "pm", "list", "packages"])
+        // -u keeps apps uninstalled for this user (e.g. a debloated system app)
+        // in the list, so they show a "removed" tag and can be restored.
+        let allList = try await client.run(on: serial, ["shell", "pm", "list", "packages", "-u"])
         let allPackages = allList.stdout.split(whereSeparator: \.isNewline)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "package:", with: "") }
             .filter { !$0.isEmpty }

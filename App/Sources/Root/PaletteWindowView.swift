@@ -16,9 +16,17 @@ struct PaletteWindowView: View {
 
     private var matches: [FeatureDef] {
         let enabled = state.layout.effectiveEnabledIDs
-        let all = FeatureRegistry.all.filter { $0.matches(query) }
+        // Rank by relevance (best match first), registry order as tiebreak.
+        let ranked = FeatureRegistry.all.enumerated()
+            .filter { $0.element.matches(query) }
+            .sorted { lhs, rhs in
+                let rl = lhs.element.relevance(for: query)
+                let rr = rhs.element.relevance(for: query)
+                return rl != rr ? rl > rr : lhs.offset < rhs.offset
+            }
+            .map(\.element)
         // Enabled features first, then disabled matches.
-        return all.filter { enabled.contains($0.id) } + all.filter { !enabled.contains($0.id) }
+        return ranked.filter { enabled.contains($0.id) } + ranked.filter { !enabled.contains($0.id) }
     }
 
     private var visibleMatches: [FeatureDef] {

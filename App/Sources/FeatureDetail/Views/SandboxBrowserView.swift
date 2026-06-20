@@ -1,22 +1,28 @@
 import ADBKit
 import SwiftUI
 
-/// Browse and pull the app's private files via run-as (debug builds only).
+/// Browse and pull an app's private files via run-as (debug builds only).
+/// `packageId` overrides the global selected bundle, so the Apps view can hand
+/// it the selected app to explore any debuggable app's sandbox.
 struct SandboxBrowserView: View {
     @Environment(AppState.self) private var state
+    var packageId: String?
     @State private var pathComponents: [String] = []
     @State private var entries: [FsEntry]?
     @State private var debuggable = true
 
+    /// The package to browse — the explicit one, else the selected bundle.
+    private var pkg: String? { packageId ?? state.selectedBundle?.packageId }
+
     private var currentPath: String {
-        guard let packageId = state.selectedBundle?.packageId else { return "/" }
-        let root = "/data/data/\(packageId)"
+        guard let pkg else { return "/" }
+        let root = "/data/data/\(pkg)"
         return pathComponents.isEmpty ? root : root + "/" + pathComponents.joined(separator: "/")
     }
 
     var body: some View {
         Group {
-            if state.selectedBundle == nil {
+            if pkg == nil {
                 ContentUnavailableView(
                     "No bundle selected", systemImage: "folder",
                     description: Text("Select a bundle to browse its sandbox.")
@@ -35,12 +41,12 @@ struct SandboxBrowserView: View {
                 browser
             }
         }
-        .onChange(of: "\(state.selectedBundleId ?? "")|\(state.targetSerials.first ?? "")") {
+        .onChange(of: "\(pkg ?? "")|\(state.targetSerials.first ?? "")") {
             pathComponents = []
         }
-        // One structured loader keyed on bundle+device+path: every navigation
+        // One structured loader keyed on package+device+path: every navigation
         // cancels the previous load, so entries always match the breadcrumb.
-        .task(id: "\(state.selectedBundleId ?? "")|\(state.targetSerials.first ?? "")|\(currentPath)") {
+        .task(id: "\(pkg ?? "")|\(state.targetSerials.first ?? "")|\(currentPath)") {
             await load()
         }
     }
@@ -121,11 +127,10 @@ struct SandboxBrowserView: View {
     private func load() async {
         entries = nil
         debuggable = true
-        guard let serial = state.targetSerials.first,
-              let packageId = state.selectedBundle?.packageId else { return }
+        guard let serial = state.targetSerials.first, let pkg else { return }
         let result = await CommandLog.userInitiated(feature: "sandbox-browser") {
             try? await state.env.engine.inspection.sandboxList(
-                serial: serial, packageId: packageId, dir: currentPath
+                serial: serial, packageId: pkg, dir: currentPath
             )
         }
         guard !Task.isCancelled else { return }
@@ -138,8 +143,7 @@ struct SandboxBrowserView: View {
     }
 
     private func pull(_ entry: FsEntry) {
-        guard let serial = state.targetSerials.first,
-              let packageId = state.selectedBundle?.packageId else { return }
+        guard let serial = state.targetSerials.first, let pkg else { return }
         guard let dest = state.askSaveLocation(suggestedName: entry.name) else { return }
         let filePath = currentPath + "/" + entry.name
         Task {
@@ -147,7 +151,7 @@ struct SandboxBrowserView: View {
                 do {
                     let saved = try await state.withOperation("Pulling \(entry.name)…") {
                         try await state.env.engine.inspection.sandboxPull(
-                            serial: serial, packageId: packageId, filePath: filePath, to: dest
+                            serial: serial, packageId: pkg, filePath: filePath, to: dest
                         )
                     }
                     state.showToast(Toast(message: "Pulled \(entry.name)", ok: true, revealPath: saved.path))

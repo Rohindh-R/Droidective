@@ -53,6 +53,24 @@ extension FeatureRegistry {
         "network-speed": [
             FeatureCommand("adb shell cat /proc/net/dev", note: "RX/TX byte counters — sampled as deltas for speed"),
         ],
+        "system-restrictions": [
+            FeatureCommand("adb shell settings put global verifier_verify_adb_installs 0", note: "skip ADB-install verification"),
+            FeatureCommand("adb shell settings put global hidden_api_policy 1", note: "allow hidden-API access"),
+            FeatureCommand("adb shell su -c 'setenforce 0'", note: "SELinux Permissive — root only"),
+            FeatureCommand("adb shell su -c 'mount -o rw,remount /'", note: "remount system read-write — root only"),
+        ],
+        "private-dns": [
+            FeatureCommand("adb shell settings get global private_dns_mode", note: "off / opportunistic / hostname"),
+            FeatureCommand("adb shell settings put global private_dns_specifier <hostname>", note: "e.g. dns.google"),
+            FeatureCommand("adb shell settings put global private_dns_mode hostname", note: "off / opportunistic / hostname"),
+        ],
+        "wifi": [
+            FeatureCommand("adb shell cmd wifi status", note: "SSID, link speed, frequency, RSSI"),
+            FeatureCommand("adb shell svc wifi enable", note: "disable to turn the radio off"),
+            FeatureCommand("adb shell cmd wifi list-networks", note: "saved networks (Android 11+)"),
+            FeatureCommand("adb shell cmd wifi connect-network <ssid> <type> <password>", note: "connect / switch"),
+            FeatureCommand("adb shell su -c 'cat /data/misc/apexdata/com.android.wifi/WifiConfigStore.xml'", note: "saved passwords — root only"),
+        ],
         "emulators": [
             FeatureCommand("emulator -list-avds", note: "list available AVDs"),
             FeatureCommand(
@@ -135,6 +153,12 @@ extension FeatureRegistry {
             FeatureCommand("adb shell df -k /data", note: "storage"),
             FeatureCommand("adb shell pm list packages -3", note: "app counts (-s for system)"),
         ],
+        "root-status": [
+            FeatureCommand("adb shell su -c id", note: "uid=0 proves a working root shell"),
+            FeatureCommand("adb shell which su", note: "su binary on PATH"),
+            FeatureCommand("adb shell getprop ro.build.tags", note: "test-keys hints at a custom/eng build"),
+            FeatureCommand("adb shell getenforce", note: "SELinux mode (Permissive when relaxed)"),
+        ],
         "fake-battery": [
             FeatureCommand("adb shell dumpsys battery set level <level>"),
             FeatureCommand("adb shell dumpsys battery unplug", note: "simulate unplugged"),
@@ -172,6 +196,9 @@ extension FeatureRegistry {
         "apps": [
             FeatureCommand("adb shell pm list packages", note: "all packages (-3 = user only)"),
             FeatureCommand("adb shell dumpsys package packages", note: "versions"),
+            FeatureCommand("adb shell pm disable-user --user 0 <package>", note: "disable (pm enable to undo)"),
+            FeatureCommand("adb shell pm uninstall --user 0 <package>", note: "uninstall for this user"),
+            FeatureCommand("adb shell cmd package install-existing <package>", note: "restore a removed app"),
         ],
         "app-management": [
             FeatureCommand(

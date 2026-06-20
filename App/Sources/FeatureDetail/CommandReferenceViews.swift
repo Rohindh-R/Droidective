@@ -210,6 +210,7 @@ enum CommandBarTab: String, CaseIterable, Hashable {
 struct FeatureCommandBar: View {
     @Environment(AppState.self) private var state
     @AppStorage("commandBarHeight") private var commandBarHeight = 220.0
+    @AppStorage("showFeatureNotes") private var showFeatureNotes = true
     let feature: FeatureDef
 
     var body: some View {
@@ -223,11 +224,38 @@ struct FeatureCommandBar: View {
             HStack(spacing: 8) {
                 HStack(spacing: 2) {
                     tabButton(.recent, "Recent")
-                    tabButton(.commands, commands.count > 1 ? "Commands" : "Command")
                     tabButton(.terminal, "Terminal")
+                    tabButton(.commands, commands.count > 1 ? "Commands" : "Command")
                 }
 
                 Spacer()
+
+                if state.commandBarExpanded && state.commandBarTab == .terminal {
+                    Button {
+                        state.terminalSession.kill()
+                        withAnimation(.easeInOut(duration: 0.15)) { state.commandBarExpanded = false }
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 30, height: 26)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Kill the terminal & minimize")
+                }
+
+                if FeatureRegistry.howTo(for: feature.id) != nil {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) { showFeatureNotes.toggle() }
+                    } label: {
+                        Image(systemName: showFeatureNotes ? "info.circle.fill" : "info.circle")
+                            .foregroundStyle(showFeatureNotes ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                            .frame(width: 30, height: 26)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(showFeatureNotes ? "Hide the how-it-works note" : "Show the how-it-works note")
+                }
 
                 Button {
                     toggleExpanded()

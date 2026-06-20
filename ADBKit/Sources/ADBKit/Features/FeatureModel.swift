@@ -222,10 +222,23 @@ public struct FeatureDef: Sendable, Identifiable {
 
     /// Search match against title, subtitle, and keywords.
     public func matches(_ query: String) -> Bool {
+        relevance(for: query) > 0
+    }
+
+    /// How well `query` matches (0 = not at all). Title hits outrank keyword
+    /// hits, which outrank subtitle-only hits — so "app" ranks Apps above Deep
+    /// Links (whose subtitle merely mentions "app"). Used to order search
+    /// results in the palette and sidebar.
+    public func relevance(for query: String) -> Int {
         let q = query.lowercased()
-        if q.isEmpty { return true }
-        if title.lowercased().contains(q) { return true }
-        if let subtitle, subtitle.lowercased().contains(q) { return true }
-        return keywords.contains { $0.lowercased().contains(q) }
+        if q.isEmpty { return 1 }
+        let titleLower = title.lowercased()
+        if titleLower == q { return 100 }
+        if titleLower.hasPrefix(q) { return 80 }
+        if titleLower.contains(q) { return 60 }
+        if keywords.contains(where: { $0.lowercased().hasPrefix(q) }) { return 40 }
+        if keywords.contains(where: { $0.lowercased().contains(q) }) { return 30 }
+        if let subtitle, subtitle.lowercased().contains(q) { return 10 }
+        return 0
     }
 }

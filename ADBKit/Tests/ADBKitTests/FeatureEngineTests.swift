@@ -146,18 +146,19 @@ import Testing
 }
 
 @Suite struct FeatureRegistryTests {
-    @Test func hasAll39Features() {
-        #expect(FeatureRegistry.all.count == 39)
-        #expect(FeatureRegistry.byID.count == 39)
+    @Test func hasAll43Features() {
+        #expect(FeatureRegistry.all.count == 43)
+        #expect(FeatureRegistry.byID.count == 43)
     }
 
-    @Test func exactly16DefaultEnabled() {
-        #expect(FeatureRegistry.defaultEnabledIDs.count == 16)
+    @Test func exactly20DefaultEnabled() {
+        #expect(FeatureRegistry.defaultEnabledIDs.count == 20)
         let expected: Set<String> = [
             "send-text", "get-ip", "reverse-port", "disconnect",
             "open-dev-menu", "reload-js", "deep-link", "scrcpy", "screenshot",
             "app-management", "logcat", "file-explorer", "apps", "emulators",
-            "performance", "network-speed",
+            "performance", "network-speed", "root-status", "wifi",
+            "private-dns", "system-restrictions",
         ]
         #expect(Set(FeatureRegistry.defaultEnabledIDs) == expected)
     }

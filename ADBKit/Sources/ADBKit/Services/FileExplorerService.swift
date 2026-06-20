@@ -11,42 +11,57 @@ public struct FileExplorerService: Sendable {
         self.client = client
     }
 
-    public func list(serial: String, dir: String) async throws(AdbError) -> [FsEntry] {
+    /// Run a device shell command, optionally as root (`su -c`). Command parts
+    /// should already be `shellQuote`d where needed; for root they're joined and
+    /// the whole line is quoted so `su -c` receives a single argument.
+    private func runShell(
+        on serial: String, _ command: [String], asRoot: Bool,
+        timeout: Duration = AdbClient.defaultTimeout
+    ) async throws(AdbError) -> AdbResult {
+        if asRoot {
+            return try await client.run(
+                on: serial, ["shell", "su", "-c", shellQuote(command.joined(separator: " "))], timeout: timeout
+            )
+        }
+        return try await client.run(on: serial, ["shell"] + command, timeout: timeout)
+    }
+
+    public func list(serial: String, dir: String, asRoot: Bool = false) async throws(AdbError) -> [FsEntry] {
         // Trailing slash so symlinked dirs (/sdcard → /storage/self/primary)
         // list their contents, not the link itself.
-        let result = try await client.run(on: serial, ["shell", "ls", "-la", shellQuote(dir + "/")])
+        let result = try await runShell(on: serial, ["ls", "-la", shellQuote(dir + "/")], asRoot: asRoot)
         return AppInspectionService.parseLsOutput(result.stdout)
     }
 
-    public func makeDirectory(serial: String, path: String) async throws(AdbError) -> FeatureResult {
-        let result = try await client.run(on: serial, ["shell", "mkdir", "-p", shellQuote(path)])
+    public func makeDirectory(serial: String, path: String, asRoot: Bool = false) async throws(AdbError) -> FeatureResult {
+        let result = try await runShell(on: serial, ["mkdir", "-p", shellQuote(path)], asRoot: asRoot)
         return verdict(result, success: "Folder created", fallback: "Couldn't create the folder")
     }
 
-    public func delete(serial: String, path: String) async throws(AdbError) -> FeatureResult {
-        let result = try await client.run(on: serial, ["shell", "rm", "-rf", shellQuote(path)], timeout: .seconds(120))
+    public func delete(serial: String, path: String, asRoot: Bool = false) async throws(AdbError) -> FeatureResult {
+        let result = try await runShell(on: serial, ["rm", "-rf", shellQuote(path)], asRoot: asRoot, timeout: .seconds(120))
         return verdict(result, success: "Deleted", fallback: "Couldn't delete")
     }
 
     /// Device-side copy (paste after Copy).
-    public func copy(serial: String, from source: String, toDir dest: String) async throws(AdbError) -> FeatureResult {
-        let result = try await client.run(
-            on: serial, ["shell", "cp", "-r", shellQuote(source), shellQuote(dest)], timeout: .seconds(300)
+    public func copy(serial: String, from source: String, toDir dest: String, asRoot: Bool = false) async throws(AdbError) -> FeatureResult {
+        let result = try await runShell(
+            on: serial, ["cp", "-r", shellQuote(source), shellQuote(dest)], asRoot: asRoot, timeout: .seconds(300)
         )
         return verdict(result, success: "Copied", fallback: "Copy failed")
     }
 
     /// Device-side move (paste after Cut).
-    public func move(serial: String, from source: String, toDir dest: String) async throws(AdbError) -> FeatureResult {
-        let result = try await client.run(
-            on: serial, ["shell", "mv", shellQuote(source), shellQuote(dest)], timeout: .seconds(300)
+    public func move(serial: String, from source: String, toDir dest: String, asRoot: Bool = false) async throws(AdbError) -> FeatureResult {
+        let result = try await runShell(
+            on: serial, ["mv", shellQuote(source), shellQuote(dest)], asRoot: asRoot, timeout: .seconds(300)
         )
         return verdict(result, success: "Moved", fallback: "Move failed")
     }
 
     /// Pull a file or directory. `destination: nil` lands in
     /// ~/Downloads/Droidective under the source's name.
-    public func pull(serial: String, path: String, to destination: URL? = nil) async throws -> URL {
+    public func pull(serial: String, path: String, to destination: URL? = nil, asRoot: Bool = false) async throws -> URL {
         let name = (path as NSString).lastPathComponent
         let dest: URL
         if let destination {
@@ -54,6 +69,22 @@ public struct FileExplorerService: Sendable {
         } else {
             let dir = try ScreenCaptureService.ensureCaptureDir()
             dest = dir.appendingPathComponent(name.isEmpty ? "file" : name)
+        }
+        // Root-only paths aren't readable by adb's sync protocol, so stage a
+        // world-readable copy in /data/local/tmp, pull that, then clean up.
+        if asRoot {
+            let safeName = name.isEmpty ? "file" : name
+            let stageDir = "/data/local/tmp/.droidective_pull"
+            let staged = stageDir + "/" + safeName
+            let prep = "rm -rf \(shellQuote(stageDir)); mkdir -p \(shellQuote(stageDir)); "
+                + "cp -r \(shellQuote(path)) \(shellQuote(staged)); chmod -R 777 \(shellQuote(stageDir))"
+            _ = try await client.run(on: serial, ["shell", "su", "-c", shellQuote(prep)], timeout: .seconds(300))
+            let result = try await client.run(on: serial, ["pull", staged, dest.path], timeout: .seconds(600))
+            _ = try? await client.run(on: serial, ["shell", "su", "-c", shellQuote("rm -rf \(shellQuote(stageDir))")])
+            guard result.succeeded else {
+                throw AppInspectionService.PullError.failed(friendlyAdbError(result, fallback: "Failed to pull \(name)"))
+            }
+            return dest
         }
         let result = try await client.run(on: serial, ["pull", path, dest.path], timeout: .seconds(600))
         guard result.succeeded else {
@@ -75,11 +106,9 @@ public struct FileExplorerService: Sendable {
 
     /// Detailed metadata via `stat`. Creation time isn't tracked by the
     /// filesystem; `changed` is the closest available.
-    public func info(serial: String, path: String) async throws(AdbError) -> FileInfo? {
+    public func info(serial: String, path: String, asRoot: Bool = false) async throws(AdbError) -> FileInfo? {
         let format = "%F|%s|%U|%A|%y|%z"
-        let result = try await client.run(
-            on: serial, ["shell", "stat", "-c", shellQuote(format), shellQuote(path)]
-        )
+        let result = try await runShell(on: serial, ["stat", "-c", shellQuote(format), shellQuote(path)], asRoot: asRoot)
         guard result.succeeded else { return nil }
         return Self.parseStat(result.stdout)
     }
@@ -105,8 +134,22 @@ public struct FileExplorerService: Sendable {
 
     /// Push a Mac file/folder to a device directory. Paths go straight to
     /// adb's sync protocol — no device shell, so no quoting.
-    public func push(serial: String, localPath: String, toDir remoteDir: String) async throws(AdbError) -> FeatureResult {
+    public func push(serial: String, localPath: String, toDir remoteDir: String, asRoot: Bool = false) async throws(AdbError) -> FeatureResult {
         let name = (localPath as NSString).lastPathComponent
+        // adb push can't write protected dirs, so push into tmp then su-move.
+        if asRoot {
+            let staged = "/data/local/tmp/" + name
+            let pushed = try await client.run(on: serial, ["push", localPath, staged], timeout: .seconds(600))
+            guard pushed.succeeded else {
+                return FeatureResult(ok: false, message: friendlyAdbError(pushed, fallback: "Failed to push \(name)"))
+            }
+            let moved = try await client.run(
+                on: serial, ["shell", "su", "-c", shellQuote("mv \(shellQuote(staged)) \(shellQuote(remoteDir + "/" + name))")]
+            )
+            return moved.succeeded
+                ? FeatureResult(ok: true, message: "Pushed \(name)")
+                : FeatureResult(ok: false, message: friendlyAdbError(moved, fallback: "Failed to move \(name) into place"))
+        }
         let result = try await client.run(
             on: serial, ["push", localPath, remoteDir + "/" + name], timeout: .seconds(600)
         )

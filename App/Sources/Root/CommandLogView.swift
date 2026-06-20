@@ -39,7 +39,7 @@ struct CommandLogView: View {
                     systemImage: "terminal",
                     description: Text("Commands you run appear here with their output.")
                 )
-                .frame(maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(entries) { entry in
                     CommandLogRow(entry: entry)

@@ -255,7 +255,7 @@ struct HomeView: View {
 
 /// The Light / Dark / Auto segmented control, reused on Home and Settings.
 struct ThemePicker: View {
-    @AppStorage("theme") private var theme = "auto"
+    @AppStorage("theme") private var theme = "dark"
 
     var body: some View {
         Picker("", selection: $theme) {

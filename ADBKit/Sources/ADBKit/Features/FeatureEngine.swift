@@ -56,6 +56,11 @@ public struct FeatureEngine: Sendable {
     public let emulators: EmulatorService
     public let performance: PerformanceService
     public let networkSpeed: NetworkSpeedService
+    public let root: RootService
+    public let wifi: WifiService
+    public let systemApps: SystemAppsService
+    public let dns: DnsService
+    public let restrictions: RestrictionsService
     let textInput: TextInputService
     let screenCapture: ScreenCaptureService
 
@@ -78,6 +83,11 @@ public struct FeatureEngine: Sendable {
         self.emulators = EmulatorService(client: client, locator: locator)
         self.performance = PerformanceService(client: client)
         self.networkSpeed = NetworkSpeedService(client: client)
+        self.root = RootService(client: client)
+        self.wifi = WifiService(client: client)
+        self.systemApps = SystemAppsService(client: client)
+        self.dns = DnsService(client: client)
+        self.restrictions = RestrictionsService(client: client)
         self.textInput = TextInputService(client: client)
         self.screenCapture = ScreenCaptureService(client: client)
     }
@@ -95,6 +105,7 @@ public struct FeatureEngine: Sendable {
         "screen-record", "crash-catcher", "bug-report", "wireless-adb",
         "rn-dev-host", "process-death", "custom-commands",
         "file-explorer", "apps", "emulators", "performance", "network-speed",
+        "root-status", "wifi", "private-dns", "system-restrictions",
     ]
 
     public func scope(for featureID: String) -> RunScope {

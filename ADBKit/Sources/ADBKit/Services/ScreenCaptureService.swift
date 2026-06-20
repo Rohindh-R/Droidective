@@ -26,10 +26,22 @@ public struct ScreenCaptureService: Sendable {
         return formatter.string(from: date)
     }
 
-    /// Ensure (and return) the ~/Downloads/Droidective capture directory.
+    /// UserDefaults key for a user-chosen capture/downloads folder. Empty or
+    /// unset falls back to ~/Downloads/Droidective. Defined here so ADBKit and
+    /// the app share one source of truth without ADBKit importing any UI.
+    public static let captureFolderDefaultsKey = "captureFolderPath"
+
+    /// Ensure (and return) the capture directory — the user's chosen folder if
+    /// set, otherwise ~/Downloads/Droidective.
     public static func ensureCaptureDir() throws -> URL {
-        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
-        let dir = downloads.appendingPathComponent("Droidective", isDirectory: true)
+        let dir: URL
+        if let path = UserDefaults.standard.string(forKey: captureFolderDefaultsKey),
+           !path.trimmingCharacters(in: .whitespaces).isEmpty {
+            dir = URL(fileURLWithPath: path, isDirectory: true)
+        } else {
+            let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
+            dir = downloads.appendingPathComponent("Droidective", isDirectory: true)
+        }
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }

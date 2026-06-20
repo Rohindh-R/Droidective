@@ -19,9 +19,15 @@ struct FileExplorerView: View {
     @State private var infoTarget: FsEntry?
     @State private var infoDetails: FileExplorerService.FileInfo?
     @FocusState private var listFocused: Bool
+    @State private var isRooted = false
+    /// When on (rooted devices only), browse the whole filesystem from "/" via su.
+    @State private var rootMode = false
 
     private var currentPath: String {
-        pathComponents.isEmpty
+        if rootMode {
+            return "/" + pathComponents.joined(separator: "/")
+        }
+        return pathComponents.isEmpty
             ? FileExplorerService.defaultRoot
             : FileExplorerService.defaultRoot + "/" + pathComponents.joined(separator: "/")
     }
@@ -43,8 +49,22 @@ struct FileExplorerView: View {
         }
         .onChange(of: state.targetSerials.first ?? "") { pathComponents = [] }
         .onChange(of: currentPath) { selection = [] }
+        .onChange(of: rootMode) {
+            pathComponents = []
+            reloadToken += 1
+        }
         .task(id: "\(state.targetSerials.first ?? "")|\(currentPath)|\(reloadToken)") {
             await load()
+        }
+        .task(id: "root|\(state.targetSerials.first ?? "")") {
+            guard let serial = state.targetSerials.first else {
+                isRooted = false
+                return
+            }
+            let rooted = await state.env.engine.root.detect(serial: serial).hasRootShell
+            guard !Task.isCancelled else { return }
+            isRooted = rooted
+            if !rooted { rootMode = false }
         }
     }
 
@@ -96,7 +116,7 @@ struct FileExplorerView: View {
         HStack(spacing: 8) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 4) {
-                    Button("sdcard") { pathComponents = [] }
+                    Button(rootMode ? "/" : "sdcard") { pathComponents = [] }
                         .buttonStyle(.link)
                     ForEach(Array(pathComponents.enumerated()), id: \.offset) { index, component in
                         Text("/").foregroundStyle(.secondary)
@@ -148,6 +168,13 @@ struct FileExplorerView: View {
                 Label("New Folder", systemImage: "folder.badge.plus")
             }
             .controlSize(.small)
+
+            if isRooted {
+                Toggle("Root", isOn: $rootMode)
+                    .toggleStyle(.button)
+                    .controlSize(.small)
+                    .help("Browse the whole filesystem as root")
+            }
 
             Button {
                 reloadToken += 1
@@ -257,11 +284,12 @@ struct FileExplorerView: View {
         guard !urls.isEmpty, let serial = state.targetSerials.first else { return }
         let destination = currentPath
         let explorer = state.env.engine.fileExplorer
+        let asRoot = rootMode
         Task {
             await CommandLog.userInitiated(feature: "file-explorer") {
                 for url in urls {
                     let result = await state.withOperation("Pushing \(url.lastPathComponent)…") {
-                        (try? await explorer.push(serial: serial, localPath: url.path, toDir: destination))
+                        (try? await explorer.push(serial: serial, localPath: url.path, toDir: destination, asRoot: asRoot))
                             ?? FeatureResult(ok: false, message: "adb not found")
                     }
                     if !result.ok {
@@ -362,7 +390,7 @@ struct FileExplorerView: View {
             infoDetails = nil
             guard let serial = state.targetSerials.first else { return }
             infoDetails = await CommandLog.userInitiated(feature: "file-explorer") {
-                try? await state.env.engine.fileExplorer.info(serial: serial, path: path(for: entry))
+                try? await state.env.engine.fileExplorer.info(serial: serial, path: path(for: entry), asRoot: rootMode)
             }
         }
     }
@@ -382,7 +410,7 @@ struct FileExplorerView: View {
         entries = nil
         guard let serial = state.targetSerials.first else { return }
         let result = await CommandLog.userInitiated(feature: "file-explorer") {
-            try? await state.env.engine.fileExplorer.list(serial: serial, dir: currentPath)
+            try? await state.env.engine.fileExplorer.list(serial: serial, dir: currentPath, asRoot: rootMode)
         }
         guard !Task.isCancelled else { return }
         entries = result ?? []
@@ -394,10 +422,11 @@ struct FileExplorerView: View {
         guard !name.isEmpty, let serial = state.targetSerials.first else { return }
         let target = currentPath + "/" + name
         let explorer = state.env.engine.fileExplorer
+        let asRoot = rootMode
         Task {
             await CommandLog.userInitiated(feature: "file-explorer") {
                 let result = await state.withOperation("Creating \(name)…") {
-                    (try? await explorer.makeDirectory(serial: serial, path: target))
+                    (try? await explorer.makeDirectory(serial: serial, path: target, asRoot: asRoot))
                         ?? FeatureResult(ok: false, message: "adb not found")
                 }
                 state.showToast(Toast(message: result.message, ok: result.ok))
@@ -411,11 +440,12 @@ struct FileExplorerView: View {
         let paths = targets.map(path(for:))
         let label = targets.count == 1 ? targets[0].name : "\(targets.count) items"
         let explorer = state.env.engine.fileExplorer
+        let asRoot = rootMode
         Task {
             await CommandLog.userInitiated(feature: "file-explorer") {
                 await state.withOperation("Deleting \(label)…") {
                     for path in paths {
-                        let result = (try? await explorer.delete(serial: serial, path: path))
+                        let result = (try? await explorer.delete(serial: serial, path: path, asRoot: asRoot))
                             ?? FeatureResult(ok: false, message: "adb not found")
                         if !result.ok {
                             state.showToast(Toast(message: result.message, ok: false))
@@ -438,13 +468,14 @@ struct FileExplorerView: View {
             : "\(clipboard.paths.count) items"
         self.clipboard = nil
         let explorer = state.env.engine.fileExplorer
+        let asRoot = rootMode
         Task {
             await CommandLog.userInitiated(feature: "file-explorer") {
                 await state.withOperation("\(clipboard.isCut ? "Moving" : "Copying") \(label)…") {
                     for source in clipboard.paths {
                         let result = clipboard.isCut
-                            ? (try? await explorer.move(serial: serial, from: source, toDir: destination))
-                            : (try? await explorer.copy(serial: serial, from: source, toDir: destination))
+                            ? (try? await explorer.move(serial: serial, from: source, toDir: destination, asRoot: asRoot))
+                            : (try? await explorer.copy(serial: serial, from: source, toDir: destination, asRoot: asRoot))
                         let outcome = result ?? FeatureResult(ok: false, message: "adb not found")
                         if !outcome.ok {
                             state.showToast(Toast(message: outcome.message, ok: false))
@@ -474,6 +505,7 @@ struct FileExplorerView: View {
         }
 
         let explorer = state.env.engine.fileExplorer
+        let asRoot = rootMode
         Task {
             await CommandLog.userInitiated(feature: "file-explorer") {
                 var lastDest: URL?
@@ -482,7 +514,7 @@ struct FileExplorerView: View {
                         lastDest = try await state.withFileProgress(
                             "Pulling \(item.name)…", destination: item.dest, expectedBytes: item.bytes
                         ) {
-                            try await explorer.pull(serial: serial, path: item.path, to: item.dest)
+                            try await explorer.pull(serial: serial, path: item.path, to: item.dest, asRoot: asRoot)
                         }
                     } catch {
                         state.showToast(Toast(message: error.localizedDescription, ok: false))

@@ -35,7 +35,7 @@ public enum FeatureRegistry {
             id: "get-ip", num: 2, title: "Copy Device IP",
             subtitle: "Get the Wi-Fi IP address and copy it",
             keywords: ["ip", "address", "wifi", "network", "clipboard"],
-            category: .input, icon: "globe", kind: .instantAction, defaultEnabled: true
+            category: .connection, icon: "globe", kind: .instantAction, defaultEnabled: true
         ),
 
         // ── Connection ───────────────────────────────────────────────────
@@ -80,6 +80,21 @@ public enum FeatureRegistry {
                 "data", "traffic", "rx", "tx", "wifi", "cellular", "mbps",
             ],
             category: .connection, icon: "speedometer", kind: .view, defaultEnabled: true
+        ),
+        FeatureDef(
+            id: "wifi", num: 43, title: "Wi-Fi",
+            subtitle: "Connection details, toggle, saved networks & passwords",
+            keywords: [
+                "wifi", "wi-fi", "wlan", "ssid", "password", "saved", "network",
+                "connect", "switch", "toggle", "ssid", "credential", "wpa",
+            ],
+            category: .connection, icon: "wifi", kind: .view, defaultEnabled: true
+        ),
+        FeatureDef(
+            id: "private-dns", num: 45, title: "Private DNS",
+            subtitle: "Off, automatic, or a DNS-over-TLS provider",
+            keywords: ["dns", "private dns", "dot", "dns-over-tls", "hostname", "resolver", "doh", "edit dns"],
+            category: .connection, icon: "lock.shield", kind: .view, defaultEnabled: true
         ),
 
         // ── React Native ─────────────────────────────────────────────────
@@ -157,6 +172,21 @@ public enum FeatureRegistry {
             subtitle: "Browse and search every device property",
             keywords: ["info", "getprop", "android version", "model", "serial", "ram"],
             category: .deviceState, icon: "info.circle", kind: .view, defaultEnabled: false
+        ),
+        FeatureDef(
+            id: "root-status", num: 42, title: "Root Status",
+            subtitle: "Check whether the device is rooted, and how",
+            keywords: ["root", "rooted", "su", "magisk", "superuser", "selinux", "test-keys", "jailbreak"],
+            category: .logs, icon: "checkmark.shield", kind: .view, defaultEnabled: true
+        ),
+        FeatureDef(
+            id: "system-restrictions", num: 46, title: "System Restrictions",
+            subtitle: "Dev toggles — verifier, hidden APIs, SELinux (root)",
+            keywords: [
+                "restriction", "bypass", "verifier", "package verifier", "hidden api",
+                "selinux", "setenforce", "permissive", "remount", "stay awake", "adb install",
+            ],
+            category: .deviceState, icon: "lock.open", kind: .view, defaultEnabled: true
         ),
         FeatureDef(
             id: "fake-battery", num: 18, title: "Fake Battery",
