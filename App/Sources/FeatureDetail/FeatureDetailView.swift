@@ -4,11 +4,14 @@ import SwiftUI
 /// Routes the selected feature to its detail pane by kind.
 struct FeatureDetailView: View {
     @Environment(AppState.self) private var state
+    @AppStorage("showFeatureNotes") private var showFeatureNotes = true
     let featureID: String?
 
     var body: some View {
         if featureID == "home" {
             HomeView()
+        } else if featureID == "about" {
+            AboutView()
         } else if featureID == "catalog" {
             CatalogView()
                 .navigationTitle("Feature Catalog")
@@ -28,7 +31,7 @@ struct FeatureDetailView: View {
         VStack(spacing: 0) {
             detail(for: feature)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            if let note = FeatureRegistry.howTo(for: feature.id) {
+            if showFeatureNotes, let note = FeatureRegistry.howTo(for: feature.id) {
                 FeatureDescription(note: note)
             }
             FeatureCommandBar(feature: feature)
@@ -65,6 +68,14 @@ struct FeatureDetailView: View {
                 SandboxBrowserView()
             case "device-info":
                 DeviceInfoView()
+            case "root-status":
+                RootStatusView()
+            case "wifi":
+                WiFiView()
+            case "private-dns":
+                PrivateDnsView()
+            case "system-restrictions":
+                SystemRestrictionsView()
             case "screen-record":
                 ScreenRecordView()
             case "crash-catcher":
@@ -113,6 +124,7 @@ struct FeatureDetailView: View {
 /// The feature's "how it works" note, rendered as a description strip beneath
 /// the feature's content (above the command bar) — replaces the old ⓘ popover.
 struct FeatureDescription: View {
+    @AppStorage("showFeatureNotes") private var showFeatureNotes = true
     let note: String
 
     var body: some View {
@@ -124,6 +136,14 @@ struct FeatureDescription: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) { showFeatureNotes = false }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.tertiary)
+            }
+            .buttonStyle(.plain)
+            .help("Hide this note (toggle back with ⓘ in the bar below)")
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)

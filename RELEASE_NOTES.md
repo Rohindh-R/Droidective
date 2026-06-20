@@ -1,3 +1,26 @@
+## Droidective v2.1.0
+
+Device control, in-app feedback, and automatic updates.
+
+### New features
+
+- **Device control suite** — **Wi-Fi** (connection details, radio toggle, saved
+  networks, and saved passwords on rooted devices), **Private DNS** (off /
+  automatic / DNS-over-TLS provider), **Root Status** (multi-signal root
+  detection), and **System Restrictions** (dev toggles for the package verifier,
+  hidden-API access, and stay-awake, plus SELinux and read-write remount on root).
+- **About & Feedback** — report a bug or request a feature through pre-filled
+  GitHub issues (app/OS/device diagnostics attached), star the project, and find
+  author info, from a new sidebar panel.
+- **Automatic updates** — Droidective now updates itself with signed updates via
+  Sparkle; also available from the app menu.
+
+### Privacy
+
+- Anonymous crash reporting (on by default, opt-out) and opt-in usage analytics,
+  with a first-launch disclosure and controls in Settings → Privacy. No device
+  serials, file paths, or command contents are ever sent.
+
 ## Droidective v2.0.0
 
 A round of new tools and workflow upgrades on top of v1. Now 39 features; ADBKit

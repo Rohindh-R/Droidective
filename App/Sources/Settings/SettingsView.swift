@@ -1,6 +1,7 @@
 import ADBKit
 import AppKit
 import KeyboardShortcuts
+import ServiceManagement
 import SwiftUI
 
 struct SettingsView: View {
@@ -12,10 +13,17 @@ struct SettingsView: View {
                 .tabItem { Label("Doctor", systemImage: "stethoscope") }
             HotkeysSettingsView()
                 .tabItem { Label("Hotkeys", systemImage: "keyboard") }
-            DataSettingsView()
-                .tabItem { Label("Data", systemImage: "internaldrive") }
         }
         .frame(width: 480)
+        // Esc closes the Settings window. A zero-opacity button carrying the
+        // Cancel (Esc) key equivalent fires regardless of which control holds
+        // focus — more reliable here than .onExitCommand.
+        .background {
+            Button("") { NSApp.keyWindow?.performClose(nil) }
+                .keyboardShortcut(.cancelAction)
+                .opacity(0)
+                .accessibilityHidden(true)
+        }
     }
 }
 
@@ -25,15 +33,64 @@ struct SettingsView: View {
 func applyStoredTheme() {
     switch UserDefaults.standard.string(forKey: "theme") {
     case "light": NSApp.appearance = NSAppearance(named: .aqua)
-    case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
-    default: NSApp.appearance = nil
+    case "auto": NSApp.appearance = nil
+    // "dark" — and the default when unset, so new users get dark.
+    default: NSApp.appearance = NSAppearance(named: .darkAqua)
     }
 }
 
 struct GeneralSettingsView: View {
-    @AppStorage("theme") private var theme = "auto"
+    @Environment(AppState.self) private var state
+    @AppStorage("theme") private var theme = "dark"
     @AppStorage("groupSidebar") private var groupSidebar = true
     @AppStorage("restoreLastFeature") private var restoreLastFeature = true
+    @AppStorage("showFeatureNotes") private var showFeatureNotes = true
+    @AppStorage(ScreenCaptureService.captureFolderDefaultsKey) private var captureFolderPath = ""
+    @AppStorage("showMenuBarExtra") private var showMenuBar = true
+    @State private var showCommandLog = false
+    @State private var openAtLoginOn = false
+
+    private var captureFolderDisplay: String {
+        captureFolderPath.isEmpty
+            ? "~/Downloads/Droidective (default)"
+            : (captureFolderPath as NSString).abbreviatingWithTildeInPath
+    }
+
+    /// True when the login item is registered (enabled, or pending the user's
+    /// approval in System Settings).
+    private func loginItemRegistered() -> Bool {
+        let status = SMAppService.mainApp.status
+        return status == .enabled || status == .requiresApproval
+    }
+
+    /// Registers/unregisters the app as a macOS login item. The toggle is backed
+    /// by `openAtLoginOn` (the user's intent) rather than a live `status` read —
+    /// `register`/`unregister` don't update `status` synchronously, so reading it
+    /// each render snapped the toggle back to its old value.
+    private var openAtLogin: Binding<Bool> {
+        Binding(
+            get: { openAtLoginOn },
+            set: { enabled in
+                do {
+                    if enabled {
+                        try SMAppService.mainApp.register()
+                        if SMAppService.mainApp.status == .requiresApproval {
+                            state.showToast(Toast(
+                                message: "Added — approve Droidective in System Settings ▸ General ▸ Login Items.",
+                                ok: true
+                            ))
+                        }
+                    } else {
+                        try SMAppService.mainApp.unregister()
+                    }
+                    openAtLoginOn = enabled
+                } catch {
+                    state.showToast(Toast(message: "Couldn't update Open at Login: \(error.localizedDescription)", ok: false))
+                    openAtLoginOn = loginItemRegistered()
+                }
+            }
+        )
+    }
 
     var body: some View {
         Form {
@@ -45,6 +102,11 @@ struct GeneralSettingsView: View {
                 }
                 .pickerStyle(.segmented)
                 .onChange(of: theme) { applyStoredTheme() }
+
+                Toggle("Show how-it-works notes", isOn: $showFeatureNotes)
+                Text("The info text beneath each feature, above the command bar.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Sidebar") {
@@ -56,9 +118,93 @@ struct GeneralSettingsView: View {
 
             Section("Startup") {
                 Toggle("Reopen the last used feature", isOn: $restoreLastFeature)
+                Toggle("Open at login", isOn: openAtLogin)
+            }
+
+            #if !APPSTORE
+            Section("Updates") {
+                Toggle("Automatically check for updates", isOn: Binding(
+                    get: { SparkleUpdater.shared.automaticallyChecksForUpdates },
+                    set: { SparkleUpdater.shared.automaticallyChecksForUpdates = $0 }
+                ))
+                Text("Updates are delivered via Sparkle from GitHub Releases.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            #endif
+
+            Section("Menu bar") {
+                Toggle("Show menu bar icon", isOn: $showMenuBar)
+                if showMenuBar {
+                    DisclosureGroup("Items shown in the menu") {
+                        Text("When none are selected, your pinned features (or enabled instant actions) are shown. Screenshot and Mirror Screen always appear.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .padding(.vertical, 6)
+                        ForEach(state.enabledFeatures) { feature in
+                            Toggle(feature.title, isOn: Binding(
+                                get: { state.isInMenuBar(feature.id) },
+                                set: { state.setMenuBarItem(feature.id, included: $0) }
+                            ))
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                        }
+                    }
+                }
+            }
+
+            Section("Privacy") {
+                Toggle("Send anonymous crash reports", isOn: Binding(
+                    get: { Telemetry.shared.crashReportingEnabled },
+                    set: { Telemetry.shared.setCrashReporting($0) }
+                ))
+                Toggle("Share anonymous usage analytics", isOn: Binding(
+                    get: { Telemetry.shared.analyticsEnabled },
+                    set: { Telemetry.shared.setAnalytics($0) }
+                ))
+                Text("Crash reports help fix bugs; analytics shows which tools get used. Both are anonymous — no device data, file paths, or command contents are ever sent.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Data & Storage") {
+                LabeledContent("Captures & pulls") {
+                    VStack(alignment: .trailing, spacing: 6) {
+                        Text(captureFolderDisplay)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        HStack(spacing: 8) {
+                            Button("Change…") {
+                                if let url = state.askSaveFolder(prompt: "Choose folder") {
+                                    captureFolderPath = url.path
+                                }
+                            }
+                            if !captureFolderPath.isEmpty {
+                                Button("Reset") { captureFolderPath = "" }
+                            }
+                            Button("Open in Finder") {
+                                if let dir = try? ScreenCaptureService.ensureCaptureDir() {
+                                    NSWorkspace.shared.activateFileViewerSelecting([dir])
+                                }
+                            }
+                        }
+                    }
+                }
+                LabeledContent("Command log") {
+                    HStack {
+                        Button("View…") { showCommandLog = true }
+                        Button("Clear") { Task { await state.env.commandLog.clear() } }
+                    }
+                }
             }
         }
         .formStyle(.grouped)
+        .onAppear { openAtLoginOn = loginItemRegistered() }
+        .sheet(isPresented: $showCommandLog) {
+            CommandLogView()
+        }
     }
 }
 
@@ -220,57 +366,38 @@ struct DoctorSettingsView: View {
 struct HotkeysSettingsView: View {
     @Environment(AppState.self) private var state
 
+    /// Hidden (disabled) features that still carry a recorded shortcut. They're
+    /// off the sidebar but their hotkey keeps firing, so they need a home here
+    /// to stay unbindable.
+    private var orphanedShortcuts: [FeatureDef] {
+        let shown = Set(state.sidebarFeatures.map(\.id))
+        return FeatureRegistry.all.filter {
+            !shown.contains($0.id)
+                && KeyboardShortcuts.getShortcut(for: HotkeyManager.featureName($0.id)) != nil
+        }
+    }
+
     var body: some View {
         Form {
             Section("Global") {
                 KeyboardShortcuts.Recorder("Show Droidective", name: .globalLaunch)
             }
-            // Every feature, not just enabled ones — a recorded shortcut
-            // keeps firing even after its feature is hidden from the
-            // sidebar, so it must stay visible and unbindable here.
+            // Mirrors the sidebar: enabled features in their sidebar order.
             Section("Features") {
-                ForEach(FeatureRegistry.all) { feature in
+                ForEach(state.sidebarFeatures) { feature in
                     KeyboardShortcuts.Recorder(feature.title, name: HotkeyManager.featureName(feature.id))
+                }
+            }
+            let orphans = orphanedShortcuts
+            if !orphans.isEmpty {
+                Section("Hidden features with shortcuts") {
+                    ForEach(orphans) { feature in
+                        KeyboardShortcuts.Recorder(feature.title, name: HotkeyManager.featureName(feature.id))
+                    }
                 }
             }
         }
         .formStyle(.grouped)
         .frame(height: 360)
-    }
-}
-
-struct DataSettingsView: View {
-    @Environment(AppState.self) private var state
-    @State private var showCommandLog = false
-
-    var body: some View {
-        Form {
-            LabeledContent("Data folder") {
-                Button("Open in Finder") {
-                    NSWorkspace.shared.activateFileViewerSelecting([AppPaths.supportDir])
-                }
-            }
-            LabeledContent("Captures folder") {
-                Button("Open in Finder") {
-                    if let dir = try? ScreenCaptureService.ensureCaptureDir() {
-                        NSWorkspace.shared.activateFileViewerSelecting([dir])
-                    }
-                }
-            }
-            LabeledContent("Command log") {
-                HStack {
-                    Button("View…") {
-                        showCommandLog = true
-                    }
-                    Button("Clear") {
-                        Task { await state.env.commandLog.clear() }
-                    }
-                }
-            }
-        }
-        .formStyle(.grouped)
-        .sheet(isPresented: $showCommandLog) {
-            CommandLogView()
-        }
     }
 }

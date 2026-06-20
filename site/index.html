@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>Droidective — All-in-One Android &amp; React Native Debugging Tool for macOS</title>
+  <meta name="description" content="Droidective is a free, open-source macOS app: a Raycast-style command palette for Android & React Native debugging over adb. Mirror screens, tail logcat, browse device files, monitor performance, and 40+ more tools — no terminal required." />
+  <meta name="keywords" content="adb tool, android debugging tool, all in one android dev tool, react native debugger, scrcpy gui mac, android developer tool macos, logcat viewer mac, adb gui, mobile dev tool, android emulator manager, react native debugging" />
+  <meta name="author" content="Rohindh R" />
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#0b0d12" />
+  <link rel="canonical" href="https://rohindh-r.github.io/Droidective/" />
+
+  <link rel="icon" type="image/png" href="assets/icon.png" />
+  <link rel="apple-touch-icon" href="assets/icon.png" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Droidective" />
+  <meta property="og:title" content="Droidective — All-in-One Android & React Native Debugging Tool for macOS" />
+  <meta property="og:description" content="A Raycast-style command palette for Android & React Native debugging over adb. Mirror screens, tail logcat, browse files, monitor performance — 43 tools, one keystroke away." />
+  <meta property="og:url" content="https://rohindh-r.github.io/Droidective/" />
+  <meta property="og:image" content="https://rohindh-r.github.io/Droidective/assets/screenshot-home.png" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Droidective — All-in-One Android & React Native Debugging Tool for macOS" />
+  <meta name="twitter:description" content="A Raycast-style command palette for Android & React Native debugging over adb. 43 tools, one keystroke away. Free & open source." />
+  <meta name="twitter:image" content="https://rohindh-r.github.io/Droidective/assets/screenshot-home.png" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Droidective",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "macOS 14.0 or later",
+    "description": "A free, open-source macOS command palette for Android & React Native debugging over adb: screen mirroring, logcat, file explorer, performance monitoring, app management, and 40+ more tools.",
+    "url": "https://rohindh-r.github.io/Droidective/",
+    "downloadUrl": "https://github.com/Rohindh-R/Droidective/releases",
+    "softwareVersion": "2.0.0",
+    "screenshot": "https://rohindh-r.github.io/Droidective/assets/screenshot-home.png",
+    "license": "https://github.com/Rohindh-R/Droidective/blob/main/LICENSE",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Person", "name": "Rohindh R", "url": "https://github.com/Rohindh-R" }
+  }
+  </script>
+
+  <style>
+    :root {
+      --bg: #0b0d12;
+      --bg-soft: #11141b;
+      --card: #14181f;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.14);
+      --text: #e7eaf0;
+      --muted: #9aa3b2;
+      --tint: #5b8cff;
+      --tint-2: #8b5cf6;
+      --green: #34d399;
+      --radius: 16px;
+      --maxw: 1080px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+      color: var(--text);
+      background: radial-gradient(1200px 600px at 70% -10%, rgba(91, 140, 255, 0.18), transparent 60%),
+                  radial-gradient(900px 500px at 0% 0%, rgba(139, 92, 246, 0.12), transparent 55%),
+                  var(--bg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    code, .mono { font-family: "SF Mono", ui-monospace, Menlo, monospace; }
+    .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+    /* Nav */
+    nav {
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: saturate(160%) blur(14px);
+      background: rgba(11, 13, 18, 0.72);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner { display: flex; align-items: center; gap: 16px; height: 60px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; }
+    .brand img { width: 28px; height: 28px; border-radius: 7px; }
+    .nav-links { margin-left: auto; display: flex; gap: 22px; align-items: center; }
+    .nav-links a { color: var(--muted); font-size: 14px; font-weight: 500; transition: color .15s; }
+    .nav-links a:hover { color: var(--text); }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 18px; border-radius: 11px; font-weight: 600; font-size: 14px;
+      border: 1px solid var(--border-strong); transition: transform .12s, background .15s, border-color .15s;
+      white-space: nowrap;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: linear-gradient(180deg, var(--tint), #4571e6); border-color: transparent; color: #fff; box-shadow: 0 8px 24px rgba(91,140,255,.3); }
+    .btn-ghost { background: rgba(255,255,255,.04); }
+    .nav-links .btn { padding: 8px 14px; }
+
+    /* Hero */
+    .hero { padding: 84px 0 40px; text-align: center; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 14px; border-radius: 999px; font-size: 13px; color: var(--muted);
+      border: 1px solid var(--border); background: rgba(255,255,255,.03); margin-bottom: 26px;
+    }
+    .badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); }
+    h1 {
+      font-size: clamp(34px, 6vw, 60px); line-height: 1.05; letter-spacing: -0.02em;
+      margin: 0 auto 20px; max-width: 16ch; font-weight: 800;
+    }
+    h1 .grad {
+      background: linear-gradient(120deg, var(--tint), var(--tint-2));
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .lede { font-size: clamp(16px, 2.2vw, 20px); color: var(--muted); max-width: 60ch; margin: 0 auto 32px; }
+    .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .fineprint { margin-top: 16px; font-size: 13px; color: var(--muted); }
+
+    .shot-frame {
+      margin: 56px auto 0; max-width: 980px; border-radius: 18px; overflow: hidden;
+      border: 1px solid var(--border-strong);
+      box-shadow: 0 40px 120px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.02);
+      background: var(--bg-soft);
+    }
+    .shot-frame img { display: block; width: 100%; height: auto; }
+
+    /* Stats */
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 64px 0; }
+    .stat { text-align: center; padding: 22px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: rgba(255,255,255,.02); }
+    .stat .num { font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
+    .stat .lbl { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+    /* Sections */
+    section { padding: 56px 0; }
+    .section-head { text-align: center; max-width: 60ch; margin: 0 auto 44px; }
+    .section-head h2 { font-size: clamp(26px, 4vw, 38px); letter-spacing: -.02em; margin: 0 0 14px; font-weight: 800; }
+    .section-head p { color: var(--muted); font-size: 17px; margin: 0; }
+    .eyebrow { color: var(--tint); font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+
+    /* Feature grid */
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .feature {
+      padding: 24px; border: 1px solid var(--border); border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      transition: transform .15s, border-color .15s;
+    }
+    .feature:hover { transform: translateY(-3px); border-color: var(--border-strong); }
+    .ficon {
+      width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center;
+      font-size: 23px; margin-bottom: 16px;
+      background: linear-gradient(180deg, rgba(91,140,255,.22), rgba(139,92,246,.16));
+      border: 1px solid var(--border-strong);
+    }
+    .feature h3 { margin: 0 0 8px; font-size: 17px; }
+    .feature p { margin: 0; color: var(--muted); font-size: 14.5px; }
+
+    /* Showcase */
+    .showcase { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: center; }
+    .showcase + .showcase { margin-top: 24px; }
+    .showcase .shot { border-radius: 14px; overflow: hidden; border: 1px solid var(--border-strong); box-shadow: 0 24px 60px rgba(0,0,0,.45); }
+    .showcase .shot img { display: block; width: 100%; height: auto; }
+    .showcase h3 { font-size: 24px; margin: 0 0 12px; letter-spacing: -.01em; }
+    .showcase p { color: var(--muted); margin: 0 0 10px; }
+    .showcase ul { color: var(--muted); margin: 12px 0 0; padding-left: 18px; }
+    .showcase li { margin: 6px 0; }
+
+    /* Install */
+    .steps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; max-width: 880px; margin: 0 auto; }
+    .step { padding: 22px; border: 1px solid var(--border); border-radius: var(--radius); background: rgba(255,255,255,.02); }
+    .step .n { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-weight: 700; background: rgba(91,140,255,.18); border: 1px solid var(--border-strong); margin-bottom: 12px; }
+    .step h4 { margin: 0 0 6px; font-size: 16px; }
+    .step p { margin: 0; color: var(--muted); font-size: 14.5px; }
+    pre {
+      background: #0a0c11; border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px 14px; overflow-x: auto; font-size: 13px; margin: 12px 0 0; color: #cfd6e4;
+    }
+
+    /* Prose / SEO block */
+    .prose { max-width: 70ch; margin: 0 auto; color: var(--muted); text-align: center; font-size: 16px; }
+    .prose strong { color: var(--text); }
+
+    /* Final CTA */
+    .final {
+      text-align: center; padding: 64px 32px; border-radius: 24px; margin: 24px 0;
+      border: 1px solid var(--border-strong);
+      background: radial-gradient(700px 300px at 50% 0%, rgba(91,140,255,.2), transparent 70%), var(--bg-soft);
+    }
+    .final h2 { font-size: clamp(26px, 4vw, 36px); margin: 0 0 14px; letter-spacing: -.02em; }
+    .final p { color: var(--muted); margin: 0 0 28px; }
+
+    /* Footer */
+    footer { border-top: 1px solid var(--border); padding: 40px 0 60px; color: var(--muted); font-size: 14px; }
+    .foot-inner { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; justify-content: space-between; }
+    .foot-links { display: flex; gap: 20px; flex-wrap: wrap; }
+    .foot-links a:hover { color: var(--text); }
+    .disclaimer { margin-top: 18px; font-size: 12px; opacity: .7; max-width: 70ch; }
+
+    /* `.reveal` is a styling hook kept always-visible: no JS-gated hiding, so
+       search crawlers, no-JS visitors, and slow loads see every section. */
+
+    @media (max-width: 860px) {
+      .grid { grid-template-columns: repeat(2, 1fr); }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .showcase { grid-template-columns: 1fr; }
+      .showcase.flip .shot { order: -1; }
+      .nav-links a:not(.btn) { display: none; }
+    }
+    @media (max-width: 560px) {
+      .grid { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top"><img src="assets/icon.png" alt="Droidective icon" /> Droidective</a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#screenshots">Screenshots</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/Rohindh-R/Droidective">GitHub</a>
+        <a class="btn btn-primary" href="https://github.com/Rohindh-R/Droidective/releases">Download</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero wrap" id="top">
+    <span class="badge"><span class="dot"></span> Free &amp; open source · macOS 14+ · Apple Silicon &amp; Intel</span>
+    <h1>The all-in-one <span class="grad">Android &amp; React Native</span> debugging tool for macOS</h1>
+    <p class="lede">
+      Droidective is a Raycast-style command palette for everything you do over <strong>adb</strong> —
+      mirror screens, tail logcat, browse device files, simulate state, and monitor performance.
+      43 native tools, one keystroke away. No terminal gymnastics.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/Rohindh-R/Droidective/releases">⬇ Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Rohindh-R/Droidective">★ Star on GitHub</a>
+    </div>
+    <p class="fineprint">Requires macOS 14 Sonoma or later and Android <code>adb</code>. Updates itself automatically.</p>
+
+    <div class="shot-frame reveal">
+      <img src="assets/screenshot-home.png" alt="Droidective on macOS — command palette sidebar with 43 Android debugging tools and a welcome screen" width="1512" height="948" loading="eager" />
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="stats reveal">
+      <div class="stat"><div class="num">43</div><div class="lbl">built-in tools</div></div>
+      <div class="stat"><div class="num">⌘K</div><div class="lbl">command palette</div></div>
+      <div class="stat"><div class="num">100%</div><div class="lbl">open source (MIT)</div></div>
+      <div class="stat"><div class="num">$0</div><div class="lbl">free, forever</div></div>
+    </div>
+  </div>
+
+  <section id="features" class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">Everything in one place</span>
+      <h2>An entire adb toolkit, behind one keystroke</h2>
+      <p>Stop memorizing flags and juggling terminal tabs. Droidective wraps the Android Debug Bridge in a fast, native macOS UI built for mobile and React Native developers.</p>
+    </div>
+    <div class="grid">
+      <div class="feature reveal"><div class="ficon">⌘</div><h3>Command palette</h3><p>Fuzzy-search every tool and run it instantly. Pin favorites, assign global hotkeys, and never look up an adb flag again.</p></div>
+      <div class="feature reveal"><div class="ficon">📱</div><h3>Screen mirroring &amp; control</h3><p>A friendly GUI for scrcpy — mirror and control your device, tune bitrate, FPS and crop, and record straight to a file or GIF.</p></div>
+      <div class="feature reveal"><div class="ficon">📜</div><h3>Live logcat &amp; crash catcher</h3><p>Stream logs with level, tag and per-app filters, follow an app across restarts, and grab the last crash formatted for Slack or Jira.</p></div>
+      <div class="feature reveal"><div class="ficon">🗂️</div><h3>Device file explorer</h3><p>Browse shared storage — or the whole filesystem on rooted devices — copy, move, delete, and push/pull files to your Mac.</p></div>
+      <div class="feature reveal"><div class="ficon">📦</div><h3>App management &amp; inspection</h3><p>Install, uninstall, force-stop, clear data, toggle runtime permissions, pull APKs, and browse a debug app's private sandbox.</p></div>
+      <div class="feature reveal"><div class="ficon">📈</div><h3>Performance monitor</h3><p>Live per-core CPU, RAM, FPS &amp; jank, and network throughput — charted, recordable, and exportable to JSON &amp; CSV.</p></div>
+      <div class="feature reveal"><div class="ficon">⚛️</div><h3>React Native debugger tools</h3><p>Open the dev menu, reload the JS bundle, reverse the Metro port, and point the app at any dev server — built for RN workflows.</p></div>
+      <div class="feature reveal"><div class="ficon">📶</div><h3>Wireless ADB &amp; device control</h3><p>Connect over Wi-Fi (including Android 11 pairing), manage Wi-Fi and private DNS, check root status, and flip developer restrictions.</p></div>
+      <div class="feature reveal"><div class="ficon">🎛️</div><h3>State simulation</h3><p>Fake the battery, force dark mode, change locale, scale fonts and density, set an HTTP proxy, and toggle networks to test edge cases.</p></div>
+    </div>
+  </section>
+
+  <section id="screenshots" class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">See it in action</span>
+      <h2>Native, fast, and built for Mac</h2>
+    </div>
+
+    <div class="showcase reveal">
+      <div>
+        <h3>One palette, every tool</h3>
+        <p>A searchable sidebar groups all 43 tools into eight categories. Hit <code>⌘K</code> from anywhere to jump straight to the one you need.</p>
+        <ul>
+          <li>Pin favorites and assign global hotkeys</li>
+          <li>Persistent device bar — switch or target all devices</li>
+          <li>Per-feature command bar with the exact adb commands run</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="assets/screenshot-home.png" alt="Droidective command palette showing Android debugging tools grouped by category" loading="lazy" /></div>
+    </div>
+
+    <div class="showcase flip reveal">
+      <div class="shot"><img src="assets/screenshot-catalog.png" alt="Droidective feature catalog listing all 43 Android and React Native debugging tools with toggles" loading="lazy" /></div>
+      <div>
+        <h3>Enable only what you use</h3>
+        <p>The feature catalog lets you toggle, reorder, and pin any of the 43 tools, so your sidebar stays exactly as busy as you want it.</p>
+        <ul>
+          <li>Drag to reorder, or group by category</li>
+          <li>Setup Doctor checks your adb / scrcpy / emulator toolchain</li>
+          <li>Built-in terminal and command log</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <div class="prose reveal">
+      <p>
+        Whether you call it an <strong>adb tool</strong>, an <strong>all-in-one Android dev tool</strong>,
+        a <strong>React Native debugger</strong>, or just the thing that saves you from typing
+        <code>adb shell</code> a hundred times a day — Droidective puts every common Android debugging
+        task behind a fast, native macOS interface. It's built for mobile developers, React Native
+        engineers, and QA teams who live on the Android Debug Bridge.
+      </p>
+    </div>
+  </section>
+
+  <section id="install" class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">Get started in a minute</span>
+      <h2>Install Droidective</h2>
+      <p>Ad-hoc signed and notarization-free — clearing quarantine once is all it takes.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal"><div class="n">1</div><h4>Download the DMG</h4><p>Grab the latest <code>Droidective-vX.dmg</code> from GitHub Releases and drag the app into Applications.</p></div>
+      <div class="step reveal"><div class="n">2</div><h4>Clear quarantine once</h4><p>It's not notarized (no paid Apple account), so run this once:</p><pre>xattr -dr com.apple.quarantine /Applications/Droidective.app</pre></div>
+      <div class="step reveal"><div class="n">3</div><h4>Install adb</h4><p>Droidective drives the Android Debug Bridge. If you don't have it:</p><pre>brew install android-platform-tools</pre></div>
+      <div class="step reveal"><div class="n">4</div><h4>Open &amp; connect</h4><p>Launch the app — the built-in Doctor checks your toolchain, and you can connect over USB or Wi-Fi. Updates arrive automatically from then on.</p></div>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <div class="final reveal">
+      <h2>Open source. Free. Yours to shape.</h2>
+      <p>Droidective is MIT-licensed. Star it, file an issue, request a feature, or send a pull request.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://github.com/Rohindh-R/Droidective/releases">⬇ Download for macOS</a>
+        <a class="btn btn-ghost" href="https://github.com/Rohindh-R/Droidective">★ Star on GitHub</a>
+        <a class="btn btn-ghost" href="https://github.com/Rohindh-R/Droidective/issues/new">Report an issue</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div class="foot-inner">
+        <a class="brand" href="#top"><img src="assets/icon.png" alt="" width="24" height="24" style="border-radius:6px" /> Droidective</a>
+        <div class="foot-links">
+          <a href="https://github.com/Rohindh-R/Droidective">GitHub</a>
+          <a href="https://github.com/Rohindh-R/Droidective/releases">Releases</a>
+          <a href="https://github.com/Rohindh-R/Droidective/issues">Issues</a>
+          <a href="https://github.com/Rohindh-R">@Rohindh-R</a>
+        </div>
+      </div>
+      <p class="disclaimer">
+        Made by Rohindh R · MIT licensed · © 2026. Not affiliated with Google or the Android Open
+        Source Project. Android is a trademark of Google LLC. scrcpy and adb are independent projects.
+      </p>
+    </div>
+  </footer>
+
+</body>
+</html>

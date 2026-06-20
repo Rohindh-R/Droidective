@@ -17,6 +17,7 @@ jobs:
           persist-credentials: false
       - name: Run ADBKit tests
         run: cd ADBKit && swift test
+
   build:
     runs-on: macos-15
     steps:
@@ -29,12 +30,53 @@ jobs:
         run: |
           xcodegen generate
           xcodebuild -project Droidective.xcodeproj -scheme App -configuration Debug -derivedDataPath DerivedData build CODE_SIGNING_ALLOWED=NO
+
+  # Publish the marketing site to GitHub Pages on every push to main, preserving
+  # the appcast the release job last published (so site edits don't wipe the
+  # Sparkle update feed).
+  pages:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - name: Assemble site (keep the published appcast)
+        run: |
+          mkdir -p _site
+          cp -R site/. _site/
+          curl -fsSL https://rohindh-r.github.io/Droidective/appcast.xml -o _site/appcast.xml \
+            || echo "no published appcast yet — first deploy"
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128  # v5.0.0
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [test, build]
     runs-on: macos-15
     permissions:
       contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
@@ -43,8 +85,11 @@ jobs:
         run: brew install xcodegen
       - name: Build and package release DMG
         run: |
+          VERSION="${GITHUB_REF_NAME#v}"
           xcodegen generate
-          xcodebuild -project Droidective.xcodeproj -scheme App -configuration Release -derivedDataPath DerivedData build CODE_SIGNING_ALLOWED=NO
+          xcodebuild -project Droidective.xcodeproj -scheme App -configuration Release \
+            -derivedDataPath DerivedData build CODE_SIGNING_ALLOWED=NO \
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="${{ github.run_number }}"
           ./scripts/package-dmg.sh "${GITHUB_REF_NAME}"
       - name: Extract notes for this release
         run: awk '/^## /{c++} c==1{print} c==2{exit}' RELEASE_NOTES.md > release-body.md
@@ -54,3 +99,19 @@ jobs:
           files: DerivedData/Build/Products/Release/Droidective-*.dmg
           body_path: release-body.md
           fail_on_unmatched_files: true
+      - name: Sign update and assemble site + appcast
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          DMG="DerivedData/Build/Products/Release/Droidective-${GITHUB_REF_NAME}.dmg"
+          DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/Droidective-${GITHUB_REF_NAME}.dmg"
+          ./scripts/fetch-sparkle-tools.sh
+          mkdir -p _site
+          cp -R site/. _site/
+          ./scripts/update-appcast.sh "$DMG" "$VERSION" "${{ github.run_number }}" "${GITHUB_REF_NAME}" "$DOWNLOAD_URL" "_site/appcast.xml"
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128  # v5.0.0
