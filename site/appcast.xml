@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Droidective</title>
+    <link>https://rohindh-r.github.io/Droidective/appcast.xml</link>
+    <description>Most recent Droidective updates.</description>
+    <language>en</language>
+    <item>
+      <title>Droidective 2.1.0</title>
+      <sparkle:version>22</sparkle:version>
+      <sparkle:shortVersionString>2.1.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <sparkle:releaseNotesLink>https://github.com/Rohindh-R/Droidective/releases/tag/v2.1.0</sparkle:releaseNotesLink>
+      <pubDate>Sat, 20 Jun 2026 16:36:53 +0000</pubDate>
+      <enclosure url="https://github.com/Rohindh-R/Droidective/releases/download/v2.1.0/Droidective-v2.1.0.dmg" sparkle:edSignature="PktlZJSxnwZ8VufMueUnpUyTHiIxGG3aiKPNSRDWj2Q9b7EPKvgo/aRcGQxwM1dzhWVahKynAVHh/2ad2Kp/DQ==" length="7117209" type="application/octet-stream" />
+    </item>
+  </channel>
+</rss>
