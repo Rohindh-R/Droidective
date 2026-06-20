@@ -7,6 +7,8 @@ struct RootView: View {
     @Environment(\.openWindow) private var openWindow
     @AppStorage("sidebarWidth") private var sidebarWidth = 280.0
     @AppStorage("hasSeenTour") private var hasSeenTour = false
+    @AppStorage("telemetryConsentAsked") private var consentAsked = false
+    @State private var presentConsent = false
 
     var body: some View {
         @Bindable var state = state
@@ -17,13 +19,26 @@ struct RootView: View {
             .sheet(isPresented: $state.presentTour) {
                 TourView()
             }
+            .background {
+                // Separate host view: two .sheet modifiers on one view can drop
+                // one, and first-run privacy consent must always show.
+                Color.clear.sheet(isPresented: $presentConsent) {
+                    TelemetryConsentView()
+                }
+            }
             .onAppear {
                 state.openMainWindow = { openWindow(id: "main") }
                 state.openPalette = { openWindow(id: "palette") }
                 applyStoredTheme()
+                HotkeyManager.install(state: state)
                 if !hasSeenTour {
                     state.presentTour = true
+                } else if !consentAsked {
+                    presentConsent = true
                 }
+            }
+            .onChange(of: state.presentTour) { _, showing in
+                if !showing && !consentAsked { presentConsent = true }
             }
     }
 

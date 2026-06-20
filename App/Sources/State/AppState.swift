@@ -29,7 +29,7 @@ final class AppState {
     // Layout toggles: ⌘B (sidebar) and ⌘J (minimize/maximize the command bar).
     var sidebarVisible = true
     var commandBarExpanded = false
-    var commandBarTab: CommandBarTab = .commands
+    var commandBarTab: CommandBarTab = .recent
     /// Drives the first-launch / replayable welcome tour sheet.
     var presentTour = false
     /// True while a performance/network recording is in flight — locks the
@@ -353,6 +353,25 @@ final class AppState {
         FeatureRegistry.all.count - enabledFeatures.count
     }
 
+    /// Enabled features in the exact order the sidebar shows them — pinned
+    /// first, then grouped by category or the user's drag order — ignoring any
+    /// active search. Lets the Hotkeys settings list mirror the sidebar instead
+    /// of dumping the full registry.
+    var sidebarFeatures: [FeatureDef] {
+        let grouped = UserDefaults.standard.object(forKey: "groupSidebar") as? Bool ?? true
+        let pinned = enabledFeatures.filter { layout.favorites.contains($0.id) }
+        let rest: [FeatureDef]
+        if grouped {
+            let unpinned = enabledFeatures.filter { !layout.favorites.contains($0.id) }
+            rest = FeatureCategory.displayOrder.flatMap { category in
+                unpinned.filter { $0.category == category }
+            }
+        } else {
+            rest = orderedEnabledFeatures
+        }
+        return pinned + rest
+    }
+
     func refreshDevices() {
         Task { await env.monitor.invalidate() }
     }
@@ -362,6 +381,7 @@ final class AppState {
     func run(feature: FeatureDef, params: [String: FeatureValue]) async {
         isRunningFeature = true
         defer { isRunningFeature = false }
+        Telemetry.shared.track("feature_used", ["feature": feature.id])
 
         // Screenshot always asks where to save, whichever entry point ran it
         // (sidebar ⏎, hotkey, menu bar, or the Screenshot view).
@@ -477,6 +497,37 @@ final class AppState {
         Task {
             try? await env.stores.layout.save(snapshot)
         }
+    }
+
+    // MARK: - Menu bar
+
+    /// Features shown in the menu-bar menu: the user's explicit choice, else
+    /// pinned features, else the enabled instant actions (excluding the two
+    /// always-on quick actions).
+    var menuBarFeatures: [FeatureDef] {
+        if let chosen = layout.menuBarItems, !chosen.isEmpty {
+            return chosen.compactMap { FeatureRegistry.byID[$0] }
+        }
+        let favorites = layout.favorites.compactMap { FeatureRegistry.byID[$0] }
+        if !favorites.isEmpty { return favorites }
+        return enabledFeatures.filter {
+            $0.kind == .instantAction && $0.id != "screenshot" && $0.id != "scrcpy"
+        }
+    }
+
+    func isInMenuBar(_ featureID: String) -> Bool {
+        layout.menuBarItems?.contains(featureID) ?? false
+    }
+
+    func setMenuBarItem(_ featureID: String, included: Bool) {
+        var items = layout.menuBarItems ?? []
+        if included {
+            if !items.contains(featureID) { items.append(featureID) }
+        } else {
+            items.removeAll { $0 == featureID }
+        }
+        layout.menuBarItems = items
+        persistLayout()
     }
 
     // MARK: - Bundles

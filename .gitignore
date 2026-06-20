@@ -4,3 +4,6 @@ DerivedData/
 .DS_Store
 xcuserdata/
 .swiftpm/
+App/Info.plist
+.sparkle/
+sparkle-private-key.txt

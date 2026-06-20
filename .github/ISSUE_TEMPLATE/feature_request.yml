@@ -1,0 +1,14 @@
+name: Feature Request
+description: Suggest an idea for Droidective
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like Droidective to do?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why is it useful?

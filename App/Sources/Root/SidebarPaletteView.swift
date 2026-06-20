@@ -1,5 +1,6 @@
 import ADBKit
 import AppKit
+import KeyboardShortcuts
 import SwiftUI
 
 /// Raycast-style command palette: pinned search field on top of the
@@ -13,6 +14,10 @@ struct SidebarPaletteView: View {
     @AppStorage("groupSidebar") private var groupSidebar = true
     @State private var commandHeld = false
     @State private var flagsMonitor: Any?
+    /// Whether this window is the active (key) one — the ⌘ flags monitor fires
+    /// app-wide, so without this the ⌘1–9 hints appear even when Settings or
+    /// another window holds focus.
+    @Environment(\.controlActiveState) private var controlActive
 
     private static let digitKeys: [KeyEquivalent] = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
@@ -43,7 +48,7 @@ struct SidebarPaletteView: View {
                 let pinned = visible.filter { state.layout.favorites.contains($0.id) }
                 // ⌘1–⌘9 hints: id → 0-based rank, only while search is focused
                 // and ⌘ is held. Order matches the rows top-to-bottom.
-                let shortcutRank = (searchFocused && commandHeld)
+                let shortcutRank = (searchFocused && commandHeld && controlActive == .key)
                     ? Dictionary(
                         orderedMatches.prefix(9).enumerated().map { ($1.id, $0) },
                         uniquingKeysWith: { first, _ in first }
@@ -59,7 +64,15 @@ struct SidebarPaletteView: View {
                 }
 
                 let rest = visible.filter { !state.layout.favorites.contains($0.id) }
-                if groupSidebar {
+                if !state.searchText.isEmpty {
+                    // Searching: one flat list ranked by relevance (best match
+                    // first), so "app" surfaces Apps before Deep Links.
+                    Section {
+                        ForEach(ranked(rest)) { feature in
+                            FeatureRowView(feature: feature, shortcutIndex: shortcutRank[feature.id])
+                        }
+                    }
+                } else if groupSidebar {
                     ForEach(FeatureCategory.displayOrder, id: \.self) { category in
                         let features = rest.filter { $0.category == category }
                         if !features.isEmpty {
@@ -71,15 +84,12 @@ struct SidebarPaletteView: View {
                         }
                     }
                 } else {
-                    // Ungrouped: show the user's custom order and let them drag
-                    // to reorder (search results stay fixed, no reorder).
-                    let flat = state.searchText.isEmpty ? state.orderedEnabledFeatures : rest
+                    // Ungrouped: the user's custom order, drag to reorder.
                     Section {
-                        ForEach(flat) { feature in
+                        ForEach(state.orderedEnabledFeatures) { feature in
                             FeatureRowView(feature: feature, shortcutIndex: shortcutRank[feature.id])
                         }
                         .onMove { source, destination in
-                            guard state.searchText.isEmpty else { return }
                             state.moveFeature(from: source, to: destination)
                         }
                     }
@@ -88,7 +98,7 @@ struct SidebarPaletteView: View {
                 // Disabled features surface only while searching — usable from
                 // here without appearing on the home list.
                 if !state.searchText.isEmpty {
-                    let disabled = state.disabledMatches
+                    let disabled = ranked(state.disabledMatches)
                     if !disabled.isEmpty {
                         Section("Disabled") {
                             ForEach(disabled) { feature in
@@ -149,6 +159,18 @@ struct SidebarPaletteView: View {
 
             Spacer()
 
+            Button {
+                state.selectedFeatureID = "about"
+            } label: {
+                Image(systemName: "info.circle")
+                    .font(.title2)
+                    .frame(height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(state.selectedFeatureID == "about" ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+            .help("About & Feedback — version, report an issue, star on GitHub")
+
             SettingsLink {
                 Image(systemName: "gearshape")
                     .font(.title2)
@@ -182,17 +204,28 @@ struct SidebarPaletteView: View {
         let pinned = visible.filter { state.layout.favorites.contains($0.id) }
         let rest = visible.filter { !state.layout.favorites.contains($0.id) }
         let body: [FeatureDef]
-        if groupSidebar {
+        if !state.searchText.isEmpty {
+            body = ranked(rest)
+        } else if groupSidebar {
             body = FeatureCategory.displayOrder.flatMap { category in
                 rest.filter { $0.category == category }
             }
-        } else if state.searchText.isEmpty {
-            body = state.orderedEnabledFeatures
         } else {
-            body = rest
+            body = state.orderedEnabledFeatures
         }
-        let disabled = state.searchText.isEmpty ? [] : state.disabledMatches
+        let disabled = state.searchText.isEmpty ? [] : ranked(state.disabledMatches)
         return pinned + body + disabled
+    }
+
+    /// Search results ranked by relevance (best first), registry order as the
+    /// tiebreak. `features` arrive in registry order, so `offset` is stable.
+    private func ranked(_ features: [FeatureDef]) -> [FeatureDef] {
+        let query = state.searchText
+        return features.enumerated().sorted { lhs, rhs in
+            let rl = lhs.element.relevance(for: query)
+            let rr = rhs.element.relevance(for: query)
+            return rl != rr ? rl > rr : lhs.offset < rhs.offset
+        }.map(\.element)
     }
 
     private func activate(_ index: Int) {
@@ -230,6 +263,7 @@ struct FeatureRowView: View {
     /// 0-based ⌘<n> hint to show trailing (nil = none).
     var shortcutIndex: Int?
     var dimmed = false
+    @State private var showingHotkey = false
 
     private var isPinned: Bool { state.layout.favorites.contains(feature.id) }
     private var isEnabled: Bool { state.layout.effectiveEnabledIDs.contains(feature.id) }
@@ -268,6 +302,65 @@ struct FeatureRowView: View {
                     state.setFeatureEnabled(feature.id, enabled: !isEnabled)
                 }
             }
+            Divider()
+            Button("Set Hotkey…", systemImage: "keyboard") {
+                showingHotkey = true
+            }
         }
+        .popover(isPresented: $showingHotkey, arrowEdge: .trailing) {
+            HotkeyPopover(feature: feature)
+        }
+    }
+}
+
+/// Inline global-hotkey recorder reached from a sidebar row's right-click menu.
+/// Shows a live preview of the modifiers being held (press ⌘ and "⌘ …" appears
+/// immediately, before the full combo lands) above the recorder. Writes the
+/// same KeyboardShortcuts name the Hotkeys settings tab uses, so they stay in
+/// sync.
+private struct HotkeyPopover: View {
+    let feature: FeatureDef
+    @State private var held = NSEvent.ModifierFlags()
+    @State private var flagsMonitor: Any?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Hotkey · \(feature.title)")
+                .font(.headline)
+            preview
+            KeyboardShortcuts.Recorder("", name: HotkeyManager.featureName(feature.id))
+            Text("Global — fires even when Droidective is in the background.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(14)
+        .frame(width: 300)
+        .onAppear {
+            flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
+                held = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+                return event
+            }
+        }
+        .onDisappear {
+            if let flagsMonitor { NSEvent.removeMonitor(flagsMonitor) }
+            flagsMonitor = nil
+        }
+    }
+
+    private var preview: some View {
+        let symbols = HotkeyManager.symbolString(for: held)
+        return HStack {
+            if symbols.isEmpty {
+                Text("Hold ⌘ / ⌥ / ⌃ / ⇧, then a key")
+                    .foregroundStyle(.secondary)
+            } else {
+                Text(symbols + " …")
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+            }
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+        .padding(.horizontal, 10)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
     }
 }

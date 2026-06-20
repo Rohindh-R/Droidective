@@ -13,6 +13,15 @@ packages:
   SwiftTerm:
     url: https://github.com/migueldeicaza/SwiftTerm
     from: 1.13.0
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.9.3
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa
+    from: 9.18.0
+  PostHog:
+    url: https://github.com/PostHog/posthog-ios
+    from: 3.61.0
 targets:
   App:
     type: application
@@ -27,15 +36,31 @@ targets:
         product: KeyboardShortcuts
       - package: SwiftTerm
         product: SwiftTerm
+      - package: Sparkle
+        product: Sparkle
+      - package: Sentry
+        product: Sentry
+      - package: PostHog
+        product: PostHog
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        LSApplicationCategoryType: public.app-category.developer-tools
+        NSHumanReadableCopyright: ""
+        SUFeedURL: https://rohindh-r.github.io/Droidective/appcast.xml
+        SUPublicEDKey: "ma0kTe35r55/PKmemQOEBX7n6SuZPZjOBo973SdJqJ8="
+        SUEnableAutomaticChecks: true
     settings:
       base:
         PRODUCT_NAME: Droidective
         PRODUCT_BUNDLE_IDENTIFIER: com.rohindh.droidective
+        MARKETING_VERSION: "2.1.0"
+        CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_NSHumanReadableCopyright: ""
-        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_STYLE: Manual
         ENABLE_HARDENED_RUNTIME: NO

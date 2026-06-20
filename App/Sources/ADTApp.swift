@@ -4,11 +4,15 @@ import SwiftUI
 @main
 struct ADTApp: App {
     @State private var appState: AppState
+    @AppStorage("showMenuBarExtra") private var showMenuBarExtra = true
 
     init() {
-        let state = AppState(env: AppEnvironment())
-        _appState = State(initialValue: state)
-        HotkeyManager.install(state: state)
+        // HotkeyManager.install is deferred to RootView.onAppear — Carbon
+        // hot-key registration needs a running event loop, which App.init
+        // predates.
+        _appState = State(initialValue: AppState(env: AppEnvironment()))
+        // Start crash reporting as early as possible; analytics only if opted in.
+        Telemetry.shared.start()
     }
 
     var body: some Scene {
@@ -19,6 +23,24 @@ struct ADTApp: App {
         }
         .windowStyle(.automatic)
         .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("About Droidective") {
+                    appState.activateMainWindow()
+                    appState.selectedFeatureID = "about"
+                }
+                #if !APPSTORE
+                CheckForUpdatesCommand(updater: SparkleUpdater.shared)
+                #endif
+            }
+
+            CommandGroup(replacing: .help) {
+                Button("Report an Issue…") { appState.reportBug() }
+                Button("Request a Feature…") { appState.requestFeature() }
+                Divider()
+                Button("Droidective on GitHub") { appState.openRepository() }
+                Button("Release Notes") { appState.openReleases() }
+            }
+
             CommandGroup(after: .textEditing) {
                 Button("Find Feature") {
                     appState.openPalette?()
@@ -76,7 +98,7 @@ struct ADTApp: App {
                 .environment(appState)
         }
 
-        MenuBarExtra("Droidective", systemImage: "iphone.gen3") {
+        MenuBarExtra("Droidective", systemImage: "iphone.gen3", isInserted: $showMenuBarExtra) {
             MenuBarView()
                 .environment(appState)
         }
@@ -103,7 +125,7 @@ struct MenuBarView: View {
         }
         Divider()
 
-        ForEach(menuFeatures) { feature in
+        ForEach(state.menuBarFeatures) { feature in
             Button(feature.title) {
                 if feature.kind == .instantAction {
                     Task { await state.run(feature: feature, params: [:]) }
@@ -125,14 +147,5 @@ struct MenuBarView: View {
     private func runByID(_ id: String) {
         guard let feature = FeatureRegistry.byID[id] else { return }
         Task { await state.run(feature: feature, params: [:]) }
-    }
-
-    /// Favorites first, falling back to the enabled instant actions.
-    private var menuFeatures: [FeatureDef] {
-        let favorites = state.layout.favorites.compactMap { FeatureRegistry.byID[$0] }
-        if !favorites.isEmpty { return favorites }
-        return state.enabledFeatures.filter {
-            $0.kind == .instantAction && $0.id != "screenshot" && $0.id != "scrcpy"
-        }
     }
 }
