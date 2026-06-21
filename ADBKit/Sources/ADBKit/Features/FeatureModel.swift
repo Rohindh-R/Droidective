@@ -153,7 +153,7 @@ public struct FieldDef: Sendable {
 
 public struct FeatureDef: Sendable, Identifiable {
     public let id: String
-    /// Spec feature number (1–37).
+    /// Spec feature number (registry order; 1–49, with gaps from removed features).
     public let num: Int
     public let title: String
     public let subtitle: String?
@@ -162,7 +162,6 @@ public struct FeatureDef: Sendable, Identifiable {
     /// SF Symbol name (keeps ADBKit free of UI frameworks).
     public let icon: String
     public let kind: FeatureKind
-    public let defaultEnabled: Bool
     /// Shows the saved-bundle dropdown in the run context.
     public let needsBundle: Bool
     /// false for host-only / connection actions.
@@ -187,7 +186,6 @@ public struct FeatureDef: Sendable, Identifiable {
         category: FeatureCategory,
         icon: String,
         kind: FeatureKind,
-        defaultEnabled: Bool,
         needsBundle: Bool = false,
         needsDevice: Bool = true,
         needsScrcpy: Bool = false,
@@ -207,7 +205,6 @@ public struct FeatureDef: Sendable, Identifiable {
         self.category = category
         self.icon = icon
         self.kind = kind
-        self.defaultEnabled = defaultEnabled
         self.needsBundle = needsBundle
         self.needsDevice = needsDevice
         self.needsScrcpy = needsScrcpy

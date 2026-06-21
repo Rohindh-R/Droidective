@@ -1,5 +1,9 @@
 <p align="center">
-  <img src="docs/icon.png" width="120" alt="Droidective app icon">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/icon.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/icon-light.png">
+    <img src="docs/icon.png" width="120" alt="Droidective app icon">
+  </picture>
 </p>
 
 # Droidective
@@ -16,8 +20,10 @@ needs a new UI layer.
 
 ## Features
 
-A searchable palette (`⌘K`) of 39 adb actions, organised by category. Enable
-or hide any of them from the in-app catalog.
+A searchable palette (`⌘K`) of 45 adb actions, organised by category and
+gathered into focused hubs (React Native, Simulate, Connection) so the sidebar
+stays short. Every action is on by default; hide the ones you don't want from
+the in-app catalog.
 
 - **Input & clipboard** — send text (Unicode via ADBKeyboard, auto-offered),
   copy the device's Wi-Fi IP.
@@ -28,9 +34,10 @@ or hide any of them from the in-app catalog.
 - **React Native** — dev menu, reload JS, saved deep links per app, simulate
   process death, set dev-server host.
 - **Screen & capture** — scrcpy mirroring with common options (max size,
-  bit-rate, FPS, record-to-file, view-only, turn screen off…), screenshots with
-  a capture delay, auto-copy, in-app preview and drag-out, screen recording with
-  resolution / bit-rate / time-limit / rotate options and optional GIF, demo mode.
+  bit-rate, FPS, record-to-file, view-only, turn screen off…), a screenshot
+  editor (pen, shapes, text, blur/solid redaction, zoom, crop, undo/redo) that
+  saves or copies on demand, screen recording with resolution / bit-rate /
+  time-limit / rotate options and optional GIF, demo mode.
 - **Device state** — searchable device info (RAM, storage, battery health &
   cycle count, CPU, app counts, every getprop), **file explorer** (browse,
   copy/cut/paste, delete, new folder, push from Mac, pull), fake battery, dark
@@ -101,7 +108,7 @@ Then open it normally. Building from source avoids the quarantine entirely.
 ADBKit/   Swift package — all logic, zero UI dependencies (swift test)
   Exec/         adb process execution, tool location, scoped command log
   Devices/      discovery (2s polling), getprop, hardware/usage overview
-  Features/     declarative 39-feature registry + runners + how-to notes
+  Features/     declarative 45-feature registry + runners + how-to notes
   Services/     logcat streaming, overrides, file/apps explorers, capture,
                 screen record, crash, bug report, wireless, emulators,
                 performance + network monitors, scrcpy/screenrecord options…

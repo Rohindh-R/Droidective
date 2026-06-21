@@ -39,6 +39,13 @@ extension FeatureRegistry {
         ],
 
         // ── Connection ───────────────────────────────────────────────────
+        "connection": [
+            FeatureCommand("adb shell ip -f inet addr show wlan0", note: "copy the device Wi-Fi IP"),
+            FeatureCommand("adb reverse tcp:<port> tcp:<port>", note: "forward a port to your Mac"),
+            FeatureCommand("adb disconnect <ip:port>", note: "drop a wireless connection"),
+            FeatureCommand("adb pair <host>:<port> <code>", note: "Android 11+ pairing"),
+            FeatureCommand("adb shell settings put global private_dns_mode hostname", note: "Private DNS"),
+        ],
         "reverse-port": [
             FeatureCommand("adb reverse tcp:<port> tcp:<port>"),
         ],
@@ -46,9 +53,6 @@ extension FeatureRegistry {
             FeatureCommand("adb tcpip 5555", note: "switch a USB device to TCP/IP"),
             FeatureCommand("adb connect <ip>:5555", note: "connect over Wi-Fi"),
             FeatureCommand("adb pair <host>:<port> <code>", note: "Android 11+ pairing"),
-        ],
-        "disconnect": [
-            FeatureCommand("adb disconnect <ip:port>", note: "omit the target to drop every wireless device"),
         ],
         "network-speed": [
             FeatureCommand("adb shell cat /proc/net/dev", note: "RX/TX byte counters — sampled as deltas for speed"),
@@ -81,6 +85,12 @@ extension FeatureRegistry {
         ],
 
         // ── React Native ─────────────────────────────────────────────────
+        "react-native": [
+            FeatureCommand("adb shell input keyevent 82", note: "open the dev menu"),
+            FeatureCommand("adb shell input keyevent 46 46", note: "reload the JS bundle"),
+            FeatureCommand("adb shell am start -a android.intent.action.VIEW -d <url>", note: "launch a deep link"),
+            FeatureCommand("adb reverse tcp:<port> tcp:<port>", note: "reach a Metro dev server"),
+        ],
         "open-dev-menu": [
             FeatureCommand("adb shell input keyevent 82"),
         ],
@@ -159,6 +169,13 @@ extension FeatureRegistry {
             FeatureCommand("adb shell getprop ro.build.tags", note: "test-keys hints at a custom/eng build"),
             FeatureCommand("adb shell getenforce", note: "SELinux mode (Permissive when relaxed)"),
         ],
+        "simulate": [
+            FeatureCommand("adb shell dumpsys battery set level <n>", note: "fake battery level"),
+            FeatureCommand("adb shell cmd uimode night yes", note: "dark mode"),
+            FeatureCommand("adb shell settings put global animator_duration_scale 0", note: "disable animations"),
+            FeatureCommand("adb shell settings put system system_locales <bcp47>", note: "change locale"),
+            FeatureCommand("adb shell settings put global http_proxy <host:port>", note: "set proxy"),
+        ],
         "fake-battery": [
             FeatureCommand("adb shell dumpsys battery set level <level>"),
             FeatureCommand("adb shell dumpsys battery unplug", note: "simulate unplugged"),
@@ -196,6 +213,13 @@ extension FeatureRegistry {
         "apps": [
             FeatureCommand("adb shell pm list packages", note: "all packages (-3 = user only)"),
             FeatureCommand("adb shell dumpsys package packages", note: "versions"),
+            FeatureCommand(
+                "adb shell monkey -p <package> -c android.intent.category.LAUNCHER 1",
+                note: "open"
+            ),
+            FeatureCommand("adb shell am force-stop <package>", note: "force-stop"),
+            FeatureCommand("adb shell pm clear --cache-only <package>", note: "clear cache (Android 14+)"),
+            FeatureCommand("adb shell pm clear <package>", note: "clear data"),
             FeatureCommand("adb shell pm disable-user --user 0 <package>", note: "disable (pm enable to undo)"),
             FeatureCommand("adb shell pm uninstall --user 0 <package>", note: "uninstall for this user"),
             FeatureCommand("adb shell cmd package install-existing <package>", note: "restore a removed app"),

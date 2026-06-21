@@ -39,7 +39,7 @@ struct RootStatusView: View {
                         }
                     }
                 }
-                .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 8))
             }
             .padding(16)
             .frame(maxWidth: 560, alignment: .leading)
@@ -59,7 +59,7 @@ struct RootStatusView: View {
                     ? "A root shell is available over adb."
                     : "Root-only features need a granted su shell.")
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
             }
             Spacer()
             Button {
@@ -73,12 +73,12 @@ struct RootStatusView: View {
     private func signalRow(_ signal: RootSignal) -> some View {
         HStack(spacing: 10) {
             Image(systemName: signal.indicatesRoot ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(signal.indicatesRoot ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
+                .foregroundStyle(signal.indicatesRoot ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMuted))
             VStack(alignment: .leading, spacing: 1) {
                 Text(signal.name)
                 Text(signal.detail)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
             }
             Spacer()
         }
@@ -92,8 +92,8 @@ struct RootStatusView: View {
     }
 
     private func tint(_ status: RootStatus) -> Color {
-        if status.hasRootShell { return .green }
-        return status.likelyRooted ? .orange : .gray
+        if status.hasRootShell { return .brandAccent }
+        return status.likelyRooted ? .orange : .textMuted
     }
 
     private func load() async {

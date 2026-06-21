@@ -1,3 +1,45 @@
+## Droidective v2.2.0
+
+A UI overhaul: a refreshed theme, feature hubs that keep the sidebar short, a
+screenshot annotation editor, and every feature on by default.
+
+### New features
+
+- **Screenshot editor** — a capture now opens in an editor with pen, highlighter,
+  shapes (rectangle, ellipse, arrow, line), text, and redaction (blur or solid),
+  plus zoom, crop, and undo/redo (`⌘Z` / `⇧⌘Z`). Save or copy when you're ready;
+  nothing is written to disk until then. Captures from the sidebar, a global
+  hotkey, or the menu bar still save straight to the capture folder.
+- **Feature hubs** — React Native, Simulate, and Connection each gather their
+  related actions onto one screen, and the Apps explorer now also handles per-app
+  management (open, force-stop, clear cache/data, disable, uninstall) alongside
+  info and permissions. Gathered tools stay searchable and hotkey-able.
+- **Live memory graph** — Memory Usage charts Total PSS over time on an axis that
+  scales to the live range.
+- **Notifications panel** — a side panel keeps the toasts that matter (errors,
+  warnings, and results that produced a file).
+
+### Improvements
+
+- **Theme** — a new dark/light terminal palette and logo, and detail panes that
+  center their content instead of stretching edge to edge.
+- **Sidebar** — features group by category with drag-to-reorder (within a group
+  or whole groups), tighter rows, and a centered drop guideline. Instant actions
+  fire straight from the sidebar without opening a screen.
+- **Every feature on by default** — the catalog ("Manage features") is now for
+  hiding the ones you don't want; Restore Defaults is gone.
+
+### Install
+
+Download the `.dmg` below and drag **Droidective** into **Applications**. The
+build is ad-hoc signed but not notarized, so clear the quarantine once:
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/Droidective.app"
+```
+
+Installed copies from v2.1.0+ update in place via Sparkle.
+
 ## Droidective v2.1.0
 
 Device control, in-app feedback, and automatic updates.

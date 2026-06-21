@@ -23,6 +23,8 @@ struct ADTApp: App {
         }
         .windowStyle(.automatic)
         .commands {
+            ScreenshotEditCommandsMenu()
+
             CommandGroup(replacing: .appInfo) {
                 Button("About Droidective") {
                     appState.activateMainWindow()

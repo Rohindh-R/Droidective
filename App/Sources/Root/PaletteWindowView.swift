@@ -16,9 +16,11 @@ struct PaletteWindowView: View {
 
     private var matches: [FeatureDef] {
         let enabled = state.layout.effectiveEnabledIDs
-        // Rank by relevance (best match first), registry order as tiebreak.
+        // Rank by relevance (best match first), registry order as tiebreak. Hub
+        // members are excluded — they're used from their hub (which matches the
+        // same keywords), not as standalone palette rows.
         let ranked = FeatureRegistry.all.enumerated()
-            .filter { $0.element.matches(query) }
+            .filter { $0.element.matches(query) && !$0.element.isAbsorbedByHub }
             .sorted { lhs, rhs in
                 let rl = lhs.element.relevance(for: query)
                 let rr = rhs.element.relevance(for: query)
@@ -38,7 +40,7 @@ struct PaletteWindowView: View {
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
                     .font(.title)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
                 TextField("Search features…", text: $query)
                     .textFieldStyle(.plain)
                     .font(.title)
@@ -63,7 +65,7 @@ struct PaletteWindowView: View {
                 Divider()
                 Text("No matching features")
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
                     .padding(14)
             }
         }
@@ -109,7 +111,7 @@ struct PaletteWindowView: View {
         HStack(spacing: 10) {
             Image(systemName: feature.icon)
                 .frame(width: 22)
-                .foregroundStyle(isHighlighted ? AnyShapeStyle(.white) : AnyShapeStyle(.tint))
+                .foregroundStyle(isHighlighted ? AnyShapeStyle(.white) : AnyShapeStyle(.brandAccent))
             VStack(alignment: .leading, spacing: 0) {
                 Text(feature.title)
                 if let subtitle = feature.subtitle {
@@ -132,7 +134,7 @@ struct PaletteWindowView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(
-            isHighlighted ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear),
+            isHighlighted ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.clear),
             in: RoundedRectangle(cornerRadius: 8)
         )
         .foregroundStyle(isHighlighted ? .white : .primary)
@@ -191,7 +193,7 @@ struct KeyHint: View {
     var body: some View {
         Text(text)
             .font(.caption2.weight(.medium))
-            .foregroundStyle(prominent ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+            .foregroundStyle(prominent ? AnyShapeStyle(.white) : AnyShapeStyle(.textMuted))
             .padding(.horizontal, 5)
             .padding(.vertical, 2)
             .background(

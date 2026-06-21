@@ -121,6 +121,41 @@ Installed copies pick up the new appcast and offer the update automatically.
 > won't auto-update *to* the first Sparkle-enabled build — download that one
 > manually. Every release after it updates in place.
 
+## Release checklist
+
+Copy this into the release PR and tick each item.
+
+### Prepare (on the feature branch)
+
+- [ ] `cd ADBKit && swift test` is green (no skips).
+- [ ] `make build` is clean — zero warnings.
+- [ ] App runs and the changed features are verified live against a device or emulator.
+- [ ] Bump `MARKETING_VERSION` in `project.yml` to the new `X.Y.Z`.
+- [ ] Add a `## Droidective vX.Y.Z` section to the top of `RELEASE_NOTES.md` (summary, New features, Improvements, Install). Plain, factual language — no superlatives.
+- [ ] Feature counts updated if they changed: registry total in `README.md` and `CLAUDE.md`, marketing count in `site/index.html`.
+- [ ] Screenshots refreshed if the UI changed: `site/assets/screenshot-home.png` and `screenshot-catalog.png` (1512×948 window → 3024×1896 @2× Retina; Dock hidden; default layout — nothing pinned/collapsed).
+- [ ] `README.md`, `CLAUDE.md`, and `docs/` updated for new features or changed behavior.
+- [ ] Diff re-read for leftover debug/seed/temp code, dead code, and unclear naming; nothing agent-only (`.claude/`) committed.
+
+### Land
+
+- [ ] Branch pushed; PR opened against `main` describing what changed (factual).
+- [ ] PR reviewed and merged to `main`.
+
+### Release (CI does the build — triggered by the tag)
+
+- [ ] Tag from `main` and push: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+- [ ] The Actions `release` job succeeds: builds Release with `MARKETING_VERSION=X.Y.Z`, packages and ad-hoc-signs `Droidective-vX.Y.Z.dmg`, signs it with the Sparkle EdDSA key, publishes the GitHub release with the DMG + latest notes, writes `appcast.xml`, and deploys the site to GitHub Pages.
+
+### Verify (post-release)
+
+- [ ] GitHub release page shows the right version, the notes, and a downloadable DMG.
+- [ ] Fresh download launches: mount the DMG, copy to `/Applications`, `xattr -dr com.apple.quarantine "/Applications/Droidective.app"`, open.
+- [ ] `https://rohindh-r.github.io/Droidective/` shows the new screenshots and copy.
+- [ ] `https://rohindh-r.github.io/Droidective/appcast.xml` lists the new version with a valid `sparkle:edSignature`.
+- [ ] A prior install (v2.1.0+) offers the update via Sparkle and applies it in place.
+- [ ] Repo **About → Website** still points at the Pages URL.
+
 ## Mac App Store builds
 
 Sparkle is wrapped in `#if !APPSTORE` (App Store apps update through the App

@@ -60,7 +60,7 @@ struct SandboxBrowserView: View {
                     }
                     .buttonStyle(.link)
                     ForEach(Array(pathComponents.enumerated()), id: \.offset) { index, component in
-                        Text("/").foregroundStyle(.secondary)
+                        Text("/").foregroundStyle(.textMuted)
                         Button(component) {
                             pathComponents = Array(pathComponents.prefix(index + 1))
                         }
@@ -91,7 +91,7 @@ struct SandboxBrowserView: View {
                     }
                 }
             } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                ProgressView("Reading files…").frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
     }
@@ -99,7 +99,7 @@ struct SandboxBrowserView: View {
     private func row(_ entry: FsEntry) -> some View {
         HStack {
             Image(systemName: entry.isDir ? "folder.fill" : "doc")
-                .foregroundStyle(entry.isDir ? .blue : .secondary)
+                .foregroundStyle(entry.isDir ? .textMain : .textMuted)
             if entry.isDir {
                 Button(entry.name) {
                     pathComponents.append(entry.name)
@@ -112,7 +112,7 @@ struct SandboxBrowserView: View {
             if !entry.isDir {
                 Text(ByteCountFormatter.string(fromByteCount: Int64(entry.size), countStyle: .file))
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
                 Button {
                     pull(entry)
                 } label: {

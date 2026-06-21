@@ -7,6 +7,7 @@ import SwiftUI
 /// category. Doubles as the no-device onboarding when nothing is connected.
 struct HomeView: View {
     @Environment(AppState.self) private var state
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ScrollView {
@@ -31,7 +32,7 @@ struct HomeView: View {
 
     private var header: some View {
         HStack(spacing: 16) {
-            Image(nsImage: NSApp.applicationIconImage)
+            Image(colorScheme == .dark ? "AppLogoDark" : "AppLogoLight")
                 .resizable()
                 .frame(width: 60, height: 60)
             VStack(alignment: .leading, spacing: 4) {
@@ -39,7 +40,7 @@ struct HomeView: View {
                     .font(.largeTitle.bold())
                 Text("An Android & React Native debugging command palette, driven over adb.")
                     .font(.title3)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
             }
         }
     }
@@ -83,7 +84,7 @@ struct HomeView: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: shortcut.icon)
                 .font(.title2)
-                .foregroundStyle(.tint)
+                .foregroundStyle(.textMuted)
                 .frame(width: 26)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
@@ -92,14 +93,15 @@ struct HomeView: View {
                 }
                 Text(shortcut.detail)
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.borderSubtle, lineWidth: 1))
     }
 
     // MARK: - Customize
@@ -130,10 +132,10 @@ struct HomeView: View {
 
     private var categoriesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("All \(FeatureRegistry.all.count) features")
+            sectionTitle("All \(FeatureRegistry.catalogFeatureIDs.count) features")
             Text("Grouped into \(FeatureCategory.displayOrder.count) categories — browse and toggle every tool in the catalog.")
                 .font(.callout)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
             LazyVGrid(
                 columns: [GridItem(.adaptive(minimum: 220), spacing: 12)],
                 alignment: .leading,
@@ -147,21 +149,22 @@ struct HomeView: View {
     }
 
     private func categoryChip(_ category: FeatureCategory) -> some View {
-        let count = FeatureRegistry.all.filter { $0.category == category }.count
+        let count = FeatureRegistry.all.filter { $0.category == category && !$0.isAbsorbedByHub }.count
         return HStack(spacing: 10) {
             Image(systemName: category.icon)
-                .foregroundStyle(.tint)
+                .foregroundStyle(.textMuted)
                 .frame(width: 22)
             Text(category.label)
                 .lineLimit(1)
             Spacer(minLength: 6)
             Text("\(count)")
                 .font(.callout.monospacedDigit())
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.borderSubtle, lineWidth: 1))
     }
 
     // MARK: - Connect card (no device)
@@ -190,7 +193,7 @@ struct HomeView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+        .background(.brandAccent.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
     }
 
     private func step(_ number: Int, _ text: String) -> some View {
@@ -198,10 +201,10 @@ struct HomeView: View {
             Text("\(number)")
                 .font(.callout.weight(.bold))
                 .frame(width: 22, height: 22)
-                .background(.tint.opacity(0.15), in: Circle())
+                .background(.brandAccent.opacity(0.15), in: Circle())
             Text(.init(text))
                 .font(.callout)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -235,13 +238,13 @@ struct HomeView: View {
         HStack(alignment: .center, spacing: 12) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundStyle(.tint)
+                .foregroundStyle(.textMuted)
                 .frame(width: 26)
             VStack(alignment: .leading, spacing: 4) {
                 Text(title).font(.headline)
                 Text(detail)
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 12)
@@ -249,13 +252,14 @@ struct HomeView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.borderSubtle, lineWidth: 1))
     }
 }
 
 /// The Light / Dark / Auto segmented control, reused on Home and Settings.
 struct ThemePicker: View {
-    @AppStorage("theme") private var theme = "dark"
+    @AppStorage("theme") private var theme = "auto"
 
     var body: some View {
         Picker("", selection: $theme) {

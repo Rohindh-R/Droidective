@@ -19,7 +19,7 @@ struct BundleManagerView: View {
             if state.bundles.isEmpty {
                 Text("Save an app's bundle id once, then pick it from dropdowns across the app.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
             } else {
                 List(state.bundles) { bundle in
                     HStack {
@@ -27,7 +27,7 @@ struct BundleManagerView: View {
                             Text(bundle.nickname)
                             Text(bundle.packageId)
                                 .font(.footnote)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.textMuted)
                         }
                         Spacer()
                         Button {

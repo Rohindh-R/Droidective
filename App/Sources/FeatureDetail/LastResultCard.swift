@@ -12,7 +12,7 @@ struct LastResultCard: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
                     Image(systemName: entry.result.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundStyle(entry.result.ok ? .green : .red)
+                        .foregroundStyle(entry.result.ok ? .brandAccent : .red)
                     Text(entry.result.message)
                         .textSelection(.enabled)
                     Spacer()
@@ -44,9 +44,13 @@ struct LastResultCard: View {
                     }
                 }
             }
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+            .padding(12)
+            .frame(maxWidth: 460, alignment: .leading)
+            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(Color.borderSubtle, lineWidth: 1)
+            )
         }
     }
 }

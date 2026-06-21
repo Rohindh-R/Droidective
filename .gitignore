@@ -7,3 +7,4 @@ xcuserdata/
 App/Info.plist
 .sparkle/
 sparkle-private-key.txt
+.claude/

@@ -19,7 +19,7 @@ struct CommandCopyButton: View {
             }
         } label: {
             Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                .foregroundStyle(copied ? Color.green : Color.secondary)
+                .foregroundStyle(copied ? Color.brandAccent : Color.textMuted)
         }
         .buttonStyle(.borderless)
         .controlSize(.small)
@@ -71,7 +71,7 @@ struct CommandLogRow: View {
                 HStack(spacing: 6) {
                     Image(systemName: expanded ? "chevron.down" : "chevron.right")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.textMuted)
                     Text(entry.command)
                         .font(.system(.callout, design: .monospaced))
                         .lineLimit(expanded ? nil : 1)
@@ -79,10 +79,10 @@ struct CommandLogRow: View {
                     Spacer(minLength: 6)
                     Text(Self.exitLabel(entry))
                         .font(.caption)
-                        .foregroundStyle(entry.exitCode == 0 ? Color.green : Color.red)
+                        .foregroundStyle(entry.exitCode == 0 ? Color.brandAccent : Color.red)
                     Text(entry.timestamp, style: .time)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.textMuted)
                 }
                 .contentShape(Rectangle())
             }
@@ -113,7 +113,7 @@ struct CommandLogRow: View {
             .textSelection(.enabled)
             .padding(6)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background((tint ?? .gray).opacity(tint == nil ? 0.12 : 0.08), in: RoundedRectangle(cornerRadius: 4))
+            .background((tint ?? .textMuted).opacity(tint == nil ? 0.12 : 0.08), in: RoundedRectangle(cornerRadius: 4))
     }
 
     static func exitLabel(_ entry: CommandLogEntry) -> String {
@@ -141,7 +141,7 @@ struct FeatureCommandLog: View {
                 HStack(spacing: 4) {
                     Text("Recent runs")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.textMuted)
                     Spacer()
                     Button {
                         Task { await refresh() }
@@ -210,7 +210,7 @@ enum CommandBarTab: String, CaseIterable, Hashable {
 struct FeatureCommandBar: View {
     @Environment(AppState.self) private var state
     @AppStorage("commandBarHeight") private var commandBarHeight = 220.0
-    @AppStorage("showFeatureNotes") private var showFeatureNotes = true
+    @AppStorage("showFeatureNotes") private var showFeatureNotes = false
     let feature: FeatureDef
 
     var body: some View {
@@ -236,7 +236,7 @@ struct FeatureCommandBar: View {
                         withAnimation(.easeInOut(duration: 0.15)) { state.commandBarExpanded = false }
                     } label: {
                         Image(systemName: "trash")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.textMuted)
                             .frame(width: 30, height: 26)
                             .contentShape(Rectangle())
                     }
@@ -249,7 +249,7 @@ struct FeatureCommandBar: View {
                         withAnimation(.easeInOut(duration: 0.15)) { showFeatureNotes.toggle() }
                     } label: {
                         Image(systemName: showFeatureNotes ? "info.circle.fill" : "info.circle")
-                            .foregroundStyle(showFeatureNotes ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                            .foregroundStyle(showFeatureNotes ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMuted))
                             .frame(width: 30, height: 26)
                             .contentShape(Rectangle())
                     }
@@ -262,7 +262,7 @@ struct FeatureCommandBar: View {
                 } label: {
                     Image(systemName: state.commandBarExpanded ? "chevron.down" : "chevron.up")
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.textMuted)
                         .frame(width: 34, height: 26)
                         .contentShape(Rectangle())
                 }
@@ -270,7 +270,7 @@ struct FeatureCommandBar: View {
                 .help(state.commandBarExpanded ? "Minimize command bar (⌘J)" : "Expand command bar (⌘J)")
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 5)
+            .padding(.vertical, 8)
 
             if state.commandBarExpanded {
                 Divider()
@@ -278,7 +278,7 @@ struct FeatureCommandBar: View {
                     .frame(height: commandBarHeight)
             }
         }
-        .background(.bar)
+        .background(.bgSurface)
     }
 
     private func tabButton(_ tab: CommandBarTab, _ title: String) -> some View {
@@ -291,10 +291,10 @@ struct FeatureCommandBar: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 5)
                 .background(
-                    active ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear),
+                    active ? AnyShapeStyle(.brandAccent.opacity(0.15)) : AnyShapeStyle(.clear),
                     in: RoundedRectangle(cornerRadius: 6)
                 )
-                .foregroundStyle(active ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+                .foregroundStyle(active ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMuted))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

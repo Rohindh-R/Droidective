@@ -9,13 +9,11 @@ struct RootView: View {
     @AppStorage("hasSeenTour") private var hasSeenTour = false
     @AppStorage("telemetryConsentAsked") private var consentAsked = false
     @State private var presentConsent = false
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         @Bindable var state = state
         zoomedContent
-            .overlay(alignment: .bottom) {
-                ToastOverlay()
-            }
             .sheet(isPresented: $state.presentTour) {
                 TourView()
             }
@@ -29,7 +27,9 @@ struct RootView: View {
             .onAppear {
                 state.openMainWindow = { openWindow(id: "main") }
                 state.openPalette = { openWindow(id: "palette") }
+                migrateDefaultsIfNeeded()
                 applyStoredTheme()
+                updateDockIcon()
                 HotkeyManager.install(state: state)
                 if !hasSeenTour {
                     state.presentTour = true
@@ -40,6 +40,25 @@ struct RootView: View {
             .onChange(of: state.presentTour) { _, showing in
                 if !showing && !consentAsked { presentConsent = true }
             }
+            .onChange(of: colorScheme) { _, _ in updateDockIcon() }
+    }
+
+    /// macOS has no native light/dark app icon, so swap the Dock icon at
+    /// runtime to match the active theme.
+    private func updateDockIcon() {
+        let dark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        NSApp.applicationIconImage = NSImage(named: dark ? "AppLogoDark" : "AppLogoLight")
+    }
+
+    /// One-time switch to the v2 defaults — Auto appearance and how-it-works
+    /// notes hidden — for users who installed before they changed. Runs once;
+    /// any later manual change in Settings sticks.
+    private func migrateDefaultsIfNeeded() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: "didMigrateDefaultsV2") else { return }
+        defaults.set("auto", forKey: "theme")
+        defaults.set(false, forKey: "showFeatureNotes")
+        defaults.set(true, forKey: "didMigrateDefaultsV2")
     }
 
     /// macOS ignores SwiftUI dynamic type, so ⌘=/⌘- zoom is done by scaling the
@@ -80,12 +99,25 @@ struct RootView: View {
                         OperationProgressStrip(operation: operation)
                     }
                 }
-                FeatureDetailView(featureID: state.selectedFeatureID)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                HStack(spacing: 0) {
+                    FeatureDetailView(featureID: state.selectedFeatureID)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .overlay(alignment: .topTrailing) { ToastOverlay() }
+                    if state.showNotifications {
+                        Divider()
+                        NotificationPanelView()
+                            .frame(width: 320)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.bgRoot)
+            .animation(.spring(duration: 0.28), value: state.showNotifications)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .foregroundStyle(.textMain)
     }
 }
 
@@ -144,19 +176,19 @@ struct OperationProgressStrip: View {
                     .frame(maxWidth: 260)
                 Text("\(Int(fraction * 100))%")
                     .font(.footnote.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
             } else {
                 ProgressView()
                     .controlSize(.small)
             }
             Text(operation.label)
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
             Spacer()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(.bar)
+        .background(.bgSurface)
         .overlay(alignment: .bottom) { Divider() }
     }
 }

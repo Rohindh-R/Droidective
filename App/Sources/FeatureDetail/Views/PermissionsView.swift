@@ -29,7 +29,7 @@ struct PermissionsView: View {
                     list(permissions)
                 }
             } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                ProgressView("Reading permissions…").frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         // Keyed on the READY serial so the view loads once a plugged-in
@@ -41,20 +41,30 @@ struct PermissionsView: View {
 
     private func list(_ entries: [PermissionEntry]) -> some View {
         List(entries) { entry in
+            let isMutating = mutating == entry.name
             Toggle(isOn: Binding(
                 get: { entry.granted },
                 set: { setPermission(entry, granted: $0) }
             )) {
-                VStack(alignment: .leading) {
-                    Text(entry.shortName)
-                    Text(entry.name)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text(entry.shortName)
+                        Text(entry.name)
+                            .font(.footnote)
+                            .foregroundStyle(.textMuted)
+                    }
+                    if isMutating {
+                        Spacer()
+                        ProgressView().controlSize(.small)
+                    }
                 }
             }
             .toggleStyle(.switch)
             .controlSize(.small)
             .disabled(mutating != nil)
+            // While one permission is changing, dim the others so it's clear
+            // the list is briefly locked.
+            .opacity(mutating != nil && !isMutating ? 0.5 : 1)
         }
     }
 

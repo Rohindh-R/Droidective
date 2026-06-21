@@ -93,15 +93,15 @@ struct AppsExplorerView: View {
                                         if app.isSystem {
                                             Text("system")
                                                 .font(.caption2)
-                                                .foregroundStyle(.secondary)
+                                                .foregroundStyle(.textMuted)
                                                 .padding(.horizontal, 4)
-                                                .background(.quaternary, in: Capsule())
+                                                .background(Color.bgSurface, in: Capsule())
                                         }
                                         lifecycleBadge(for: app.packageId)
                                     }
                                     Text("\(app.packageId)\(app.versionName.map { " · v\($0)" } ?? "")")
                                         .font(.footnote)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(.textMuted)
                                         .lineLimit(1)
                                 }
                             }
@@ -209,6 +209,7 @@ private struct AppDetailPane: View {
     @State private var pullingApk = false
     @State private var managing = false
     @State private var showFiles = false
+    @State private var confirmingClearData = false
 
     private var serial: String { state.targetSerials.first ?? "" }
 
@@ -235,9 +236,27 @@ private struct AppDetailPane: View {
                 } else if info == nil {
                     HStack {
                         ProgressView().controlSize(.small)
-                        Text("Reading app info…").foregroundStyle(.secondary)
+                        Text("Reading app info…").foregroundStyle(.textMuted)
                     }
                 }
+            }
+
+            Section("Controls") {
+                HStack(spacing: 8) {
+                    Button { runControl(.open) } label: {
+                        Label("Open", systemImage: "play.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    Button { runControl(.stop) } label: {
+                        Label("Force Stop", systemImage: "stop.fill")
+                    }
+                    .buttonStyle(.bordered)
+                    Button { runControl(.clearCache) } label: {
+                        Label("Clear Cache", systemImage: "internaldrive")
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .disabled(managing)
             }
 
             Section {
@@ -249,7 +268,7 @@ private struct AppDetailPane: View {
                     if showPermissions {
                         if permissions.isEmpty {
                             Text("No runtime permissions declared.")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.textMuted)
                         }
                         ForEach(permissions) { permission in
                             Toggle(isOn: Binding(
@@ -260,18 +279,25 @@ private struct AppDetailPane: View {
                                     Text(permission.shortName)
                                     Text(permission.name)
                                         .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(.textMuted)
                                 }
                             }
                             .toggleStyle(.switch)
                             .controlSize(.small)
                             .disabled(mutating)
+                            .opacity(mutating ? 0.5 : 1)
+                        }
+                        if mutating {
+                            HStack {
+                                ProgressView().controlSize(.small)
+                                Text("Updating…").foregroundStyle(.textMuted)
+                            }
                         }
                     }
                 } else {
                     HStack {
                         ProgressView().controlSize(.small)
-                        Text("Reading permissions…").foregroundStyle(.secondary)
+                        Text("Reading permissions…").foregroundStyle(.textMuted)
                     }
                 }
             }
@@ -306,6 +332,12 @@ private struct AppDetailPane: View {
                         Label(isDisabled ? "Enable" : "Disable", systemImage: isDisabled ? "eye" : "eye.slash")
                     }
                     .disabled(managing)
+                    Button(role: .destructive) {
+                        confirmingClearData = true
+                    } label: {
+                        Label("Clear Data", systemImage: "trash")
+                    }
+                    .disabled(managing)
                     if canUninstall {
                         Button(role: .destructive) {
                             uninstall()
@@ -316,11 +348,19 @@ private struct AppDetailPane: View {
                     }
                 }
                 if managing {
-                    HStack { ProgressView().controlSize(.small); Text("Working…").foregroundStyle(.secondary) }
+                    HStack { ProgressView().controlSize(.small); Text("Working…").foregroundStyle(.textMuted) }
                 }
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .confirmationDialog(
+            "Clear all data for \(packageId)? This signs you out and wipes local storage.",
+            isPresented: $confirmingClearData
+        ) {
+            Button("Clear Data", role: .destructive) { runControl(.clearData) }
+            Button("Cancel", role: .cancel) {}
+        }
         .task(id: "\(packageId)|\(state.targetSerials.first ?? "")") {
             await load()
         }
@@ -354,7 +394,7 @@ private struct AppDetailPane: View {
                     _ = try await state.env.engine.systemApps.setRemoved(serial: serial, packageId: packageId, true)
                     let removed = await state.env.engine.systemApps.states(serial: serial)[packageId]?.removed ?? false
                     if removed {
-                        state.showToast(Toast(message: "\(packageId) uninstalled for this user", ok: true))
+                        state.showToast(Toast(message: "\(packageId) uninstalled for this user", ok: true, important: true))
                     } else {
                         onNotRemovable(packageId)
                         state.showToast(Toast(message: "Can't uninstall \(packageId) — it's protected. Disable it instead.", ok: false))
@@ -383,6 +423,22 @@ private struct AppDetailPane: View {
             }
             managing = false
             onChanged()
+        }
+    }
+
+    /// Lifecycle control (open, force-stop, clear cache/data) on the selected
+    /// app — the actions the standalone "Manage App" screen used to host, now
+    /// folded into the Apps explorer.
+    private func runControl(_ action: AppControlService.AppAction) {
+        managing = true
+        Task {
+            await CommandLog.userInitiated(feature: "apps") {
+                let result = (try? await state.env.engine.appControl.control(
+                    serial: serial, packageId: packageId, action: action
+                )) ?? FeatureResult(ok: false, message: "adb not found")
+                state.showToast(Toast(message: result.message, ok: result.ok))
+            }
+            managing = false
         }
     }
 

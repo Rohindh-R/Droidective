@@ -31,16 +31,16 @@ struct SystemRestrictionsView: View {
     private func form(_ state0: RestrictionsState) -> some View {
         Form {
             Section {
-                Toggle("Verify apps installed via ADB", isOn: binding(state0.adbInstallVerification) {
+                SwitchRow("Verify apps installed via ADB", isOn: binding(state0.adbInstallVerification) {
                     try await engine.restrictions.setAdbInstallVerification(serial: serial, $0)
                 })
-                Toggle("Package verifier", isOn: binding(state0.packageVerifier) {
+                SwitchRow("Package verifier", isOn: binding(state0.packageVerifier) {
                     try await engine.restrictions.setPackageVerifier(serial: serial, $0)
                 })
-                Toggle("Enforce hidden-API restrictions", isOn: binding(state0.hiddenApiEnforced) {
+                SwitchRow("Enforce hidden-API restrictions", isOn: binding(state0.hiddenApiEnforced) {
                     try await engine.restrictions.setHiddenApiEnforced(serial: serial, $0)
                 })
-                Toggle("Stay awake while charging", isOn: binding(state0.stayAwake) {
+                SwitchRow("Stay awake while charging", isOn: binding(state0.stayAwake) {
                     try await engine.restrictions.setStayAwake(serial: serial, $0)
                 })
             } header: {
@@ -54,7 +54,7 @@ struct SystemRestrictionsView: View {
             }
             Section("Root") {
                 if hasRoot {
-                    Toggle("SELinux enforcing", isOn: binding(state0.selinuxEnforcing ?? true) {
+                    SwitchRow("SELinux enforcing", isOn: binding(state0.selinuxEnforcing ?? true) {
                         try await engine.restrictions.setSelinuxEnforcing(serial: serial, $0)
                     })
                     Button("Remount /system read-write") {
@@ -63,11 +63,13 @@ struct SystemRestrictionsView: View {
                 } else {
                     Text("Connect a rooted device to relax SELinux or remount the system partition.")
                         .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.textMuted)
                 }
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .centeredColumn()
     }
 
     private var engine: FeatureEngine { state.env.engine }

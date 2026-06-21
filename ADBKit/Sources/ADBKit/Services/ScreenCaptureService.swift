@@ -46,13 +46,21 @@ public struct ScreenCaptureService: Sendable {
         return dir
     }
 
-    /// Capture a PNG screenshot. `destination: nil` falls back to a
-    /// timestamped file in ~/Downloads/Droidective.
-    public func captureScreenshot(serial: String, to destination: URL? = nil) async throws -> URL {
+    /// Capture a PNG screenshot and return the raw bytes — written nowhere. The
+    /// in-app editor uses this so a capture opens for annotation/crop and is
+    /// saved only when the user asks.
+    public func captureScreenshotData(serial: String) async throws -> Data {
         let output = try await client.runBinary(on: serial, ["exec-out", "screencap", "-p"])
         guard output.exitCode == 0, !output.stdout.isEmpty else {
             throw CaptureError.emptyScreenshot
         }
+        return output.stdout
+    }
+
+    /// Capture a PNG screenshot to disk. `destination: nil` falls back to a
+    /// timestamped file in ~/Downloads/Droidective.
+    public func captureScreenshot(serial: String, to destination: URL? = nil) async throws -> URL {
+        let data = try await captureScreenshotData(serial: serial)
         let file: URL
         if let destination {
             file = destination
@@ -60,7 +68,7 @@ public struct ScreenCaptureService: Sendable {
             let dir = try Self.ensureCaptureDir()
             file = dir.appendingPathComponent("screenshot_\(Self.stamp()).png")
         }
-        try output.stdout.write(to: file)
+        try data.write(to: file)
         return file
     }
 }

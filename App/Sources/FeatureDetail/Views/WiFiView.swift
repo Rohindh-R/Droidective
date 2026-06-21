@@ -49,7 +49,7 @@ struct WiFiView: View {
         HStack(spacing: 12) {
             Image(systemName: (status?.connected ?? false) ? "wifi" : "wifi.slash")
                 .font(.title)
-                .foregroundStyle((status?.connected ?? false) ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                .foregroundStyle((status?.connected ?? false) ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMuted))
             VStack(alignment: .leading, spacing: 2) {
                 Text(headline)
                     .font(.title3).bold()
@@ -57,7 +57,7 @@ struct WiFiView: View {
                     let parts = [status.ipAddress, status.linkSpeed, status.frequency, status.signal].compactMap { $0 }
                     Text(parts.joined(separator: " · "))
                         .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.textMuted)
                 }
             }
             Spacer()
@@ -71,7 +71,7 @@ struct WiFiView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
     }
 
     private var headline: String {
@@ -96,7 +96,7 @@ struct WiFiView: View {
             HStack {
                 Text("`cmd wifi connect-network` (Android 11+); some ROMs block it over adb.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
                 Spacer()
                 Button("Connect") { Task { await connect() } }
                     .disabled(busy || newSSID.isEmpty)
@@ -104,7 +104,7 @@ struct WiFiView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
     }
 
     private var savedCard: some View {
@@ -114,12 +114,12 @@ struct WiFiView: View {
                 Spacer()
                 if !hasRoot {
                     Label("Passwords need root", systemImage: "lock")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(.textMuted)
                 }
             }
             if networks.isEmpty {
                 Text(loaded ? "No saved networks reported (needs Android 11+)." : "Loading…")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.callout).foregroundStyle(.textMuted)
             } else {
                 ForEach(networks) { net in
                     savedRow(net)
@@ -129,7 +129,7 @@ struct WiFiView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
     }
 
     private func savedRow(_ net: WifiNetwork) -> some View {
@@ -138,12 +138,12 @@ struct WiFiView: View {
                 Text(net.ssid)
                 HStack(spacing: 6) {
                     if let security = net.security {
-                        Text(security).font(.caption).foregroundStyle(.secondary)
+                        Text(security).font(.caption).foregroundStyle(.textMuted)
                     }
                     if let password = net.password, !password.isEmpty {
                         Text(revealed.contains(net.ssid) ? password : "••••••••")
                             .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.textMuted)
                             .textSelection(.enabled)
                     }
                 }

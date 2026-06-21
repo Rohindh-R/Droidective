@@ -18,7 +18,7 @@ struct CustomCommandsView: View {
                     Text("Custom Commands").font(.headline)
                     Text("Define adb actions with {bundleId} and {serial} placeholders.")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.textMuted)
                 }
                 Spacer()
                 Button {
@@ -48,13 +48,13 @@ struct CustomCommandsView: View {
                             Text(command.name)
                             Text("adb \(command.command)")
                                 .font(.system(.footnote, design: .monospaced))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.textMuted)
                         }
                         Spacer()
                         Button {
                             run(command)
                         } label: {
-                            Image(systemName: "play.fill").foregroundStyle(.green)
+                            Image(systemName: "play.fill").foregroundStyle(.brandAccent)
                         }
                         .buttonStyle(.plain)
                         Button {
@@ -94,7 +94,7 @@ struct CustomCommandsView: View {
             TextField("Name", text: $draftName)
             TextField("Command (e.g. shell am force-stop {bundleId})", text: $draftCommand)
                 .font(.system(.body, design: .monospaced))
-            Toggle("Requires a saved bundle", isOn: $draftNeedsBundle)
+            SwitchRow("Requires a saved bundle", isOn: $draftNeedsBundle)
             HStack {
                 Spacer()
                 Button("Cancel") { showEditor = false }

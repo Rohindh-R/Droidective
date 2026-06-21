@@ -36,6 +36,8 @@ struct PerformanceView: View {
     @State private var sortKey: SortKey = .ram
     /// Hovered x (elapsed seconds), shared across charts for a synced crosshair.
     @State private var selectedElapsed: Double?
+    /// Stopping with captured samples prompts to export before discarding them.
+    @State private var confirmingStop = false
 
     /// Poll cadence. dumpsys meminfo (per-process) is heavy, so it runs every
     /// other tick while the lighter CPU/RAM/FPS counters run every tick.
@@ -95,7 +97,7 @@ struct PerformanceView: View {
             .disabled(serial == nil)
             .help("Start, pause, or resume sampling")
 
-            Button { stop() } label: {
+            Button { requestStop() } label: {
                 Image(systemName: "stop.fill")
             }
             .disabled(phase == .idle)
@@ -104,6 +106,8 @@ struct PerformanceView: View {
             Button { export() } label: {
                 Label("Export", systemImage: "square.and.arrow.up")
             }
+            .buttonStyle(.borderedProminent)
+            .tint(.brandAccent)
             .disabled(samples.isEmpty)
             .help("Export the recording as JSON + CSV")
 
@@ -114,10 +118,21 @@ struct PerformanceView: View {
             }
             Text(statusText)
                 .font(.callout.monospacedDigit())
-                .foregroundStyle(phase == .recording ? .primary : .secondary)
+                .foregroundStyle(phase == .recording ? .textMain : .textMuted)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+        .confirmationDialog(
+            "Export this recording before stopping?",
+            isPresented: $confirmingStop,
+            titleVisibility: .visible
+        ) {
+            Button("Export…") { export(); stop() }
+            Button("Stop without exporting", role: .destructive) { stop() }
+            Button("Keep recording", role: .cancel) {}
+        } message: {
+            Text("\(samples.count) samples captured — exported as JSON + CSV.")
+        }
     }
 
     private var recordTitle: String {
@@ -151,7 +166,7 @@ struct PerformanceView: View {
     private func summaryChips(_ sample: Sample) -> some View {
         HStack(spacing: 8) {
             chip("CPU", sample.totalCpu.map { String(format: "%.0f%%", $0) } ?? "—", .blue)
-            chip("RAM", sample.ramUsedKb.map { "\(mb($0)) MB" } ?? "—", .green)
+            chip("RAM", sample.ramUsedKb.map { "\(mb($0)) MB" } ?? "—", .brandAccent)
             chip("NET", "↓\(speedCompact(sample.downloadBps)) ↑\(speedCompact(sample.uploadBps))", .teal)
             if packageId != nil {
                 chip("FPS", sample.appFps.map { String(format: "%.0f", $0) } ?? "—", .purple)
@@ -237,7 +252,7 @@ struct PerformanceView: View {
                         x: .value("Time", sample.elapsed),
                         y: .value("MB", Double(used) / 1024.0)
                     )
-                    .foregroundStyle(.green)
+                    .foregroundStyle(.brandAccent)
                     .interpolationMethod(.monotone)
                 }
                 hoverRule { "\(Int($0.elapsed))s · \($0.ramUsedKb.map { "\(mb($0)) MB" } ?? "—")" }
@@ -267,7 +282,7 @@ struct PerformanceView: View {
             .overlay {
                 if !recentSamples.contains(where: { $0.appPssKb != nil }) {
                     Text("Waiting for the app's memory…")
-                        .font(.callout).foregroundStyle(.secondary)
+                        .font(.callout).foregroundStyle(.textMuted)
                 }
             }
         }
@@ -287,7 +302,7 @@ struct PerformanceView: View {
                     }
                 }
                 RuleMark(y: .value("Target", 60))
-                    .foregroundStyle(.green.opacity(0.5))
+                    .foregroundStyle(.brandAccent.opacity(0.5))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
                 hoverRule { "\(Int($0.elapsed))s · \($0.appFps.map { String(format: "%.0f fps", $0) } ?? "—")" }
             }
@@ -299,7 +314,7 @@ struct PerformanceView: View {
                 if !recentSamples.contains(where: { $0.appFps != nil }) {
                     Text("Waiting for rendered frames — interact with the app on the device.")
                         .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.textMuted)
                         .multilineTextAlignment(.center)
                         .padding()
                 }
@@ -332,7 +347,7 @@ struct PerformanceView: View {
                 }
                 hoverRule { "\(Int($0.elapsed))s · ↓\(self.speedShort($0.downloadBps)) ↑\(self.speedShort($0.uploadBps))" }
             }
-            .chartForegroundStyleScale(["Download": Color.blue, "Upload": Color.green])
+            .chartForegroundStyleScale(["Download": Color.blue, "Upload": Color.brandAccent])
             .chartXSelection(value: $selectedElapsed)
             .chartXAxisLabel("seconds")
             .chartLegend(position: .bottom, spacing: 6)
@@ -344,7 +359,7 @@ struct PerformanceView: View {
     private func hoverRule(_ label: (Sample) -> String) -> some ChartContent {
         if let sample = selectedSample {
             RuleMark(x: .value("Time", sample.elapsed))
-                .foregroundStyle(Color.secondary.opacity(0.4))
+                .foregroundStyle(Color.textMuted.opacity(0.4))
                 .annotation(
                     position: .top,
                     alignment: .center,
@@ -354,7 +369,7 @@ struct PerformanceView: View {
                         .font(.caption2.monospacedDigit())
                         .padding(.horizontal, 6)
                         .padding(.vertical, 3)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 5))
+                        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 5))
                 }
         }
     }
@@ -386,7 +401,7 @@ struct PerformanceView: View {
                 if filteredProcesses.isEmpty {
                     Text(processes.isEmpty ? "Per-process data appears while recording." : "No processes match the filter.")
                         .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.textMuted)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 8)
                 } else {
@@ -406,7 +421,7 @@ struct PerformanceView: View {
             Text("RAM").frame(width: 80, alignment: .trailing)
         }
         .font(.caption.weight(.semibold))
-        .foregroundStyle(.secondary)
+        .foregroundStyle(.textMuted)
     }
 
     private func processRow(_ process: ProcessLoad) -> some View {
@@ -418,7 +433,7 @@ struct PerformanceView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text("\(process.pid)")
                 .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
                 .frame(width: 64, alignment: .trailing)
             Text(process.cpuPercent.map { String(format: "%.1f%%", $0) } ?? "—")
                 .font(.caption.monospacedDigit())
@@ -448,14 +463,15 @@ struct PerformanceView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(title).font(.headline)
-                Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                Text(subtitle).font(.caption).foregroundStyle(.textMuted)
                 Spacer()
             }
             content()
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.borderSubtle, lineWidth: 1))
     }
 
     private func mb(_ kb: Int) -> String {
@@ -496,6 +512,15 @@ struct PerformanceView: View {
             phase = .recording
             state.recordingActive = true
             launchSampler()
+        }
+    }
+
+    /// Stop, but nudge an export first when there's a captured session to lose.
+    private func requestStop() {
+        if samples.isEmpty {
+            stop()
+        } else {
+            confirmingStop = true
         }
     }
 

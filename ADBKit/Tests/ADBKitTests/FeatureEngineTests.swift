@@ -48,27 +48,25 @@ import Testing
         #expect(runner.invocations.last?.arguments == ["-s", "S1", "reverse", "tcp:8081", "tcp:8081"])
     }
 
-    @Test func disconnectAllOmitsTarget() async {
+    @Test func disconnectAllOmitsTarget() async throws {
         let runner = MockProcessRunner()
         runner.script(argsPrefix: ["disconnect"], stdout: "")
         runner.script(argsPrefix: ["devices"], stdout: "List of devices attached\n")
         let engine = await makeEngine(runner)
 
-        let result = await engine.run(featureID: "disconnect", serial: "", params: [:])
+        let result = try await engine.connection.disconnect(target: nil)
         #expect(result.ok)
         #expect(result.message == "Disconnected all wireless devices")
         #expect(runner.invocations.contains { $0.arguments == ["disconnect"] })
     }
 
-    @Test func disconnectWithTargetPassesIt() async {
+    @Test func disconnectWithTargetPassesIt() async throws {
         let runner = MockProcessRunner()
         runner.script(argsPrefix: ["disconnect"], stdout: "")
         runner.script(argsPrefix: ["devices"], stdout: "List of devices attached\n")
         let engine = await makeEngine(runner)
 
-        let result = await engine.run(
-            featureID: "disconnect", serial: "", params: ["target": .string("192.168.1.42:5555")]
-        )
+        let result = try await engine.connection.disconnect(target: "192.168.1.42:5555")
         #expect(result.message == "Disconnected 192.168.1.42:5555")
         #expect(runner.invocations.contains { $0.arguments == ["disconnect", "192.168.1.42:5555"] })
     }
@@ -146,21 +144,43 @@ import Testing
 }
 
 @Suite struct FeatureRegistryTests {
-    @Test func hasAll43Features() {
-        #expect(FeatureRegistry.all.count == 43)
-        #expect(FeatureRegistry.byID.count == 43)
+    @Test func hasAll45Features() {
+        #expect(FeatureRegistry.all.count == 45)
+        #expect(FeatureRegistry.byID.count == 45)
     }
 
-    @Test func exactly20DefaultEnabled() {
-        #expect(FeatureRegistry.defaultEnabledIDs.count == 20)
-        let expected: Set<String> = [
-            "send-text", "get-ip", "reverse-port", "disconnect",
-            "open-dev-menu", "reload-js", "deep-link", "scrcpy", "screenshot",
-            "app-management", "logcat", "file-explorer", "apps", "emulators",
-            "performance", "network-speed", "root-status", "wifi",
-            "private-dns", "system-restrictions",
-        ]
-        #expect(Set(FeatureRegistry.defaultEnabledIDs) == expected)
+    @Test func everyCatalogFeatureIsEnabledByDefault() {
+        // Every feature is on out of the box — the default set is exactly the
+        // catalog (non-absorbed) features. Hub members are folded into their
+        // hub and never appear as standalone default rows.
+        #expect(Set(FeatureRegistry.defaultEnabledIDs) == Set(FeatureRegistry.catalogFeatureIDs))
+        #expect(Set(FeatureRegistry.defaultEnabledIDs).isDisjoint(with: FeatureRegistry.absorbedFeatureIDs))
+    }
+
+    @Test func hubMembersAreHiddenFromCatalogButStayInRegistry() {
+        let absorbed = FeatureRegistry.absorbedFeatureIDs
+        #expect(!absorbed.isEmpty)
+        // Hub members remain in the registry, so they stay hotkey-able and
+        // reachable through their hub …
+        for id in absorbed {
+            #expect(FeatureRegistry.byID[id] != nil, "absorbed id \(id) missing from registry")
+            #expect(FeatureRegistry.byID[id]?.isAbsorbedByHub == true)
+        }
+        // … but never appear in the catalog or the default sidebar.
+        #expect(absorbed.isDisjoint(with: Set(FeatureRegistry.catalogFeatureIDs)))
+        #expect(absorbed.isDisjoint(with: Set(FeatureRegistry.defaultEnabledIDs)))
+        // The hub screens that gather them stay catalog-visible.
+        for hub in FeatureRegistry.absorbedByHub.keys {
+            #expect(FeatureRegistry.catalogFeatureIDs.contains(hub), "hub \(hub) should stay in the catalog")
+            #expect(FeatureRegistry.byID[hub]?.isAbsorbedByHub == false)
+        }
+    }
+
+    @Test func catalogIsTheRegistryMinusHubMembers() {
+        #expect(
+            FeatureRegistry.catalogFeatureIDs.count
+                == FeatureRegistry.all.count - FeatureRegistry.absorbedFeatureIDs.count
+        )
     }
 
     @Test func everyFeatureHasAHowToNote() {
@@ -191,6 +211,24 @@ import Testing
         #expect(logcat.matches("logs"))
         #expect(logcat.matches("LOGCAT"))
         #expect(!logcat.matches("battery"))
+    }
+
+    @Test func hubsStaySearchableByTheirMembersPrimaryKeyword() {
+        // Absorbed members no longer surface as standalone search results, so
+        // each hub must carry its members' identity: searching a member's
+        // primary keyword has to surface the hub, or that gathered feature
+        // becomes undiscoverable.
+        for (hubID, memberIDs) in FeatureRegistry.absorbedByHub {
+            let hub = FeatureRegistry.byID[hubID]!
+            for memberID in memberIDs {
+                let member = FeatureRegistry.byID[memberID]!
+                let primary = member.keywords.first ?? member.title
+                #expect(
+                    hub.matches(primary),
+                    "hub \(hubID) should be searchable by \(memberID)'s keyword \"\(primary)\""
+                )
+            }
+        }
     }
 
     @Test func layoutDefaultsExposeEnabledSet() {

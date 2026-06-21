@@ -22,7 +22,7 @@ When adding a feature: logic + a parser test go in ADBKit; the view goes in
 ## Build / test / run
 
 ```
-make test          # ADBKit unit tests (cd ADBKit && swift test) — 111 tests, keep green
+make test          # ADBKit unit tests (cd ADBKit && swift test) — 186 tests, keep green
 make build         # xcodegen generate + xcodebuild Debug
 make run           # build + open the .app
 ```
@@ -48,10 +48,20 @@ spawn adb/scrcpy/emulator/brew).
 - `Devices/`: `DeviceMonitor` (actor, 2s poll, `AsyncStream<[Device]>`),
   `DeviceListParser`, `DeviceProps` (getprop), `DeviceOverview` (RAM/storage/
   battery/CPU/app counts), `DeviceDetails` (picker enrichment).
-- `Features/`: `FeatureRegistry` (39 features, declarative), `FeatureModel`,
+- `Features/`: `FeatureRegistry` (45 features, declarative; `absorbedByHub`
+  maps a hub screen to the features it gathers, flattened to
+  `absorbedFeatureIDs`; `catalogFeatureIDs` is the registry minus those),
+  `FeatureModel`,
   `FeatureEngine` (runner dispatch +
   `implementedIDs` + every sub-service), `FeatureNotes` (the ⓘ how-it-works
-  text — every feature must have one; a test enforces it).
+  text — every feature must have one; a test enforces it), `SidebarOrdering`
+  (pure `reorder`/`move`/`moveToEnd` helpers for the sidebar, unit-tested
+  without UI). The grouped sidebar uses **custom `.onDrag`/`.onDrop`** (not
+  `List.onMove`, which raced the row tap gestures and dropped intermittently):
+  a feature drag reorders within its group, a header drag moves the whole group,
+  and `SidebarDrop` draws the insertion guideline between rows for features and
+  only at group boundaries for groups. Persisted as
+  `LayoutState.sidebarOrder`/`categoryOrder`/`collapsedCategories`.
 - `Services/`: one per domain — TextInput, AppControl, AppInspection (perms/
   info/meminfo/sandbox), AppsExplorer, FileExplorer, Overrides, ScreenCapture,
   ScreenRecorder, Crash, BugReport, Connection (wireless), CustomCommand,
@@ -63,16 +73,33 @@ spawn adb/scrcpy/emulator/brew).
   LayoutState, Presets, OverridesMap, Prefs) in
   `~/Library/Application Support/Droidective/`.
 
-## The 39 features
+## The 45 features
 
-15 view-features have bespoke SwiftUI panels (file-explorer, apps, emulators,
-device-info, logcat, crash-catcher, app-management, permissions, app-info,
-meminfo, sandbox-browser, deep-link, wireless-adb, screen-record, performance,
-network-speed + the custom-commands/catalog system panels). The rest are generic
-instant-action /
-form-action / toggle-action driven by the registry. Default-enabled set is 16;
-`LayoutState.adoptNewDefaults()` auto-enables newly-shipped default features
-for existing users via a `knownIds` migration.
+Most `.view` features are full-screen bespoke panels (file-explorer, apps,
+emulators, device-info, logcat, crash-catcher, sandbox-browser, performance,
+network-speed, wifi, root-status, screen-record, scrcpy + the custom-commands/
+catalog system panels). Three are **hub** screens — `react-native`, `simulate`,
+and `connection` — that gather related instant-/form-/toggle-actions into one
+scrollable grouped `Form` (the Apps explorer similarly covers per-app
+management — its detail pane carries the old "Manage App" controls: open,
+force-stop, clear cache/data, plus disable/uninstall). A hub's gathered features
+(`FeatureRegistry.absorbedByHub` → `absorbedFeatureIDs`) are managed only from
+the hub: the display layer filters `FeatureDef.isAbsorbedByHub` out of the
+catalog, the sidebar (`AppState.enabledFeatures`), and search
+(`disabledMatches` + the ⌘K palette), so they never appear as standalone rows or
+"disabled" search hits. Discoverability is preserved by folding each member's
+keywords into its hub (a test enforces the hub matches each member's primary
+keyword), so searching e.g. "battery" or "force stop" surfaces the Simulate /
+Apps hub. They stay hotkey-able (every feature registers a shortcut; the Hotkeys
+tab lists bound members under "Hidden features"). This is a pure display filter —
+no persisted migration — so it also covers a hub that grows later. The rest are generic instant-/form-/toggle-actions
+driven by the registry. The catalog and Home's "All N features" count use
+`catalogFeatureIDs` (27). **Every feature is enabled by default**
+(`defaultEnabledIDs == catalogFeatureIDs`); the catalog (Manage features) is for
+turning OFF the ones you don't want, not opting in — there's no Restore button.
+`LayoutState.adoptAllEnabled()` is a one-time migration that turns everything on
+for existing layouts; `adoptNewDefaults()` still auto-enables a newly-shipped
+feature for existing users via `knownIds`.
 
 ## Conventions / gotchas learned the hard way
 
@@ -109,6 +136,20 @@ for existing users via a `knownIds` migration.
   transform breaks `.help` tooltips (and `chartXSelection`/hover) underneath it.
 - Every pull asks for a save location (`askSaveLocation`/`askSaveFolder`);
   defaults to `~/Downloads/Droidective`.
+- **Screenshot is a capture-and-annotate editor.** The Screenshot *view*
+  captures into `ScreenshotEditorView` (pen/highlighter/shapes/arrow/text/redact
+  + zoom + crop) and writes nothing until you Save/Copy — `captureForEditor`
+  returns the PNG bytes (`ScreenCaptureService.captureScreenshotData`), not a
+  file. The quick paths (sidebar ⏎, global hotkey, menu bar) call `runScreenshot`,
+  which now grabs and saves straight to the capture folder with no dialog.
+  Annotations are normalized (0…1) points so the on-screen canvas and the
+  full-resolution export share `ScreenshotMarkup.draw`; export/crop flatten via
+  `ImageRenderer`. Redact has two styles: solid (drawn in the canvas) and blur
+  (a blurred copy of the base image masked to the regions — `RedactBlurLayer`,
+  layered under the canvas in both the editor and the export). Undo/redo
+  (⌘Z / ⇧⌘Z) is snapshot-based (full image+annotations) and reaches the editor
+  via `CommandGroup(replacing: .undoRedo)` + a `focusedSceneValue` — nil'd while
+  typing a text label so ⌘Z falls through to the text field.
 - UI automation for verification: prefer AX element refs over coordinate
   clicks; the user works on the Mac alongside you (see memory).
 
@@ -120,8 +161,9 @@ for existing users via a `knownIds` migration.
 
 ## Status
 
-Feature-complete across all planned milestones plus several UX rounds; 111 tests
-green; builds clean with zero warnings. Verified live against a physical device
-and an Android emulator. Open gaps: no notarization (ad-hoc signed — see README
-for the Gatekeeper workaround), the Apps list/detail divider isn't
-drag-resizable.
+Feature-complete across all planned milestones plus several UX rounds (latest:
+**v2.2.0** — theme/hub overhaul, screenshot annotation editor, all-features-on
+default, live memory graph); 186 tests green; builds clean with zero warnings.
+Verified live against a physical device and an Android emulator. Open gaps: no
+notarization (ad-hoc signed — see README for the Gatekeeper workaround), the Apps
+list/detail divider isn't drag-resizable.

@@ -11,37 +11,117 @@ struct FormActionView: View {
     @State private var boolValues: [String: Bool] = [:]
     @State private var sliderValues: [String: Double] = [:]
     @State private var presets = Presets()
+    @FocusState private var focusedField: String?
 
     var body: some View {
-        Form {
+        VStack(alignment: .leading, spacing: 16) {
             ForEach(feature.fields, id: \.name) { field in
-                control(for: field)
+                fieldRow(for: field)
             }
 
-            HStack {
+            HStack(spacing: 10) {
                 Button {
                     submit()
                 } label: {
                     Label("Run", systemImage: "play.fill")
-                        .frame(minWidth: 100)
                 }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.large)
                 .disabled(state.isRunningFeature)
                 .keyboardShortcut(.return, modifiers: .command)
 
-                Text("⌘⏎")
+                Text("⌘⏎ to run")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
+            .padding(.top, 4)
 
             LastResultCard(featureID: feature.id)
         }
-        .formStyle(.grouped)
+        .centeredCard()
         .onAppear { seedDefaults() }
+        .task(id: feature.id) {
+            // Put the cursor in the first text-like field so the user can type
+            // right away. The delay lets the field mount and the window become
+            // key first, mirroring the command palette's focus timing; running
+            // it as a .task ties it to the view's life so a feature switch
+            // cancels it instead of focusing a torn-down field.
+            guard let first = firstFocusableField else { return }
+            try? await Task.sleep(for: .milliseconds(120))
+            guard !Task.isCancelled else { return }
+            focusedField = first
+        }
         .task {
             presets = await state.env.stores.presets.load()
         }
         .id(feature.id)
+    }
+
+    /// The first field that takes typed input, focused on open. Features that
+    /// are only sliders / switches / pickers have none and stay unfocused.
+    private var firstFocusableField: String? {
+        feature.fields.first { field in
+            switch field.control {
+            case .text, .number, .bundle, .preset: return true
+            case .select, .switch, .slider: return false
+            }
+        }?.name
+    }
+
+    /// A labeled row for the flush layout: switches and sliders carry their own
+    /// labels; every other control gets a caption label above it.
+    @ViewBuilder
+    private func fieldRow(for field: FieldDef) -> some View {
+        switch field.control {
+        case .switch, .slider:
+            control(for: field)
+        default:
+            VStack(alignment: .leading, spacing: 5) {
+                Text(field.label)
+                    .font(.callout)
+                    .foregroundStyle(.textMuted)
+                control(for: field)
+                    .frame(maxWidth: fieldWidth(for: field.control), alignment: .leading)
+            }
+        }
+    }
+
+    /// Sized to the input: a port or a count doesn't need a full-width field;
+    /// free text and hosts get more room.
+    private func fieldWidth(for control: FieldControl) -> CGFloat {
+        switch control {
+        case .number: return 160
+        case .preset: return 200
+        case .select: return 300
+        default: return 380
+        }
+    }
+
+    /// A preset field: a text field with a recent-values menu at its trailing
+    /// edge. The chevron sits just outside the field (not overlaid on it) so a
+    /// long typed value never renders underneath the chevron.
+    @ViewBuilder
+    private func presetField(for field: FieldDef) -> some View {
+        let values = presetValues(for: field.presetKey ?? "")
+        HStack(spacing: 4) {
+            TextField("", text: binding(for: field), prompt: field.placeholder.map(Text.init))
+                .textFieldStyle(.roundedBorder)
+                .focused($focusedField, equals: field.name)
+            if !values.isEmpty {
+                Menu {
+                    ForEach(values, id: \.self) { value in
+                        Button(value) { textValues[field.name] = value }
+                    }
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .foregroundStyle(.textMuted)
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("Recent values")
+            }
+        }
     }
 
     private func presetValues(for key: String) -> [String] {
@@ -56,31 +136,20 @@ struct FormActionView: View {
     private func control(for field: FieldDef) -> some View {
         switch field.control {
         case .text, .number, .bundle:
-            TextField(field.label, text: binding(for: field), prompt: field.placeholder.map(Text.init))
+            TextField("", text: binding(for: field), prompt: field.placeholder.map(Text.init))
+                .textFieldStyle(.roundedBorder)
+                .focused($focusedField, equals: field.name)
         case .preset:
-            HStack {
-                TextField(field.label, text: binding(for: field), prompt: field.placeholder.map(Text.init))
-                let values = presetValues(for: field.presetKey ?? "")
-                if !values.isEmpty {
-                    Menu {
-                        ForEach(values, id: \.self) { value in
-                            Button(value) { textValues[field.name] = value }
-                        }
-                    } label: {
-                        Image(systemName: "chevron.up.chevron.down")
-                    }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
-                }
-            }
+            presetField(for: field)
         case .select:
-            Picker(field.label, selection: binding(for: field)) {
+            Picker("", selection: binding(for: field)) {
                 ForEach(field.options, id: \.value) { option in
                     Text(option.label).tag(option.value)
                 }
             }
+            .labelsHidden()
         case .switch:
-            Toggle(field.label, isOn: boolBinding(for: field))
+            SwitchRow(field.label, isOn: boolBinding(for: field))
         case .slider:
             let range = (field.min ?? 0)...(field.max ?? 1)
             VStack(alignment: .leading) {
