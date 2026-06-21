@@ -312,7 +312,7 @@ public enum FeatureRegistry {
             id: "app-management", num: 25, title: "Manage App",
             subtitle: "Open, stop, clear, or uninstall an app",
             keywords: ["open", "close", "force stop", "clear data", "uninstall", "cache"],
-            category: .appManagement, icon: "macwindow", kind: .view, defaultEnabled: true, needsBundle: true
+            category: .appManagement, icon: "macwindow", kind: .view, defaultEnabled: false, needsBundle: true
         ),
         FeatureDef(
             id: "permissions", num: 26, title: "Permissions",
@@ -422,5 +422,8 @@ public enum FeatureRegistry {
             "locale", "network-toggles", "http-proxy",
         ],
         "connection": ["reverse-port", "disconnect", "private-dns", "wireless-adb"],
+        // The Apps explorer already shows per-app permissions, info, and
+        // management, so the standalone per-bundle screens fold into it.
+        "apps": ["app-management", "permissions", "app-info"],
     ]
 }

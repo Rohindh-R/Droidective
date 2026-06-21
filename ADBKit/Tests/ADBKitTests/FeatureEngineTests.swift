@@ -151,14 +151,15 @@ import Testing
         #expect(FeatureRegistry.byID.count == 46)
     }
 
-    @Test func exactly17DefaultEnabled() {
-        #expect(FeatureRegistry.defaultEnabledIDs.count == 17)
-        // Hub screens (Connection, React Native, Simulate) replace their members
-        // on the default sidebar; the members stay searchable + hotkey-able.
+    @Test func exactly16DefaultEnabled() {
+        #expect(FeatureRegistry.defaultEnabledIDs.count == 16)
+        // Hub screens (Connection, React Native, Simulate) and the Apps explorer
+        // replace their members on the default sidebar; the members stay
+        // searchable + hotkey-able.
         let expected: Set<String> = [
             "send-text", "get-ip", "connection",
             "react-native", "simulate", "scrcpy", "screenshot",
-            "app-management", "logcat", "file-explorer", "apps", "emulators",
+            "logcat", "file-explorer", "apps", "emulators",
             "performance", "network-speed", "root-status", "wifi",
             "system-restrictions",
         ]

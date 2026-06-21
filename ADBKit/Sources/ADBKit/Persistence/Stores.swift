@@ -69,19 +69,24 @@ public struct LayoutState: Codable, Sendable, Equatable {
     /// back to pinned features (then enabled instant actions). Optional so files
     /// written before the field existed still decode.
     public var menuBarItems: [String]?
+    /// Hub ids whose member features have already been folded out of an explicit
+    /// enabledIds set (one-time per hub). Optional so older files decode.
+    public var absorbedHubs: [String]?
 
     public init(
         enabledIds: [String]? = nil,
         favorites: [String] = [],
         knownIds: [String]? = nil,
         sidebarOrder: [String]? = nil,
-        menuBarItems: [String]? = nil
+        menuBarItems: [String]? = nil,
+        absorbedHubs: [String]? = nil
     ) {
         self.enabledIds = enabledIds
         self.favorites = favorites
         self.knownIds = knownIds
         self.sidebarOrder = sidebarOrder
         self.menuBarItems = menuBarItems
+        self.absorbedHubs = absorbedHubs
     }
 
     /// The effective enabled set: explicit user choice or registry defaults,
@@ -100,15 +105,18 @@ public struct LayoutState: Codable, Sendable, Equatable {
             .filter { $0.defaultEnabled && !known.contains($0.id) }
             .map(\.id)
         var changed = false
+        let appliedHubs = Set(absorbedHubs ?? [])
         if var explicit = enabledIds {
             let missing = newDefaults.filter { !explicit.contains($0) }
             if !missing.isEmpty {
                 explicit.append(contentsOf: missing)
                 changed = true
             }
-            // A newly adopted hub gathers its members — drop them from the
-            // sidebar (they stay searchable + hotkey-able via the registry).
-            for (hub, members) in FeatureRegistry.absorbedByHub where !known.contains(hub) {
+            // Each hub folds its members out of the sidebar exactly once — they
+            // stay searchable + hotkey-able via the registry. Keyed on
+            // absorbedHubs, not knownIds, so it also applies to a hub built on
+            // an id the layout already knew (e.g. the Apps explorer).
+            for (hub, members) in FeatureRegistry.absorbedByHub where !appliedHubs.contains(hub) {
                 let trimmed = explicit.filter { !members.contains($0) }
                 if trimmed.count != explicit.count {
                     explicit = trimmed
@@ -116,6 +124,11 @@ public struct LayoutState: Codable, Sendable, Equatable {
                 }
             }
             enabledIds = explicit
+        }
+        let allHubs = Set(FeatureRegistry.absorbedByHub.keys)
+        if appliedHubs != allHubs {
+            absorbedHubs = allHubs.sorted()
+            changed = true
         }
         if knownIds != allIds {
             knownIds = allIds
