@@ -40,10 +40,19 @@ public enum FeatureRegistry {
 
         // ── Connection ───────────────────────────────────────────────────
         FeatureDef(
+            id: "connection", num: 49, title: "Connection",
+            subtitle: "Copy IP, reverse port, disconnect, DNS & wireless setup",
+            keywords: [
+                "connection", "network", "reverse port", "metro", "disconnect",
+                "private dns", "dns", "wireless", "tcpip", "pair", "adb connect",
+            ],
+            category: .connection, icon: "network", kind: .view, defaultEnabled: true, needsDevice: false
+        ),
+        FeatureDef(
             id: "reverse-port", num: 3, title: "Reverse Port",
             subtitle: "Forward a device port to your machine (Metro 8081)",
             keywords: ["reverse", "port", "8081", "metro", "tcp", "forward"],
-            category: .connection, icon: "arrow.left.arrow.right", kind: .formAction, defaultEnabled: true,
+            category: .connection, icon: "arrow.left.arrow.right", kind: .formAction, defaultEnabled: false,
             fields: [
                 FieldDef(name: "port", label: "Port", control: .preset, presetKey: "reversePorts", placeholder: "8081")
             ]
@@ -58,7 +67,7 @@ public enum FeatureRegistry {
             id: "disconnect", num: 5, title: "Disconnect",
             subtitle: "Drop a wireless adb connection",
             keywords: ["disconnect", "unplug", "wireless"],
-            category: .connection, icon: "wifi.slash", kind: .formAction, defaultEnabled: true, needsDevice: false,
+            category: .connection, icon: "wifi.slash", kind: .formAction, defaultEnabled: false, needsDevice: false,
             fields: [
                 FieldDef(
                     name: "target", label: "Target (ip:port)", control: .text,
@@ -94,7 +103,7 @@ public enum FeatureRegistry {
             id: "private-dns", num: 45, title: "Private DNS",
             subtitle: "Off, automatic, or a DNS-over-TLS provider",
             keywords: ["dns", "private dns", "dot", "dns-over-tls", "hostname", "resolver", "doh", "edit dns"],
-            category: .connection, icon: "lock.shield", kind: .view, defaultEnabled: true
+            category: .connection, icon: "lock.shield", kind: .view, defaultEnabled: false
         ),
 
         // ── React Native ─────────────────────────────────────────────────
@@ -412,5 +421,6 @@ public enum FeatureRegistry {
             "fake-battery", "dark-mode", "layout-overrides", "animation-scale",
             "locale", "network-toggles", "http-proxy",
         ],
+        "connection": ["reverse-port", "disconnect", "private-dns", "wireless-adb"],
     ]
 }

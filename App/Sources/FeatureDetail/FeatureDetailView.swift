@@ -56,6 +56,8 @@ struct FeatureDetailView: View {
                 ReactNativeView()
             case "simulate":
                 SimulateView()
+            case "connection":
+                NetworkConnectionView()
             case "app-management":
                 AppManagementView()
             case "deep-link":

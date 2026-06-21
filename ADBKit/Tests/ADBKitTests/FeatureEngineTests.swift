@@ -146,21 +146,21 @@ import Testing
 }
 
 @Suite struct FeatureRegistryTests {
-    @Test func hasAll45Features() {
-        #expect(FeatureRegistry.all.count == 45)
-        #expect(FeatureRegistry.byID.count == 45)
+    @Test func hasAll46Features() {
+        #expect(FeatureRegistry.all.count == 46)
+        #expect(FeatureRegistry.byID.count == 46)
     }
 
-    @Test func exactly19DefaultEnabled() {
-        #expect(FeatureRegistry.defaultEnabledIDs.count == 19)
-        // Hub screens (React Native, Simulate) replace their members on the
-        // default sidebar; the members stay searchable + hotkey-able.
+    @Test func exactly17DefaultEnabled() {
+        #expect(FeatureRegistry.defaultEnabledIDs.count == 17)
+        // Hub screens (Connection, React Native, Simulate) replace their members
+        // on the default sidebar; the members stay searchable + hotkey-able.
         let expected: Set<String> = [
-            "send-text", "get-ip", "reverse-port", "disconnect",
+            "send-text", "get-ip", "connection",
             "react-native", "simulate", "scrcpy", "screenshot",
             "app-management", "logcat", "file-explorer", "apps", "emulators",
             "performance", "network-speed", "root-status", "wifi",
-            "private-dns", "system-restrictions",
+            "system-restrictions",
         ]
         #expect(Set(FeatureRegistry.defaultEnabledIDs) == expected)
     }

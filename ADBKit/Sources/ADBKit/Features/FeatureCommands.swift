@@ -39,6 +39,13 @@ extension FeatureRegistry {
         ],
 
         // ── Connection ───────────────────────────────────────────────────
+        "connection": [
+            FeatureCommand("adb shell ip -f inet addr show wlan0", note: "copy the device Wi-Fi IP"),
+            FeatureCommand("adb reverse tcp:<port> tcp:<port>", note: "forward a port to your Mac"),
+            FeatureCommand("adb disconnect <ip:port>", note: "drop a wireless connection"),
+            FeatureCommand("adb pair <host>:<port> <code>", note: "Android 11+ pairing"),
+            FeatureCommand("adb shell settings put global private_dns_mode hostname", note: "Private DNS"),
+        ],
         "reverse-port": [
             FeatureCommand("adb reverse tcp:<port> tcp:<port>"),
         ],

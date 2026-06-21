@@ -1,8 +1,9 @@
 import ADBKit
 import SwiftUI
 
-/// Private DNS (DNS-over-TLS): off, automatic, or a specific provider hostname.
-struct PrivateDnsView: View {
+/// Private DNS (DNS-over-TLS) controls as a `Form` section, so it composes into
+/// both the standalone screen and the Connection hub.
+struct PrivateDnsSection: View {
     @Environment(AppState.self) private var state
     @State private var mode = DnsStatus.Mode.automatic
     @State private var hostname = ""
@@ -12,22 +13,8 @@ struct PrivateDnsView: View {
     private var serial: String { state.targetSerials.first ?? "" }
 
     var body: some View {
-        Group {
-            if state.targetSerials.isEmpty {
-                ContentUnavailableView(
-                    "No device connected", systemImage: "iphone.slash",
-                    description: Text("Connect a device to set Private DNS.")
-                )
-            } else {
-                content
-            }
-        }
-        .task(id: state.targetSerials.first ?? "") { await load() }
-    }
-
-    private var content: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Picker("Private DNS", selection: $mode) {
+        Section("Private DNS") {
+            Picker("Mode", selection: $mode) {
                 Text("Off").tag(DnsStatus.Mode.off)
                 Text("Automatic").tag(DnsStatus.Mode.automatic)
                 Text("Provider hostname").tag(DnsStatus.Mode.hostname)
@@ -37,19 +24,20 @@ struct PrivateDnsView: View {
             if mode == .hostname {
                 TextField("dns.google", text: $hostname)
                     .textFieldStyle(.roundedBorder)
-                    .frame(maxWidth: 320)
+                    .frame(maxWidth: 280)
             }
 
             HStack {
                 Button("Apply") { Task { await apply() } }
-                    .disabled(busy || !loaded || (mode == .hostname && hostname.trimmingCharacters(in: .whitespaces).isEmpty))
+                    .disabled(busy || !loaded || state.targetSerials.isEmpty
+                        || (mode == .hostname && hostname.trimmingCharacters(in: .whitespaces).isEmpty))
                 Button { Task { await load() } } label: { Image(systemName: "arrow.clockwise") }
                     .help("Refresh")
-                    .disabled(busy)
+                    .disabled(busy || state.targetSerials.isEmpty)
                 if busy { ProgressView().controlSize(.small) }
             }
         }
-        .centeredCard()
+        .task(id: state.targetSerials.first ?? "") { await load() }
     }
 
     private func load() async {
@@ -86,5 +74,17 @@ struct PrivateDnsView: View {
             }
         }
         await load()
+    }
+}
+
+/// Standalone Private DNS screen — the section on its own in a grouped form.
+struct PrivateDnsView: View {
+    var body: some View {
+        Form {
+            PrivateDnsSection()
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .centeredColumn()
     }
 }
