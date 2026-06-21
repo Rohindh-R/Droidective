@@ -135,7 +135,7 @@ struct ScreenshotEditorView: View {
                 Label("Crop", systemImage: "crop")
             }
             .buttonStyle(.bordered)
-            .tint(cropping ? .accentColor : nil)
+            .tint(cropping ? .brandAccent : nil)
             .help("Crop the image")
 
             Button { undo() } label: { Image(systemName: "arrow.uturn.backward") }

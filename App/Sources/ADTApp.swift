@@ -20,6 +20,11 @@ struct ADTApp: App {
             RootView()
                 .environment(appState)
                 .frame(minWidth: 760, minHeight: 480)
+                // Force the brand accent on standard controls (prominent
+                // buttons, switches, sliders) so they stay green regardless of
+                // the Mac's system accent color, which otherwise overrides the
+                // AccentColor asset.
+                .tint(.brandAccent)
         }
         .windowStyle(.automatic)
         .commands {
@@ -89,6 +94,7 @@ struct ADTApp: App {
         Window("Search", id: "palette") {
             PaletteWindowView()
                 .environment(appState)
+                .tint(.brandAccent)
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
@@ -98,6 +104,7 @@ struct ADTApp: App {
         Settings {
             SettingsView()
                 .environment(appState)
+                .tint(.brandAccent)
         }
 
         MenuBarExtra("Droidective", systemImage: "iphone.gen3", isInserted: $showMenuBarExtra) {

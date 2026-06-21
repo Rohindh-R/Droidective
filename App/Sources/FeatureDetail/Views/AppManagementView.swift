@@ -83,7 +83,7 @@ struct AppManagementView: View {
             Label(title, systemImage: icon)
         }
         .buttonStyle(BorderedButtonStyle())
-        .tint(prominent ? .accentColor : nil)
+        .tint(prominent ? .brandAccent : nil)
         .disabled(pendingAction != nil)
     }
 
