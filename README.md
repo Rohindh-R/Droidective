@@ -20,8 +20,9 @@ needs a new UI layer.
 
 ## Features
 
-A searchable palette (`⌘K`) of 39 adb actions, organised by category. Enable
-or hide any of them from the in-app catalog.
+A searchable palette (`⌘K`) of 46 adb actions, organised by category and
+gathered into focused hubs (React Native, Simulate, Connection) so the sidebar
+stays short. Enable or hide any of them from the in-app catalog.
 
 - **Input & clipboard** — send text (Unicode via ADBKeyboard, auto-offered),
   copy the device's Wi-Fi IP.
@@ -105,7 +106,7 @@ Then open it normally. Building from source avoids the quarantine entirely.
 ADBKit/   Swift package — all logic, zero UI dependencies (swift test)
   Exec/         adb process execution, tool location, scoped command log
   Devices/      discovery (2s polling), getprop, hardware/usage overview
-  Features/     declarative 39-feature registry + runners + how-to notes
+  Features/     declarative 46-feature registry + runners + how-to notes
   Services/     logcat streaming, overrides, file/apps explorers, capture,
                 screen record, crash, bug report, wireless, emulators,
                 performance + network monitors, scrcpy/screenrecord options…

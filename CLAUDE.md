@@ -22,7 +22,7 @@ When adding a feature: logic + a parser test go in ADBKit; the view goes in
 ## Build / test / run
 
 ```
-make test          # ADBKit unit tests (cd ADBKit && swift test) — 111 tests, keep green
+make test          # ADBKit unit tests (cd ADBKit && swift test) — 169 tests, keep green
 make build         # xcodegen generate + xcodebuild Debug
 make run           # build + open the .app
 ```
@@ -48,7 +48,8 @@ spawn adb/scrcpy/emulator/brew).
 - `Devices/`: `DeviceMonitor` (actor, 2s poll, `AsyncStream<[Device]>`),
   `DeviceListParser`, `DeviceProps` (getprop), `DeviceOverview` (RAM/storage/
   battery/CPU/app counts), `DeviceDetails` (picker enrichment).
-- `Features/`: `FeatureRegistry` (39 features, declarative), `FeatureModel`,
+- `Features/`: `FeatureRegistry` (46 features, declarative; `absorbedByHub`
+  maps a hub screen to the features it gathers), `FeatureModel`,
   `FeatureEngine` (runner dispatch +
   `implementedIDs` + every sub-service), `FeatureNotes` (the ⓘ how-it-works
   text — every feature must have one; a test enforces it).
@@ -63,16 +64,20 @@ spawn adb/scrcpy/emulator/brew).
   LayoutState, Presets, OverridesMap, Prefs) in
   `~/Library/Application Support/Droidective/`.
 
-## The 39 features
+## The 46 features
 
-15 view-features have bespoke SwiftUI panels (file-explorer, apps, emulators,
-device-info, logcat, crash-catcher, app-management, permissions, app-info,
-meminfo, sandbox-browser, deep-link, wireless-adb, screen-record, performance,
-network-speed + the custom-commands/catalog system panels). The rest are generic
-instant-action /
-form-action / toggle-action driven by the registry. Default-enabled set is 16;
-`LayoutState.adoptNewDefaults()` auto-enables newly-shipped default features
-for existing users via a `knownIds` migration.
+Most `.view` features are full-screen bespoke panels (file-explorer, apps,
+emulators, device-info, logcat, crash-catcher, sandbox-browser, performance,
+network-speed, wifi, root-status, screen-record, scrcpy + the custom-commands/
+catalog system panels). Three are **hub** screens — `react-native`, `simulate`,
+and `connection` — that gather related instant-/form-/toggle-actions into one
+scrollable grouped `Form` (the Apps explorer similarly covers per-app
+management). The features a hub gathers stay searchable and hotkey-able as
+default-off entries: `FeatureRegistry.absorbedByHub` lists them and
+`LayoutState.adoptNewDefaults()` folds them out of an existing sidebar once
+(tracked by `absorbedHubs`). The rest are generic instant-/form-/toggle-actions
+driven by the registry. Default-enabled set is 16; newly-shipped default
+features auto-enable for existing users via the `knownIds` migration.
 
 ## Conventions / gotchas learned the hard way
 
@@ -120,7 +125,7 @@ for existing users via a `knownIds` migration.
 
 ## Status
 
-Feature-complete across all planned milestones plus several UX rounds; 111 tests
+Feature-complete across all planned milestones plus several UX rounds; 169 tests
 green; builds clean with zero warnings. Verified live against a physical device
 and an Android emulator. Open gaps: no notarization (ad-hoc signed — see README
 for the Gatekeeper workaround), the Apps list/detail divider isn't
