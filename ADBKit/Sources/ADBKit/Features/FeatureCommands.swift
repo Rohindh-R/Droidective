@@ -81,6 +81,12 @@ extension FeatureRegistry {
         ],
 
         // ── React Native ─────────────────────────────────────────────────
+        "react-native": [
+            FeatureCommand("adb shell input keyevent 82", note: "open the dev menu"),
+            FeatureCommand("adb shell input keyevent 46 46", note: "reload the JS bundle"),
+            FeatureCommand("adb shell am start -a android.intent.action.VIEW -d <url>", note: "launch a deep link"),
+            FeatureCommand("adb reverse tcp:<port> tcp:<port>", note: "reach a Metro dev server"),
+        ],
         "open-dev-menu": [
             FeatureCommand("adb shell input keyevent 82"),
         ],
@@ -158,6 +164,13 @@ extension FeatureRegistry {
             FeatureCommand("adb shell which su", note: "su binary on PATH"),
             FeatureCommand("adb shell getprop ro.build.tags", note: "test-keys hints at a custom/eng build"),
             FeatureCommand("adb shell getenforce", note: "SELinux mode (Permissive when relaxed)"),
+        ],
+        "simulate": [
+            FeatureCommand("adb shell dumpsys battery set level <n>", note: "fake battery level"),
+            FeatureCommand("adb shell cmd uimode night yes", note: "dark mode"),
+            FeatureCommand("adb shell settings put global animator_duration_scale 0", note: "disable animations"),
+            FeatureCommand("adb shell settings put system system_locales <bcp47>", note: "change locale"),
+            FeatureCommand("adb shell settings put global http_proxy <host:port>", note: "set proxy"),
         ],
         "fake-battery": [
             FeatureCommand("adb shell dumpsys battery set level <level>"),

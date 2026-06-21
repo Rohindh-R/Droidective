@@ -52,6 +52,10 @@ struct FeatureDetailView: View {
         switch feature.kind {
         case .view, .system:
             switch feature.id {
+            case "react-native":
+                ReactNativeView()
+            case "simulate":
+                SimulateView()
             case "app-management":
                 AppManagementView()
             case "deep-link":
@@ -130,10 +134,10 @@ struct FeatureDescription: View {
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "info.circle")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
             Text(.init(note))
                 .font(.callout)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             Button {

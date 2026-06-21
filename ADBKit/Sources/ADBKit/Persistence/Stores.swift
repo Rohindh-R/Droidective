@@ -104,9 +104,18 @@ public struct LayoutState: Codable, Sendable, Equatable {
             let missing = newDefaults.filter { !explicit.contains($0) }
             if !missing.isEmpty {
                 explicit.append(contentsOf: missing)
-                enabledIds = explicit
                 changed = true
             }
+            // A newly adopted hub gathers its members — drop them from the
+            // sidebar (they stay searchable + hotkey-able via the registry).
+            for (hub, members) in FeatureRegistry.absorbedByHub where !known.contains(hub) {
+                let trimmed = explicit.filter { !members.contains($0) }
+                if trimmed.count != explicit.count {
+                    explicit = trimmed
+                    changed = true
+                }
+            }
+            enabledIds = explicit
         }
         if knownIds != allIds {
             knownIds = allIds

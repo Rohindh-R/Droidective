@@ -99,22 +99,31 @@ public enum FeatureRegistry {
 
         // ── React Native ─────────────────────────────────────────────────
         FeatureDef(
+            id: "react-native", num: 47, title: "React Native",
+            subtitle: "Dev menu, reload, deep links, dev server, process death",
+            keywords: [
+                "react native", "rn", "metro", "expo", "dev menu", "reload",
+                "deep link", "process death", "dev server", "hub",
+            ],
+            category: .reactNative, icon: "atom", kind: .view, defaultEnabled: true, needsDevice: false
+        ),
+        FeatureDef(
             id: "open-dev-menu", num: 7, title: "Open Dev Menu",
             subtitle: "Open the React Native developer menu",
             keywords: ["dev", "menu", "82", "react native", "shake"],
-            category: .reactNative, icon: "filemenu.and.selection", kind: .instantAction, defaultEnabled: true
+            category: .reactNative, icon: "filemenu.and.selection", kind: .instantAction, defaultEnabled: false
         ),
         FeatureDef(
             id: "reload-js", num: 8, title: "Reload JS",
             subtitle: "Reload the JS bundle (double-tap R)",
             keywords: ["reload", "refresh", "js", "bundle", "rr"],
-            category: .reactNative, icon: "arrow.clockwise", kind: .instantAction, defaultEnabled: true
+            category: .reactNative, icon: "arrow.clockwise", kind: .instantAction, defaultEnabled: false
         ),
         FeatureDef(
             id: "deep-link", num: 10, title: "Deep Links",
             subtitle: "Launch and save deep links per app",
             keywords: ["deep link", "url", "intent", "scheme", "universal"],
-            category: .reactNative, icon: "link", kind: .view, defaultEnabled: true, needsBundle: true
+            category: .reactNative, icon: "link", kind: .view, defaultEnabled: false, needsBundle: true
         ),
         FeatureDef(
             id: "process-death", num: 11, title: "Simulate Process Death",
@@ -187,6 +196,16 @@ public enum FeatureRegistry {
                 "selinux", "setenforce", "permissive", "remount", "stay awake", "adb install",
             ],
             category: .deviceState, icon: "lock.open", kind: .view, defaultEnabled: true
+        ),
+        FeatureDef(
+            id: "simulate", num: 48, title: "Simulate",
+            subtitle: "Fake battery, appearance, locale, network & proxy",
+            keywords: [
+                "simulate", "device state", "override", "battery", "dark mode",
+                "locale", "language", "font", "density", "animation", "network",
+                "airplane", "proxy", "fake",
+            ],
+            category: .deviceState, icon: "slider.horizontal.3", kind: .view, defaultEnabled: true, needsDevice: false
         ),
         FeatureDef(
             id: "fake-battery", num: 18, title: "Fake Battery",
@@ -383,4 +402,15 @@ public enum FeatureRegistry {
 
     /// Always-available features (never hidden, not counted in "+N more").
     public static let systemFeatureIDs: [String] = all.filter { $0.kind == .system }.map(\.id)
+
+    /// Hub screens and the individual features they gather. When a hub is first
+    /// adopted, its members drop off the default sidebar (they stay searchable
+    /// and hotkey-able). See `LayoutState.adoptNewDefaults`.
+    public static let absorbedByHub: [String: [String]] = [
+        "react-native": ["open-dev-menu", "reload-js", "deep-link", "process-death", "rn-dev-host"],
+        "simulate": [
+            "fake-battery", "dark-mode", "layout-overrides", "animation-scale",
+            "locale", "network-toggles", "http-proxy",
+        ],
+    ]
 }
