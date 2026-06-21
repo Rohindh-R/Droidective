@@ -109,7 +109,7 @@ struct LogcatView: View {
                 .frame(width: 7, height: 7)
             Text(statusText)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
             if let tagFilter {
                 Button {
                     self.tagFilter = nil
@@ -123,14 +123,14 @@ struct LogcatView: View {
                 .buttonStyle(.plain)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 1)
-                .background(.tint.opacity(0.15), in: Capsule())
+                .background(.brandAccent.opacity(0.15), in: Capsule())
                 .help("Remove tag filter")
             }
             Spacer()
             if !search.isEmpty {
                 Text("\(visibleLines.count) of \(lines.count) lines match")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
             } else {
                 Text("\(lines.count) lines")
                     .font(.caption)
@@ -139,13 +139,13 @@ struct LogcatView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
-        .background(.quaternary.opacity(0.4))
+        .background(Color.bgSurface)
     }
 
     private var statusColor: Color {
-        if state.targetSerials.isEmpty { return .gray }
+        if state.targetSerials.isEmpty { return .textMuted }
         if waitingForPackage != nil { return .orange }
-        return paused ? .yellow : .green
+        return paused ? .yellow : .brandAccent
     }
 
     private var statusText: String {
@@ -226,7 +226,7 @@ struct LogcatView: View {
                             .font(.caption.weight(.medium))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
-                            .background(.regularMaterial, in: Capsule())
+                            .background(Color.bgSurface, in: Capsule())
                             .shadow(radius: 4, y: 1)
                     }
                     .buttonStyle(.plain)
@@ -297,7 +297,7 @@ struct LogcatView: View {
         case "E", "F": return .red
         case "W": return .orange
         case "I": return .primary
-        default: return .secondary
+        default: return .textMuted
         }
     }
 

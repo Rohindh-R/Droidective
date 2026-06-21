@@ -15,7 +15,7 @@ struct CatalogView: View {
                         Text("Default set")
                         Text("Bring back the \(FeatureRegistry.defaultEnabledIDs.count) features that are visible out of the box.")
                             .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.textMuted)
                     }
                     Spacer()
                     Button("Restore defaults") {
@@ -50,13 +50,13 @@ struct CatalogView: View {
         HStack(spacing: 10) {
             Image(systemName: feature.icon)
                 .frame(width: 20)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
             VStack(alignment: .leading) {
                 Text(feature.title)
                 if let subtitle = feature.subtitle {
                     Text(subtitle)
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.textMuted)
                 }
             }
             Spacer()
@@ -64,7 +64,7 @@ struct CatalogView: View {
                 state.toggleFavorite(feature.id)
             } label: {
                 Image(systemName: state.layout.favorites.contains(feature.id) ? "pin.fill" : "pin")
-                    .foregroundStyle(state.layout.favorites.contains(feature.id) ? .orange : .secondary)
+                    .foregroundStyle(state.layout.favorites.contains(feature.id) ? .orange : .textMuted)
             }
             .buttonStyle(.plain)
             .help("Pin to top")

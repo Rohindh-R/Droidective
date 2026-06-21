@@ -7,6 +7,7 @@ import SwiftUI
 /// pre-filled with diagnostics, release notes, and author info.
 struct AboutView: View {
     @Environment(AppState.self) private var state
+    @Environment(\.colorScheme) private var colorScheme
 
     private var versionLine: String {
         let info = Bundle.main.infoDictionary
@@ -36,7 +37,7 @@ struct AboutView: View {
 
     private var header: some View {
         HStack(spacing: 16) {
-            Image(nsImage: NSApp.applicationIconImage)
+            Image(colorScheme == .dark ? "AppLogoDark" : "AppLogoLight")
                 .resizable()
                 .frame(width: 60, height: 60)
             VStack(alignment: .leading, spacing: 4) {
@@ -44,10 +45,10 @@ struct AboutView: View {
                     .font(.largeTitle.bold())
                 Text(versionLine)
                     .font(.callout.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
                 Text("An Android & React Native debugging command palette, driven over adb.")
                     .font(.body)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -133,13 +134,13 @@ struct AboutView: View {
         HStack(alignment: .center, spacing: 12) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundStyle(.tint)
+                .foregroundStyle(.textMuted)
                 .frame(width: 26)
             VStack(alignment: .leading, spacing: 4) {
                 Text(title).font(.headline)
                 Text(detail)
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 12)
@@ -147,6 +148,7 @@ struct AboutView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.borderSubtle, lineWidth: 1))
     }
 }

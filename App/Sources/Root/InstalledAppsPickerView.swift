@@ -59,7 +59,7 @@ struct InstalledAppsPickerView: View {
                                 if state.bundles.contains(where: { $0.packageId == package }) {
                                     Text("saved")
                                         .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(.textMuted)
                                 }
                             }
                             .contentShape(Rectangle())

@@ -3,6 +3,15 @@ import AppKit
 import KeyboardShortcuts
 import SwiftUI
 
+extension FeatureDef {
+    /// Instant actions taking no input fire immediately (click or ⏎) and show
+    /// only a toast — no detail screen. Screenshot keeps its panel (delay +
+    /// preview); an unimplemented action falls back to its placeholder.
+    var firesWithoutScreen: Bool {
+        kind == .instantAction && id != "screenshot" && FeatureEngine.implementedIDs.contains(id)
+    }
+}
+
 /// Raycast-style command palette: pinned search field on top of the
 /// categorized feature list. ⌘K focuses search from anywhere; ↑/↓ move the
 /// selection from the field; ⏎ runs instant actions straight away. With the
@@ -43,7 +52,8 @@ struct SidebarPaletteView: View {
                 .onKeyPress(.downArrow) { moveSelection(by: 1); return .handled }
                 .onKeyPress(.upArrow) { moveSelection(by: -1); return .handled }
 
-            List(selection: $state.selectedFeatureID) {
+            ScrollViewReader { proxy in
+            List {
                 let visible = state.visibleFeatures
                 let pinned = visible.filter { state.layout.favorites.contains($0.id) }
                 // ⌘1–⌘9 hints: id → 0-based rank, only while search is focused
@@ -110,11 +120,15 @@ struct SidebarPaletteView: View {
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
+            .onChange(of: state.selectedFeatureID) { _, id in
+                proxy.scrollTo(id, anchor: .center)
+            }
+            }
 
             Divider()
             bottomBar
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(.bgSurface)
         .background { shortcutButtons }
         .onChange(of: state.focusSearchToken) { searchFocused = true }
         .onChange(of: state.selectedFeatureID) { state.persistLastFeature() }
@@ -142,7 +156,7 @@ struct SidebarPaletteView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(state.selectedFeatureID == "home" ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+            .foregroundStyle(state.selectedFeatureID == "home" ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMuted))
             .help("Home — overview & getting started")
 
             Button {
@@ -155,7 +169,7 @@ struct SidebarPaletteView: View {
                 .font(.body)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(state.selectedFeatureID == "catalog" ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+            .foregroundStyle(state.selectedFeatureID == "catalog" ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMuted))
 
             Spacer()
 
@@ -168,7 +182,7 @@ struct SidebarPaletteView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(state.selectedFeatureID == "about" ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+            .foregroundStyle(state.selectedFeatureID == "about" ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMuted))
             .help("About & Feedback — version, report an issue, star on GitHub")
 
             SettingsLink {
@@ -178,7 +192,7 @@ struct SidebarPaletteView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(.textMuted)
             .help("Settings (⌘,)")
         }
         .padding(.horizontal, 12)
@@ -235,15 +249,15 @@ struct SidebarPaletteView: View {
         searchFocused = false
     }
 
-    /// ⏎ in the search field: run the top instant action immediately, or open
-    /// the top match's detail.
+    /// ⏎ in the search field: fire the top instant action with no screen, else
+    /// open the top match's detail.
     private func runTopMatch() {
         let target = orderedMatches.first { $0.id == state.selectedFeatureID } ?? orderedMatches.first
         guard let target else { return }
-        state.selectedFeatureID = target.id
-        if target.kind == .instantAction {
+        if target.firesWithoutScreen {
             Task { await state.run(feature: target, params: [:]) }
         } else {
+            state.selectedFeatureID = target.id
             searchFocused = false
         }
     }
@@ -267,31 +281,81 @@ struct FeatureRowView: View {
 
     private var isPinned: Bool { state.layout.favorites.contains(feature.id) }
     private var isEnabled: Bool { state.layout.effectiveEnabledIDs.contains(feature.id) }
+    private var isSelected: Bool { state.selectedFeatureID == feature.id }
+
+    /// Clicking a row selects it — except an instant action that fires without
+    /// a screen, which just runs (feedback is the toast + clipboard) and leaves
+    /// the current detail pane untouched.
+    private func activate() {
+        if feature.firesWithoutScreen {
+            Task { await state.run(feature: feature, params: [:]) }
+        } else {
+            state.selectedFeatureID = feature.id
+        }
+    }
+
+    /// Trailing edge of a row: a live switch for toggle features (flip the
+    /// override without opening a screen), otherwise the ⌘<n> jump hint.
+    @ViewBuilder private var trailingControl: some View {
+        if feature.kind == .toggleAction {
+            OverrideToggleControl(feature: feature) { _ in EmptyView() }
+                .labelsHidden()
+                .controlSize(.mini)
+                .padding(.leading, 8)
+        } else if let shortcutIndex {
+            KeyHint("⌘\(shortcutIndex + 1)")
+                .padding(.leading, 6)
+        }
+    }
+
+    /// Icon tint: brand green for the active row, quiet gray otherwise. Static
+    /// asset colors (not `.tint`), so they keep their color when the window is
+    /// inactive.
+    private var iconStyle: AnyShapeStyle {
+        (isSelected && !dimmed) ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMuted)
+    }
+
+    /// Selection highlight drawn by us, not the system list. The native sidebar
+    /// selection fills with the accent (graying when the window is inactive) and
+    /// would clash with the green label; a subtle static brand pill keeps the
+    /// selection legible and stable on focus change.
+    @ViewBuilder private var rowBackground: some View {
+        if isSelected {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.brandAccent.opacity(0.14))
+                .padding(.vertical, 1)
+                .padding(.horizontal, 6)
+        }
+    }
 
     var body: some View {
         HStack(spacing: 0) {
             Label {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(feature.title)
+                        .foregroundStyle(isSelected ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMain))
                         .lineLimit(1)
                     if let subtitle = feature.subtitle {
                         Text(subtitle)
                             .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.textMuted)
                             .lineLimit(1)
                     }
                 }
             } icon: {
                 Image(systemName: feature.icon)
-                    .foregroundStyle(dimmed ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
+                    .foregroundStyle(iconStyle)
             }
-            if let shortcutIndex {
-                Spacer(minLength: 6)
-                KeyHint("⌘\(shortcutIndex + 1)")
-            }
+            // Tap target is the label/icon only, so a toggle row's switch keeps
+            // its own taps and flips without navigating.
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture { activate() }
+
+            trailingControl
         }
         .opacity(dimmed ? 0.75 : 1)
-        .tag(feature.id)
+        .listRowBackground(rowBackground)
         .padding(.vertical, 1)
         .contextMenu {
             Button(isPinned ? "Unpin" : "Pin", systemImage: isPinned ? "pin.slash" : "pin") {
@@ -331,7 +395,7 @@ private struct HotkeyPopover: View {
             KeyboardShortcuts.Recorder("", name: HotkeyManager.featureName(feature.id))
             Text("Global — fires even when Droidective is in the background.")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
         }
         .padding(14)
         .frame(width: 300)
@@ -352,7 +416,7 @@ private struct HotkeyPopover: View {
         return HStack {
             if symbols.isEmpty {
                 Text("Hold ⌘ / ⌥ / ⌃ / ⇧, then a key")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
             } else {
                 Text(symbols + " …")
                     .font(.system(size: 18, weight: .semibold, design: .rounded))

@@ -9,6 +9,7 @@ struct RootView: View {
     @AppStorage("hasSeenTour") private var hasSeenTour = false
     @AppStorage("telemetryConsentAsked") private var consentAsked = false
     @State private var presentConsent = false
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         @Bindable var state = state
@@ -30,6 +31,7 @@ struct RootView: View {
                 state.openMainWindow = { openWindow(id: "main") }
                 state.openPalette = { openWindow(id: "palette") }
                 applyStoredTheme()
+                updateDockIcon()
                 HotkeyManager.install(state: state)
                 if !hasSeenTour {
                     state.presentTour = true
@@ -40,6 +42,14 @@ struct RootView: View {
             .onChange(of: state.presentTour) { _, showing in
                 if !showing && !consentAsked { presentConsent = true }
             }
+            .onChange(of: colorScheme) { _, _ in updateDockIcon() }
+    }
+
+    /// macOS has no native light/dark app icon, so swap the Dock icon at
+    /// runtime to match the active theme.
+    private func updateDockIcon() {
+        let dark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        NSApp.applicationIconImage = NSImage(named: dark ? "AppLogoDark" : "AppLogoLight")
     }
 
     /// macOS ignores SwiftUI dynamic type, so ⌘=/⌘- zoom is done by scaling the
@@ -84,8 +94,10 @@ struct RootView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.bgRoot)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .foregroundStyle(.textMain)
     }
 }
 
@@ -144,19 +156,19 @@ struct OperationProgressStrip: View {
                     .frame(maxWidth: 260)
                 Text("\(Int(fraction * 100))%")
                     .font(.footnote.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
             } else {
                 ProgressView()
                     .controlSize(.small)
             }
             Text(operation.label)
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
             Spacer()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(.bar)
+        .background(.bgSurface)
         .overlay(alignment: .bottom) { Divider() }
     }
 }

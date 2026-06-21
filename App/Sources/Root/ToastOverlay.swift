@@ -21,7 +21,7 @@ private struct ToastView: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: toast.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .foregroundStyle(toast.ok ? .green : .red)
+                .foregroundStyle(toast.ok ? .brandAccent : .red)
             Text(toast.message)
                 .lineLimit(2)
 

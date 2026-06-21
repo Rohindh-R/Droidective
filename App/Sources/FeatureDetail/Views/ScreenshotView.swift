@@ -90,7 +90,7 @@ struct ScreenshotView: View {
             if state.targetSerials.isEmpty {
                 Text("Connect a device to capture.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -63,11 +63,13 @@ struct SystemRestrictionsView: View {
                 } else {
                     Text("Connect a rooted device to relax SELinux or remount the system partition.")
                         .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.textMuted)
                 }
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .centeredColumn()
     }
 
     private var engine: FeatureEngine { state.env.engine }

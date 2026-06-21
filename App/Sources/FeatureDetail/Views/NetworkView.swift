@@ -62,7 +62,7 @@ struct NetworkView: View {
                             .frame(minWidth: 78)
                     }
                     .buttonStyle(.bordered)
-                    .tint(isLive ? .blue : .secondary)
+                    .tint(isLive ? .brandAccent : .textMuted)
                     .disabled(serial == nil)
                     .help(isLive ? "Pause the live view" : "Start watching live traffic")
 
@@ -86,12 +86,12 @@ struct NetworkView: View {
                     HStack(spacing: 0) {
                         readout("Download", last.downloadBps, "arrow.down", .blue)
                         Divider().frame(height: 54)
-                        readout("Upload", last.uploadBps, "arrow.up", .green)
+                        readout("Upload", last.uploadBps, "arrow.up", .brandAccent)
                     }
                 } else {
                     Text("Watching device-wide download & upload throughput, sampled from /proc/net/dev once a second. Press Record to capture an exportable session.")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.textMuted)
                 }
             }
         }
@@ -103,7 +103,7 @@ struct NetworkView: View {
         if isRecording {
             Circle().fill(.red).frame(width: 8, height: 8)
         } else if isLive {
-            Circle().fill(.green).frame(width: 8, height: 8)
+            Circle().fill(.brandAccent).frame(width: 8, height: 8)
         }
     }
 
@@ -169,7 +169,7 @@ struct NetworkView: View {
                 .foregroundStyle(by: .value("Series", "Upload"))
                 .interpolationMethod(.monotone)
             }
-            .chartForegroundStyleScale(["Download": Color.blue, "Upload": Color.green])
+            .chartForegroundStyleScale(["Download": Color.blue, "Upload": Color.brandAccent])
             .chartXAxisLabel("seconds")
             .chartLegend(position: .bottom, spacing: 6)
             .frame(height: 170)
@@ -181,14 +181,14 @@ struct NetworkView: View {
             HStack(spacing: 0) {
                 total("Downloaded", sessionRx, .blue)
                 Divider().frame(height: 36)
-                total("Uploaded", sessionTx, .green)
+                total("Uploaded", sessionTx, .brandAccent)
             }
         }
     }
 
     private func total(_ title: String, _ bytes: UInt64, _ color: Color) -> some View {
         VStack(spacing: 2) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
+            Text(title).font(.caption).foregroundStyle(.textMuted)
             Text(bytesLabel(bytes))
                 .font(.title3.monospacedDigit())
                 .foregroundStyle(color)
@@ -205,12 +205,12 @@ struct NetworkView: View {
                     Text("Upload").frame(width: 110, alignment: .trailing)
                 }
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
                 Divider()
                 if interfaces.isEmpty {
                     Text("Per-interface speeds appear while live.")
                         .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.textMuted)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 6)
                 } else {
@@ -241,14 +241,15 @@ struct NetworkView: View {
             HStack(alignment: .center, spacing: 8) {
                 Text(title).font(.headline)
                 if let accessory { accessory }
-                Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                Text(subtitle).font(.caption).foregroundStyle(.textMuted)
                 Spacer()
             }
             content()
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
+        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.borderSubtle, lineWidth: 1))
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.separator.opacity(0.4)))
     }
 

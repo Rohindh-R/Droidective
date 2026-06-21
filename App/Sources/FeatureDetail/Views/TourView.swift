@@ -56,7 +56,7 @@ struct TourView: View {
         return VStack(spacing: 18) {
             Image(systemName: step.icon)
                 .font(.system(size: 54))
-                .foregroundStyle(.tint)
+                .foregroundStyle(.brandAccent)
                 .symbolRenderingMode(.hierarchical)
             Text(step.title)
                 .font(.title.bold())
@@ -67,12 +67,12 @@ struct TourView: View {
                     .monospaced()
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                    .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 8))
             }
             Text(step.body)
                 .font(.body)
                 .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
                 .frame(maxWidth: 420)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -84,7 +84,7 @@ struct TourView: View {
         HStack {
             Button("Skip") { finish() }
                 .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
                 .opacity(isLast ? 0 : 1)
 
             Spacer()
@@ -92,7 +92,7 @@ struct TourView: View {
             HStack(spacing: 7) {
                 ForEach(steps.indices, id: \.self) { i in
                     Circle()
-                        .fill(i == index ? AnyShapeStyle(.tint) : AnyShapeStyle(.quaternary))
+                        .fill(i == index ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.quaternary))
                         .frame(width: 7, height: 7)
                 }
             }

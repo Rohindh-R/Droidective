@@ -28,7 +28,7 @@ struct MeminfoView: View {
                     )
                 }
             } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                ProgressView("Reading memory…").frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .task(id: "\(state.selectedBundleId ?? "")|\(state.targetSerials.first ?? "")") {
@@ -41,7 +41,7 @@ struct MeminfoView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Total PSS")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
                 Text(formatKb(info.totalPssKb))
                     .font(.system(.largeTitle, design: .rounded).weight(.semibold))
                     .monospacedDigit()
@@ -50,7 +50,7 @@ struct MeminfoView: View {
             Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 6) {
                 ForEach(info.summary, id: \.key) { row in
                     GridRow {
-                        Text(row.key).foregroundStyle(.secondary)
+                        Text(row.key).foregroundStyle(.textMuted)
                         Text(formatKb(Int(row.value))).monospacedDigit()
                     }
                 }
@@ -59,10 +59,8 @@ struct MeminfoView: View {
             Text("Refreshes every 2 seconds.")
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
-            Spacer()
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .centeredCard()
     }
 
     private func formatKb(_ kb: Int?) -> String {

@@ -33,13 +33,13 @@ struct ScreenRecordView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "video")
                         .font(.title2)
-                        .foregroundStyle(isRecording ? .red : .secondary)
+                        .foregroundStyle(isRecording ? .red : .textMuted)
                         .symbolEffect(.pulse, isActive: isRecording)
                     if isRecording, let startedAt {
                         Text(startedAt, style: .timer)
                             .font(.system(.title3, design: .monospaced))
                     } else {
-                        Text("Ready to record").foregroundStyle(.secondary)
+                        Text("Ready to record").foregroundStyle(.textMuted)
                     }
                     Spacer()
                 }
@@ -88,10 +88,12 @@ struct ScreenRecordView: View {
 
                 Text("screenrecord has no audio and stops on rotation.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .centeredColumn()
         .onDisappear {
             if isRecording {
                 let recorder = recorder

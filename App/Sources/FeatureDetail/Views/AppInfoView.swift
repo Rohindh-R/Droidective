@@ -29,7 +29,7 @@ struct AppInfoView: View {
                     )
                 }
             } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                ProgressView("Reading app info…").frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .task(id: "\(state.selectedBundleId ?? "")|\(state.targetSerials.first ?? "")") {
@@ -57,6 +57,8 @@ struct AppInfoView: View {
             .disabled(pulling)
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .centeredColumn(maxWidth: 460)
     }
 
     private func load() async {
