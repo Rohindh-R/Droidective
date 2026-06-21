@@ -4,7 +4,7 @@ import SwiftUI
 /// Routes the selected feature to its detail pane by kind.
 struct FeatureDetailView: View {
     @Environment(AppState.self) private var state
-    @AppStorage("showFeatureNotes") private var showFeatureNotes = true
+    @AppStorage("showFeatureNotes") private var showFeatureNotes = false
     let featureID: String?
 
     var body: some View {
@@ -130,7 +130,7 @@ struct FeatureDetailView: View {
 /// The feature's "how it works" note, rendered as a description strip beneath
 /// the feature's content (above the command bar) — replaces the old ⓘ popover.
 struct FeatureDescription: View {
-    @AppStorage("showFeatureNotes") private var showFeatureNotes = true
+    @AppStorage("showFeatureNotes") private var showFeatureNotes = false
     let note: String
 
     var body: some View {

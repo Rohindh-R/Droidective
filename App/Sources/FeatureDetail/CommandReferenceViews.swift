@@ -210,7 +210,7 @@ enum CommandBarTab: String, CaseIterable, Hashable {
 struct FeatureCommandBar: View {
     @Environment(AppState.self) private var state
     @AppStorage("commandBarHeight") private var commandBarHeight = 220.0
-    @AppStorage("showFeatureNotes") private var showFeatureNotes = true
+    @AppStorage("showFeatureNotes") private var showFeatureNotes = false
     let feature: FeatureDef
 
     var body: some View {
@@ -270,7 +270,7 @@ struct FeatureCommandBar: View {
                 .help(state.commandBarExpanded ? "Minimize command bar (⌘J)" : "Expand command bar (⌘J)")
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 5)
+            .padding(.vertical, 8)
 
             if state.commandBarExpanded {
                 Divider()

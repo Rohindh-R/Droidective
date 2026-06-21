@@ -61,32 +61,45 @@ public struct LayoutState: Codable, Sendable, Equatable {
     /// Registry ids this layout has seen — lets a brand-new default-enabled
     /// feature appear once for users with an explicit enabledIds set.
     public var knownIds: [String]?
-    /// User's custom order for the ungrouped sidebar (feature ids). Ids not
-    /// listed fall back to registry order after the listed ones. Optional so
-    /// files written before the field existed still decode.
+    /// User's custom feature order (feature ids), applied in both the grouped
+    /// and ungrouped sidebar and the catalog. Ids not listed fall back to
+    /// registry order after the listed ones. Optional so files written before
+    /// the field existed still decode.
     public var sidebarOrder: [String]?
+    /// User's custom category order (`FeatureCategory` raw values). Categories
+    /// not listed fall back to `displayOrder` after the listed ones. Optional
+    /// so older files decode.
+    public var categoryOrder: [String]?
+    /// Categories the user collapsed in the sidebar (`FeatureCategory` raw
+    /// values) — only their header shows. Optional so older files decode.
+    public var collapsedCategories: [String]?
     /// Feature ids the user chose to show in the menu-bar menu. nil/empty falls
     /// back to pinned features (then enabled instant actions). Optional so files
     /// written before the field existed still decode.
     public var menuBarItems: [String]?
-    /// Hub ids whose member features have already been folded out of an explicit
-    /// enabledIds set (one-time per hub). Optional so older files decode.
-    public var absorbedHubs: [String]?
+    /// One-time marker that the "every feature on by default" migration ran.
+    /// nil on layouts written before the switch, so they catch up once. Optional
+    /// so older files decode.
+    public var didEnableAll: Bool?
 
     public init(
         enabledIds: [String]? = nil,
         favorites: [String] = [],
         knownIds: [String]? = nil,
         sidebarOrder: [String]? = nil,
+        categoryOrder: [String]? = nil,
+        collapsedCategories: [String]? = nil,
         menuBarItems: [String]? = nil,
-        absorbedHubs: [String]? = nil
+        didEnableAll: Bool? = nil
     ) {
         self.enabledIds = enabledIds
         self.favorites = favorites
         self.knownIds = knownIds
         self.sidebarOrder = sidebarOrder
+        self.categoryOrder = categoryOrder
+        self.collapsedCategories = collapsedCategories
         self.menuBarItems = menuBarItems
-        self.absorbedHubs = absorbedHubs
+        self.didEnableAll = didEnableAll
     }
 
     /// The effective enabled set: explicit user choice or registry defaults,
@@ -96,45 +109,43 @@ public struct LayoutState: Codable, Sendable, Equatable {
             .union(FeatureRegistry.systemFeatureIDs)
     }
 
-    /// Enable default-on features added to the registry since this layout
-    /// last saw it. Returns true when something changed (caller persists).
+    /// Enable default-on features added to the registry since this layout last
+    /// saw it. Returns true when something changed (caller persists). Hub
+    /// members never reach the sidebar regardless of what's stored here — the
+    /// display layer filters `isAbsorbedByHub` out — so no trimming is needed.
     public mutating func adoptNewDefaults() -> Bool {
         let known = Set(knownIds ?? [])
         let allIds = FeatureRegistry.all.map(\.id)
-        let newDefaults = FeatureRegistry.all
-            .filter { $0.defaultEnabled && !known.contains($0.id) }
-            .map(\.id)
+        let newDefaults = FeatureRegistry.defaultEnabledIDs.filter { !known.contains($0) }
         var changed = false
-        let appliedHubs = Set(absorbedHubs ?? [])
         if var explicit = enabledIds {
             let missing = newDefaults.filter { !explicit.contains($0) }
             if !missing.isEmpty {
                 explicit.append(contentsOf: missing)
+                enabledIds = explicit
                 changed = true
             }
-            // Each hub folds its members out of the sidebar exactly once — they
-            // stay searchable + hotkey-able via the registry. Keyed on
-            // absorbedHubs, not knownIds, so it also applies to a hub built on
-            // an id the layout already knew (e.g. the Apps explorer).
-            for (hub, members) in FeatureRegistry.absorbedByHub where !appliedHubs.contains(hub) {
-                let trimmed = explicit.filter { !members.contains($0) }
-                if trimmed.count != explicit.count {
-                    explicit = trimmed
-                    changed = true
-                }
-            }
-            enabledIds = explicit
-        }
-        let allHubs = Set(FeatureRegistry.absorbedByHub.keys)
-        if appliedHubs != allHubs {
-            absorbedHubs = allHubs.sorted()
-            changed = true
         }
         if knownIds != allIds {
             knownIds = allIds
             changed = true
         }
         return changed
+    }
+
+    /// One-time switch to "every feature enabled by default": for a layout that
+    /// predates it, turn on every catalog feature (existing choices on newly-on
+    /// features are reset just this once). Runs once, then deliberate disables
+    /// stick. Returns true when something changed (caller persists).
+    public mutating func adoptAllEnabled() -> Bool {
+        guard didEnableAll != true else { return false }
+        didEnableAll = true
+        if var explicit = enabledIds {
+            let missing = FeatureRegistry.defaultEnabledIDs.filter { !explicit.contains($0) }
+            explicit.append(contentsOf: missing)
+            enabledIds = explicit
+        }
+        return true
     }
 }
 

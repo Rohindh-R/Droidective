@@ -27,13 +27,6 @@ public struct FeatureResult: Sendable, Equatable {
     }
 }
 
-public enum RunScope: Sendable {
-    /// Runs once per targeted serial.
-    case device
-    /// Runs once regardless of device selection.
-    case global
-}
-
 /// Backend command-spec mirror of the feature registry. Each runner executes
 /// one feature against a device (or globally) and returns a friendly result.
 /// Keyed by the same feature ids the registry uses — ids are the contract.
@@ -95,7 +88,7 @@ public struct FeatureEngine: Sendable {
     /// Feature ids with a working runner. The UI shows a "coming soon"
     /// placeholder for registry entries not yet listed here.
     public static let implementedIDs: Set<String> = [
-        "send-text", "get-ip", "reverse-port", "disconnect",
+        "send-text", "get-ip", "reverse-port",
         "open-dev-menu", "reload-js", "screenshot",
         "scrcpy", "deep-link", "app-management", "logcat",
         "demo-mode", "dark-mode", "animation-scale", "fake-battery",
@@ -108,13 +101,14 @@ public struct FeatureEngine: Sendable {
         "root-status", "wifi", "private-dns", "system-restrictions",
     ]
 
-    public func scope(for featureID: String) -> RunScope {
-        featureID == "disconnect" ? .global : .device
-    }
-
     /// Screenshot with an explicit destination (UI asks the user first).
     public func captureScreenshot(serial: String, to destination: URL) async throws -> URL {
         try await screenCapture.captureScreenshot(serial: serial, to: destination)
+    }
+
+    /// Screenshot returned as raw PNG bytes — for the editor, which saves on demand.
+    public func captureScreenshotData(serial: String) async throws -> Data {
+        try await screenCapture.captureScreenshotData(serial: serial)
     }
 
     /// Run a feature against one serial (or globally for global-scope ids).
@@ -141,9 +135,6 @@ public struct FeatureEngine: Sendable {
 
         case "reverse-port":
             return try await reversePort(serial: serial, params: params)
-
-        case "disconnect":
-            return try await disconnect(params: params)
 
         case "open-dev-menu":
             let result = try await client.run(on: serial, ["shell", "input", "keyevent", "82"])
@@ -373,14 +364,4 @@ public struct FeatureEngine: Sendable {
         }
     }
 
-    private func disconnect(params: [String: FeatureValue]) async throws(AdbError) -> FeatureResult {
-        let target = (params["target"]?.stringValue ?? "").trimmingCharacters(in: .whitespaces)
-        let result = try await client.run(target.isEmpty ? ["disconnect"] : ["disconnect", target])
-        await monitor.invalidate()
-        return fromResult(
-            result,
-            success: target.isEmpty ? "Disconnected all wireless devices" : "Disconnected \(target)",
-            fallback: "Failed to disconnect"
-        )
-    }
 }

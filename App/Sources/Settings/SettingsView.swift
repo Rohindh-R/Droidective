@@ -33,18 +33,18 @@ struct SettingsView: View {
 func applyStoredTheme() {
     switch UserDefaults.standard.string(forKey: "theme") {
     case "light": NSApp.appearance = NSAppearance(named: .aqua)
-    case "auto": NSApp.appearance = nil
-    // "dark" — and the default when unset, so new users get dark.
-    default: NSApp.appearance = NSAppearance(named: .darkAqua)
+    case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
+    // "auto" — and the default when unset, so new users follow the system.
+    default: NSApp.appearance = nil
     }
 }
 
 struct GeneralSettingsView: View {
     @Environment(AppState.self) private var state
-    @AppStorage("theme") private var theme = "dark"
+    @AppStorage("theme") private var theme = "auto"
     @AppStorage("groupSidebar") private var groupSidebar = true
     @AppStorage("restoreLastFeature") private var restoreLastFeature = true
-    @AppStorage("showFeatureNotes") private var showFeatureNotes = true
+    @AppStorage("showFeatureNotes") private var showFeatureNotes = false
     @AppStorage(ScreenCaptureService.captureFolderDefaultsKey) private var captureFolderPath = ""
     @AppStorage("showMenuBarExtra") private var showMenuBar = true
     @State private var showCommandLog = false

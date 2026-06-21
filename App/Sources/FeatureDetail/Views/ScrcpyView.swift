@@ -49,15 +49,15 @@ struct ScrcpyView: View {
             }
 
             Section("Window") {
-                Toggle("Fullscreen", isOn: $fullscreen)
-                Toggle("Always on top", isOn: $alwaysOnTop)
-                Toggle("View only (no control)", isOn: $viewOnly)
+                SwitchRow("Fullscreen", isOn: $fullscreen)
+                SwitchRow("Always on top", isOn: $alwaysOnTop)
+                SwitchRow("View only (no control)", isOn: $viewOnly)
             }
 
             Section("Device") {
-                Toggle("Keep device awake", isOn: $stayAwake)
-                Toggle("Turn device screen off", isOn: $turnScreenOff)
-                Toggle("Record session to a file", isOn: $recordToFile)
+                SwitchRow("Keep device awake", isOn: $stayAwake)
+                SwitchRow("Turn device screen off", isOn: $turnScreenOff)
+                SwitchRow("Record session to a file", isOn: $recordToFile)
             }
 
             Section {

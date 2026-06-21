@@ -94,7 +94,7 @@ struct CustomCommandsView: View {
             TextField("Name", text: $draftName)
             TextField("Command (e.g. shell am force-stop {bundleId})", text: $draftCommand)
                 .font(.system(.body, design: .monospaced))
-            Toggle("Requires a saved bundle", isOn: $draftNeedsBundle)
+            SwitchRow("Requires a saved bundle", isOn: $draftNeedsBundle)
             HStack {
                 Spacer()
                 Button("Cancel") { showEditor = false }

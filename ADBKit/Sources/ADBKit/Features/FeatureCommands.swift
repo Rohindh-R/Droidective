@@ -54,9 +54,6 @@ extension FeatureRegistry {
             FeatureCommand("adb connect <ip>:5555", note: "connect over Wi-Fi"),
             FeatureCommand("adb pair <host>:<port> <code>", note: "Android 11+ pairing"),
         ],
-        "disconnect": [
-            FeatureCommand("adb disconnect <ip:port>", note: "omit the target to drop every wireless device"),
-        ],
         "network-speed": [
             FeatureCommand("adb shell cat /proc/net/dev", note: "RX/TX byte counters — sampled as deltas for speed"),
         ],
@@ -216,6 +213,13 @@ extension FeatureRegistry {
         "apps": [
             FeatureCommand("adb shell pm list packages", note: "all packages (-3 = user only)"),
             FeatureCommand("adb shell dumpsys package packages", note: "versions"),
+            FeatureCommand(
+                "adb shell monkey -p <package> -c android.intent.category.LAUNCHER 1",
+                note: "open"
+            ),
+            FeatureCommand("adb shell am force-stop <package>", note: "force-stop"),
+            FeatureCommand("adb shell pm clear --cache-only <package>", note: "clear cache (Android 14+)"),
+            FeatureCommand("adb shell pm clear <package>", note: "clear data"),
             FeatureCommand("adb shell pm disable-user --user 0 <package>", note: "disable (pm enable to undo)"),
             FeatureCommand("adb shell pm uninstall --user 0 <package>", note: "uninstall for this user"),
             FeatureCommand("adb shell cmd package install-existing <package>", note: "restore a removed app"),

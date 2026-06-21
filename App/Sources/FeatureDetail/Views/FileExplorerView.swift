@@ -207,7 +207,7 @@ struct FileExplorerView: View {
 
     private func listView(_ entries: [FsEntry]) -> some View {
         ScrollViewReader { proxy in
-            List(selection: $selection) {
+            List {
                 Color.clear
                     .frame(height: 0)
                     .id("fe-top")
@@ -221,7 +221,7 @@ struct FileExplorerView: View {
                     .buttonStyle(.plain)
                 }
                 ForEach(entries) { entry in
-                    row(entry).tag(entry.id)
+                    row(entry)
                 }
             }
             .focused($listFocused)
@@ -241,7 +241,7 @@ struct FileExplorerView: View {
         .onPasteCommand(of: ["public.file-url", "public.utf8-plain-text"]) { providers in
             handlePaste(providers)
         }
-        // ⏎ opens the selected folder.
+        // ⏎ opens the selected folder when exactly one is checked.
         .onKeyPress(.return) {
             if let only = selectedEntries.first, selectedEntries.count == 1, only.isDir {
                 pathComponents.append(only.name)
@@ -307,17 +307,21 @@ struct FileExplorerView: View {
     }
 
     private func row(_ entry: FsEntry) -> some View {
-        HStack {
+        HStack(spacing: 8) {
+            Button {
+                toggleSelected(entry.id)
+            } label: {
+                Image(systemName: selection.contains(entry.id) ? "checkmark.square.fill" : "square")
+                    .imageScale(.large)
+                    .foregroundStyle(selection.contains(entry.id) ? Color("BrandAccent") : Color("TextMuted"))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Add to selection")
+
             Image(systemName: entry.isDir ? "folder.fill" : "doc")
                 .foregroundStyle(entry.isDir ? .textMain : .textMuted)
-            if entry.isDir {
-                Button(entry.name) {
-                    pathComponents.append(entry.name)
-                }
-                .buttonStyle(.plain)
-            } else {
-                Text(entry.name)
-            }
+            Text(entry.name)
             Spacer()
             if !entry.isDir {
                 Text(ByteCountFormatter.string(fromByteCount: Int64(entry.size), countStyle: .file))
@@ -326,6 +330,15 @@ struct FileExplorerView: View {
             }
         }
         .contentShape(Rectangle())
+        // A long-press or the left checkbox selects this row (multi-select);
+        // double-click opens a folder; right-click shows options. Single-click
+        // does nothing on purpose.
+        .onTapGesture(count: 2) {
+            if entry.isDir { pathComponents.append(entry.name) }
+        }
+        .onLongPressGesture {
+            toggleSelected(entry.id)
+        }
         .contextMenu {
             Button("Get Info") { showInfo(entry) }
             Divider()
@@ -334,6 +347,16 @@ struct FileExplorerView: View {
             Button("Pull to Mac") { pull(targets(for: entry)) }
             Divider()
             Button("Delete", role: .destructive) { confirmingDelete = targets(for: entry) }
+        }
+    }
+
+    /// The left checkbox or a long-press toggles an item in/out of the
+    /// multi-selection.
+    private func toggleSelected(_ id: String) {
+        if selection.contains(id) {
+            selection.remove(id)
+        } else {
+            selection.insert(id)
         }
     }
 

@@ -16,9 +16,11 @@ struct PaletteWindowView: View {
 
     private var matches: [FeatureDef] {
         let enabled = state.layout.effectiveEnabledIDs
-        // Rank by relevance (best match first), registry order as tiebreak.
+        // Rank by relevance (best match first), registry order as tiebreak. Hub
+        // members are excluded — they're used from their hub (which matches the
+        // same keywords), not as standalone palette rows.
         let ranked = FeatureRegistry.all.enumerated()
-            .filter { $0.element.matches(query) }
+            .filter { $0.element.matches(query) && !$0.element.isAbsorbedByHub }
             .sorted { lhs, rhs in
                 let rl = lhs.element.relevance(for: query)
                 let rr = rhs.element.relevance(for: query)

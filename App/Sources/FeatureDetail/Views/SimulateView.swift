@@ -30,7 +30,7 @@ struct SimulateView: View {
                     Text("Level: \(Int(batteryLevel))%")
                     Slider(value: $batteryLevel, in: 0...100, step: 1)
                 }
-                Toggle("Simulate unplugged", isOn: $batteryUnplugged)
+                SwitchRow("Simulate unplugged", isOn: $batteryUnplugged)
                 Button("Apply") {
                     run("fake-battery", ["level": .number(batteryLevel), "unplugged": .bool(batteryUnplugged)])
                 }
@@ -38,10 +38,20 @@ struct SimulateView: View {
 
             Section("Appearance & Motion") {
                 if let darkMode = FeatureRegistry.byID["dark-mode"] {
-                    OverrideToggleControl(feature: darkMode) { _ in Text("Dark mode") }
+                    HStack {
+                        Text("Dark mode")
+                        Spacer(minLength: 12)
+                        OverrideToggleControl(feature: darkMode) { _ in EmptyView() }
+                            .labelsHidden()
+                    }
                 }
                 if let animations = FeatureRegistry.byID["animation-scale"] {
-                    OverrideToggleControl(feature: animations) { _ in Text("Disable animations (0×)") }
+                    HStack {
+                        Text("Disable animations (0×)")
+                        Spacer(minLength: 12)
+                        OverrideToggleControl(feature: animations) { _ in EmptyView() }
+                            .labelsHidden()
+                    }
                 }
             }
 
@@ -70,9 +80,9 @@ struct SimulateView: View {
             }
 
             Section("Network") {
-                Toggle("Wi-Fi", isOn: $wifi)
-                Toggle("Mobile data", isOn: $data)
-                Toggle("Airplane mode", isOn: $airplane)
+                SwitchRow("Wi-Fi", isOn: $wifi)
+                SwitchRow("Mobile data", isOn: $data)
+                SwitchRow("Airplane mode", isOn: $airplane)
                 Button("Apply") {
                     run("network-toggles", ["wifi": .bool(wifi), "data": .bool(data), "airplane": .bool(airplane)])
                 }

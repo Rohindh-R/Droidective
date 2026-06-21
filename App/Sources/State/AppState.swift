@@ -5,11 +5,48 @@ import Observation
 import SwiftUI
 
 struct Toast: Identifiable, Equatable {
+    enum Level: Equatable {
+        case success, info, warning, error
+    }
+
     let id = UUID()
     let message: String
     let ok: Bool
+    let level: Level
     var copyText: String?
     var revealPath: String?
+    /// Whether this is kept in the notifications history. Errors and warnings
+    /// always are; a success only when it produced an artifact (a reveal
+    /// path) — routine confirmations like "Copied" are dropped.
+    let important: Bool
+
+    init(
+        message: String,
+        ok: Bool,
+        level: Level? = nil,
+        copyText: String? = nil,
+        revealPath: String? = nil,
+        important: Bool? = nil
+    ) {
+        self.message = message
+        self.ok = ok
+        let resolved = level ?? (ok ? .success : .error)
+        self.level = resolved
+        self.copyText = copyText
+        self.revealPath = revealPath
+        self.important = important
+            ?? (resolved == .error || resolved == .warning || revealPath != nil)
+    }
+}
+
+/// A notification kept in the history panel — the important subset of toasts.
+struct AppNotification: Identifiable, Equatable {
+    let id: UUID
+    let message: String
+    let level: Toast.Level
+    var copyText: String?
+    var revealPath: String?
+    let date: Date
 }
 
 @MainActor
@@ -24,6 +61,13 @@ final class AppState {
     var selectedFeatureID: String?
     var layout = LayoutState()
     var toasts: [Toast] = []
+    /// History of important notifications (errors, warnings, key wins), newest
+    /// first. Routine success toasts are not kept.
+    var notifications: [AppNotification] = []
+    /// Whether the notifications side panel is open.
+    var showNotifications = false
+    /// Important notifications arrived since the panel was last opened.
+    var unreadNotifications = 0
     var isRunningFeature = false
 
     // Layout toggles: ⌘B (sidebar) and ⌘J (minimize/maximize the command bar).
@@ -190,7 +234,9 @@ final class AppState {
             selectedFeatureID = last
         }
         layout = await env.stores.layout.load()
-        if layout.adoptNewDefaults() {
+        var layoutChanged = layout.adoptNewDefaults()
+        layoutChanged = layout.adoptAllEnabled() || layoutChanged
+        if layoutChanged {
             persistLayout()
         }
         bundles = await env.stores.bundles.load()
@@ -224,6 +270,11 @@ final class AppState {
     private func devicesChanged(_ devices: [Device]) {
         self.devices = devices
         let ready = devices.filter(\.isReady)
+        // "Run on all" only makes sense with more than one device.
+        if ready.count <= 1, runOnAll {
+            runOnAll = false
+            persistSelection()
+        }
         let before = selectedSerial
         if let selectedSerial, !devices.contains(where: { $0.serial == selectedSerial }) {
             self.selectedSerial = ready.first?.serial
@@ -318,39 +369,111 @@ final class AppState {
         return selected.map { [$0.serial] } ?? []
     }
 
-    /// Enabled features in display order (registry order within categories).
+    /// Enabled features shown on the sidebar, in display order (registry order
+    /// within categories). Hub members are excluded — they're managed from
+    /// their hub screen, never as standalone sidebar rows — but stay reachable
+    /// via search (`disabledMatches`) and hotkeys.
     var enabledFeatures: [FeatureDef] {
         let enabled = layout.effectiveEnabledIDs
-        return FeatureRegistry.all.filter { enabled.contains($0.id) }
+        return FeatureRegistry.all.filter { enabled.contains($0.id) && !$0.isAbsorbedByHub }
     }
 
     var visibleFeatures: [FeatureDef] {
         enabledFeatures.filter { $0.matches(searchText) }
     }
 
-    /// Enabled, non-pinned features in the user's saved sidebar order (registry
-    /// order for any not yet placed). Drives the flat (ungrouped) sidebar and
-    /// its drag-to-reorder.
-    var orderedEnabledFeatures: [FeatureDef] {
-        let base = enabledFeatures.filter { !layout.favorites.contains($0.id) }
+    /// Sorts features by the user's custom order (`sidebarOrder`), registry
+    /// order as the tiebreak. Shared by the grouped/ungrouped sidebar and the
+    /// catalog so every surface reflects the same reordering.
+    private func ordered(_ features: [FeatureDef]) -> [FeatureDef] {
         let order = layout.sidebarOrder ?? []
         let rank = Dictionary(order.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
-        let registryIndex = Dictionary(uniqueKeysWithValues: base.enumerated().map { ($1.id, $0) })
-        return base.sorted {
+        let registryIndex = Dictionary(
+            uniqueKeysWithValues: FeatureRegistry.all.enumerated().map { ($1.id, $0) }
+        )
+        return features.sorted {
             (rank[$0.id] ?? Int.max, registryIndex[$0.id] ?? 0)
                 < (rank[$1.id] ?? Int.max, registryIndex[$1.id] ?? 0)
         }
     }
 
-    /// Disabled features matching the current search (shown in their own
-    /// sidebar section, runnable without enabling).
-    var disabledMatches: [FeatureDef] {
-        let enabled = layout.effectiveEnabledIDs
-        return FeatureRegistry.all.filter { !enabled.contains($0.id) && $0.matches(searchText) }
+    /// Categories in the user's order (`categoryOrder`), display order as the
+    /// fallback and tiebreak.
+    var orderedCategories: [FeatureCategory] {
+        let order = layout.categoryOrder ?? []
+        let rank = Dictionary(order.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+        let displayIndex = Dictionary(
+            uniqueKeysWithValues: FeatureCategory.displayOrder.enumerated().map { ($1.rawValue, $0) }
+        )
+        return FeatureCategory.displayOrder.sorted {
+            (rank[$0.rawValue] ?? Int.max, displayIndex[$0.rawValue] ?? 0)
+                < (rank[$1.rawValue] ?? Int.max, displayIndex[$1.rawValue] ?? 0)
+        }
     }
 
+    /// Enabled, non-pinned features in `category`, in the user's order — the
+    /// contents of one grouped-sidebar section.
+    func enabledFeatures(in category: FeatureCategory) -> [FeatureDef] {
+        ordered(enabledFeatures.filter { $0.category == category && !layout.favorites.contains($0.id) })
+    }
+
+    /// The feature rows actually rendered for a group — empty when collapsed, so
+    /// a collapsed group is a single header row (and reordering collapsed groups
+    /// shows the drop guideline only at group boundaries).
+    func shownFeatures(in category: FeatureCategory) -> [FeatureDef] {
+        isCategoryCollapsed(category) ? [] : enabledFeatures(in: category)
+    }
+
+    /// Categories rendered in the grouped sidebar: those with ≥1 enabled
+    /// feature, in the user's order (collapsed ones still show their header).
+    var sidebarCategories: [FeatureCategory] {
+        orderedCategories.filter { !enabledFeatures(in: $0).isEmpty }
+    }
+
+    func isCategoryCollapsed(_ category: FeatureCategory) -> Bool {
+        layout.collapsedCategories?.contains(category.rawValue) ?? false
+    }
+
+    func toggleCategoryCollapsed(_ category: FeatureCategory) {
+        var collapsed = layout.collapsedCategories ?? []
+        if let index = collapsed.firstIndex(of: category.rawValue) {
+            collapsed.remove(at: index)
+        } else {
+            collapsed.append(category.rawValue)
+        }
+        layout.collapsedCategories = collapsed
+        persistLayout()
+    }
+
+    /// Every catalog feature in `category` (enabled or not), in the user's
+    /// order — the contents of one catalog section.
+    func catalogFeatures(in category: FeatureCategory) -> [FeatureDef] {
+        ordered(FeatureRegistry.all.filter { $0.category == category && !$0.isAbsorbedByHub })
+    }
+
+    /// Enabled, non-pinned features in the user's order. Drives the flat
+    /// (ungrouped) sidebar and its drag-to-reorder.
+    var orderedEnabledFeatures: [FeatureDef] {
+        ordered(enabledFeatures.filter { !layout.favorites.contains($0.id) })
+    }
+
+    /// Genuinely-disabled features — not on the sidebar and not folded into a
+    /// hub — that match the current search, shown in their own section so
+    /// they're runnable or openable without enabling. Hub members are excluded:
+    /// they're used from their hub, which carries their keywords and surfaces
+    /// for the same searches, so listing them as "disabled" would mislead.
+    var disabledMatches: [FeatureDef] {
+        let shown = Set(enabledFeatures.map(\.id))
+        return FeatureRegistry.all.filter {
+            !shown.contains($0.id) && !$0.isAbsorbedByHub && $0.matches(searchText)
+        }
+    }
+
+    /// Catalog features not currently on the sidebar — drives the "+N more
+    /// features" label, so it counts only what the catalog can actually toggle
+    /// (hub members aren't in the catalog).
     var hiddenFeatureCount: Int {
-        FeatureRegistry.all.count - enabledFeatures.count
+        FeatureRegistry.catalogFeatureIDs.count - enabledFeatures.count
     }
 
     /// Enabled features in the exact order the sidebar shows them — pinned
@@ -359,21 +482,42 @@ final class AppState {
     /// of dumping the full registry.
     var sidebarFeatures: [FeatureDef] {
         let grouped = UserDefaults.standard.object(forKey: "groupSidebar") as? Bool ?? true
-        let pinned = enabledFeatures.filter { layout.favorites.contains($0.id) }
-        let rest: [FeatureDef]
-        if grouped {
-            let unpinned = enabledFeatures.filter { !layout.favorites.contains($0.id) }
-            rest = FeatureCategory.displayOrder.flatMap { category in
-                unpinned.filter { $0.category == category }
-            }
-        } else {
-            rest = orderedEnabledFeatures
-        }
+        let pinned = ordered(enabledFeatures.filter { layout.favorites.contains($0.id) })
+        let rest = grouped
+            ? orderedCategories.flatMap { enabledFeatures(in: $0) }
+            : orderedEnabledFeatures
         return pinned + rest
     }
 
     func refreshDevices() {
         Task { await env.monitor.invalidate() }
+    }
+
+    /// Drop a wireless adb connection (one device, or all when `target` is nil).
+    /// USB/emulator devices can't be disconnected this way — the device bar
+    /// only offers this for wireless devices.
+    func disconnectWireless(target: String?) {
+        let connection = env.engine.connection
+        Task {
+            await CommandLog.userInitiated(feature: "wireless-adb") {
+                do {
+                    let result = try await connection.disconnect(target: target)
+                    showToast(Toast(message: result.message, ok: result.ok, important: true))
+                } catch {
+                    showToast(Toast(message: error.localizedDescription, ok: false))
+                }
+            }
+        }
+    }
+
+    /// Ready devices that are wireless (serial is ip:port) — eligible for
+    /// the device bar's Disconnect control.
+    var readyWirelessDevices: [Device] {
+        devices.filter { $0.isReady && $0.isWireless }
+    }
+
+    var readyDeviceCount: Int {
+        devices.filter(\.isReady).count
     }
 
     // MARK: - Feature running
@@ -405,7 +549,7 @@ final class AppState {
 
         let engine = env.engine
         await CommandLog.userInitiated(feature: feature.id) {
-            if engine.scope(for: feature.id) == .global || !feature.needsDevice {
+            if !feature.needsDevice {
                 let result = await engine.run(featureID: feature.id, serial: "", params: params)
                 self.lastResults[feature.id] = (result, Date())
                 self.show(result)
@@ -458,10 +602,40 @@ final class AppState {
 
     func showToast(_ toast: Toast) {
         toasts.append(toast)
+        if toast.important {
+            notifications.insert(
+                AppNotification(
+                    id: toast.id,
+                    message: toast.message,
+                    level: toast.level,
+                    copyText: toast.copyText,
+                    revealPath: toast.revealPath,
+                    date: Date()
+                ),
+                at: 0
+            )
+            if notifications.count > 200 {
+                notifications.removeLast(notifications.count - 200)
+            }
+            if !showNotifications { unreadNotifications += 1 }
+        }
         Task {
             try? await Task.sleep(for: .seconds(5))
             toasts.removeAll { $0.id == toast.id }
         }
+    }
+
+    func toggleNotifications() {
+        showNotifications.toggle()
+        if showNotifications { unreadNotifications = 0 }
+    }
+
+    func clearNotifications() {
+        notifications.removeAll()
+    }
+
+    func dismissNotification(_ id: UUID) {
+        notifications.removeAll { $0.id == id }
     }
 
     // MARK: - Layout (catalog customization)
@@ -477,18 +651,64 @@ final class AppState {
         persistLayout()
     }
 
-    /// Back to the registry's out-of-box enabled set (favorites untouched).
-    func restoreDefaultFeatures() {
-        layout.enabledIds = nil
+    /// Reorder a displayed list of features — a grouped-sidebar/catalog section
+    /// or the flat sidebar — writing the result back into the global
+    /// `sidebarOrder` so the other groups keep their positions. `displayed` is
+    /// exactly the list the reordered `ForEach` showed.
+    func reorderFeatures(_ displayed: [FeatureDef], from source: IndexSet, to destination: Int) {
+        layout.sidebarOrder = SidebarOrdering.reorder(
+            displayed: displayed.map(\.id), from: source, to: destination,
+            within: ordered(FeatureRegistry.all).map(\.id)
+        )
         persistLayout()
-        showToast(Toast(message: "Default feature set restored", ok: true))
     }
 
-    /// Reorder the flat sidebar (only meaningful when grouping is off).
-    func moveFeature(from source: IndexSet, to destination: Int) {
-        var ordered = orderedEnabledFeatures.map(\.id)
-        ordered.move(fromOffsets: source, toOffset: destination)
-        layout.sidebarOrder = ordered
+    /// Move a feature to `toIndex` within its group (sidebar drag-and-drop).
+    /// `toIndex` is the insertion position in the group's enabled-feature list
+    /// (0 = top, count = end).
+    func moveFeature(_ id: String, toIndex: Int, in category: FeatureCategory) {
+        let group = enabledFeatures(in: category)
+        guard let from = group.firstIndex(where: { $0.id == id }) else { return }
+        reorderFeatures(group, from: IndexSet(integer: from), to: toIndex)
+    }
+
+    /// Move a whole group before `targetRawValue` (nil = to the end).
+    func moveGroup(_ rawValue: String, before targetRawValue: String?) {
+        let full = orderedCategories.map(\.rawValue)
+        layout.categoryOrder = targetRawValue.map { SidebarOrdering.move(rawValue, before: $0, in: full) }
+            ?? SidebarOrdering.moveToEnd(rawValue, in: full)
+        persistLayout()
+    }
+
+    // MARK: - Group enable/disable
+
+    /// Toggleable features in a category — excludes hub members (managed from
+    /// their hub) and system features (can't be disabled).
+    private func toggleableFeatures(in category: FeatureCategory) -> [FeatureDef] {
+        FeatureRegistry.all.filter {
+            $0.category == category && !$0.isAbsorbedByHub && $0.kind != .system
+        }
+    }
+
+    /// Whether a category has any feature the user can enable/disable — the
+    /// group toggle is hidden for groups that don't (e.g. a system-only group).
+    func canToggleGroup(_ category: FeatureCategory) -> Bool {
+        !toggleableFeatures(in: category).isEmpty
+    }
+
+    /// True when at least one toggleable feature in the category is enabled —
+    /// the group's "disable all" affordance is offered while this holds.
+    func isGroupEnabled(_ category: FeatureCategory) -> Bool {
+        toggleableFeatures(in: category).contains { layout.effectiveEnabledIDs.contains($0.id) }
+    }
+
+    /// Enable or disable every toggleable feature in the category at once.
+    func setGroupEnabled(_ category: FeatureCategory, enabled: Bool) {
+        var ids = layout.effectiveEnabledIDs
+        for feature in toggleableFeatures(in: category) {
+            if enabled { ids.insert(feature.id) } else { ids.remove(feature.id) }
+        }
+        layout.enabledIds = FeatureRegistry.all.map(\.id).filter { ids.contains($0) }
         persistLayout()
     }
 
@@ -604,15 +824,13 @@ final class AppState {
         }
     }
 
-    /// Capture → ask for a location → save. Records the result so the
-    /// Screenshot view's preview updates regardless of entry point. An optional
-    /// delay gives you time to arrange the device screen first.
+    /// Quick capture (sidebar ⏎, global hotkey, menu bar): grab and save
+    /// straight to the capture folder — no dialog. An optional delay gives you
+    /// time to arrange the device screen first. The Screenshot view itself uses
+    /// `captureForEditor` instead, opening the shot for markup before saving.
     func runScreenshot(delaySeconds: Int = 0) async {
         guard let serial = targetSerials.first else {
             showToast(Toast(message: "No device connected.", ok: false))
-            return
-        }
-        guard let dest = askSaveLocation(suggestedName: "screenshot_\(ScreenCaptureService.stamp()).png") else {
             return
         }
         if delaySeconds > 0 {
@@ -621,17 +839,44 @@ final class AppState {
         }
         await CommandLog.userInitiated(feature: "screenshot") {
             do {
+                let dir = try ScreenCaptureService.ensureCaptureDir()
+                let dest = dir.appendingPathComponent("screenshot_\(ScreenCaptureService.stamp()).png")
                 let file = try await withOperation("Capturing screenshot…") {
                     try await env.engine.captureScreenshot(serial: serial, to: dest)
                 }
                 let result = FeatureResult(ok: true, message: "Screenshot saved", revealPath: file.path)
                 lastResults["screenshot"] = (result, Date())
-                showToast(Toast(message: result.message, ok: true, revealPath: file.path))
+                showToast(Toast(message: "Screenshot saved to \(dir.lastPathComponent)", ok: true, revealPath: file.path))
             } catch {
                 lastResults["screenshot"] = (FeatureResult(ok: false, message: error.localizedDescription), Date())
                 showToast(Toast(message: error.localizedDescription, ok: false))
             }
         }
+    }
+
+    /// Capture for the in-app editor — returns the image without writing it
+    /// anywhere; the editor saves or copies on demand. The delay lets you
+    /// arrange the device screen first.
+    func captureForEditor(delaySeconds: Int = 0) async -> NSImage? {
+        guard let serial = targetSerials.first else {
+            showToast(Toast(message: "No device connected.", ok: false))
+            return nil
+        }
+        if delaySeconds > 0 {
+            showToast(Toast(message: "Capturing in \(delaySeconds)s…", ok: true))
+            try? await Task.sleep(for: .seconds(delaySeconds))
+        }
+        let data: Data? = await CommandLog.userInitiated(feature: "screenshot") {
+            do {
+                return try await withOperation("Capturing screenshot…") {
+                    try await env.engine.captureScreenshotData(serial: serial)
+                }
+            } catch {
+                showToast(Toast(message: error.localizedDescription, ok: false))
+                return nil
+            }
+        }
+        return data.flatMap { NSImage(data: $0) }
     }
 
     // MARK: - Quick actions

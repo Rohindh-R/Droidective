@@ -9,7 +9,6 @@ import SwiftUI
 struct NetworkConnectionView: View {
     @Environment(AppState.self) private var state
     @State private var reversePort = "8081"
-    @State private var disconnectTarget = ""
 
     var body: some View {
         Form {
@@ -32,19 +31,6 @@ struct NetworkConnectionView: View {
                         run("reverse-port", ["port": .string(reversePort.trimmingCharacters(in: .whitespaces))])
                     }
                     .disabled(state.targetSerials.isEmpty || reversePort.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
-            }
-
-            Section("Disconnect wireless") {
-                HStack(spacing: 8) {
-                    TextField("Target", text: $disconnectTarget, prompt: Text("ip:port — blank disconnects all"))
-                        .textFieldStyle(.roundedBorder)
-                        .labelsHidden()
-                        .frame(maxWidth: 280)
-                    Button("Disconnect") {
-                        let target = disconnectTarget.trimmingCharacters(in: .whitespaces)
-                        run("disconnect", target.isEmpty ? [:] : ["target": .string(target)])
-                    }
                 }
             }
 
