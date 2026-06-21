@@ -82,7 +82,7 @@ struct ScreenRecordView: View {
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(isRecording ? .red : .accentColor)
+                .tint(isRecording ? .red : .brandAccent)
                 .controlSize(.large)
                 .disabled(isStarting || isSaving || state.targetSerials.isEmpty)
 

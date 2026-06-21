@@ -72,7 +72,7 @@ struct NetworkView: View {
                             .frame(minWidth: 84)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(isRecording ? .red : .accentColor)
+                    .tint(isRecording ? .red : .brandAccent)
                     .disabled(!isLive)
                     .help(isRecording ? "Stop recording" : "Record a session to export")
 
