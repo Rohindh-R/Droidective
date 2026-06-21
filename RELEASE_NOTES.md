@@ -1,3 +1,25 @@
+## Droidective v2.2.1
+
+A fix for the accent color on Macs set to a specific system accent.
+
+### Fixes
+
+- Buttons, toggles, sliders, and other standard controls now always use the
+  brand green. They previously followed the macOS system accent color, so on a
+  Mac set to a specific accent (for example Blue) they rendered in that color
+  instead of green.
+
+### Install
+
+Download the `.dmg` below and drag **Droidective** into **Applications**. The
+build is ad-hoc signed but not notarized, so clear the quarantine once:
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/Droidective.app"
+```
+
+Installed copies from v2.1.0+ update in place via Sparkle.
+
 ## Droidective v2.2.0
 
 A UI overhaul: a refreshed theme, feature hubs that keep the sidebar short, a
