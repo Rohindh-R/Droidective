@@ -11,6 +11,7 @@ struct FormActionView: View {
     @State private var boolValues: [String: Bool] = [:]
     @State private var sliderValues: [String: Double] = [:]
     @State private var presets = Presets()
+    @FocusState private var focusedField: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -38,11 +39,33 @@ struct FormActionView: View {
             LastResultCard(featureID: feature.id)
         }
         .centeredCard()
-        .onAppear { seedDefaults() }
+        .onAppear {
+            seedDefaults()
+            // Put the cursor in the first text-like field so the user can type
+            // right away. The delay lets the field mount and the window become
+            // key first, mirroring the command palette's focus timing.
+            if let first = firstFocusableField {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(120))
+                    focusedField = first
+                }
+            }
+        }
         .task {
             presets = await state.env.stores.presets.load()
         }
         .id(feature.id)
+    }
+
+    /// The first field that takes typed input, focused on open. Features that
+    /// are only sliders / switches / pickers have none and stay unfocused.
+    private var firstFocusableField: String? {
+        feature.fields.first { field in
+            switch field.control {
+            case .text, .number, .bundle, .preset: return true
+            case .select, .switch, .slider: return false
+            }
+        }?.name
     }
 
     /// A labeled row for the flush layout: switches and sliders carry their own
@@ -82,6 +105,7 @@ struct FormActionView: View {
         let values = presetValues(for: field.presetKey ?? "")
         TextField("", text: binding(for: field), prompt: field.placeholder.map(Text.init))
             .textFieldStyle(.roundedBorder)
+            .focused($focusedField, equals: field.name)
             .overlay(alignment: .trailing) {
                 if !values.isEmpty {
                     Menu {
@@ -115,6 +139,7 @@ struct FormActionView: View {
         case .text, .number, .bundle:
             TextField("", text: binding(for: field), prompt: field.placeholder.map(Text.init))
                 .textFieldStyle(.roundedBorder)
+                .focused($focusedField, equals: field.name)
         case .preset:
             presetField(for: field)
         case .select:
@@ -125,7 +150,7 @@ struct FormActionView: View {
             }
             .labelsHidden()
         case .switch:
-            Toggle(field.label, isOn: boolBinding(for: field))
+            SwitchRow(field.label, isOn: boolBinding(for: field))
         case .slider:
             let range = (field.min ?? 0)...(field.max ?? 1)
             VStack(alignment: .leading) {

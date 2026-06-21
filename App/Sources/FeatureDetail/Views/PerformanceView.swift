@@ -36,6 +36,8 @@ struct PerformanceView: View {
     @State private var sortKey: SortKey = .ram
     /// Hovered x (elapsed seconds), shared across charts for a synced crosshair.
     @State private var selectedElapsed: Double?
+    /// Stopping with captured samples prompts to export before discarding them.
+    @State private var confirmingStop = false
 
     /// Poll cadence. dumpsys meminfo (per-process) is heavy, so it runs every
     /// other tick while the lighter CPU/RAM/FPS counters run every tick.
@@ -95,7 +97,7 @@ struct PerformanceView: View {
             .disabled(serial == nil)
             .help("Start, pause, or resume sampling")
 
-            Button { stop() } label: {
+            Button { requestStop() } label: {
                 Image(systemName: "stop.fill")
             }
             .disabled(phase == .idle)
@@ -104,6 +106,8 @@ struct PerformanceView: View {
             Button { export() } label: {
                 Label("Export", systemImage: "square.and.arrow.up")
             }
+            .buttonStyle(.borderedProminent)
+            .tint(.brandAccent)
             .disabled(samples.isEmpty)
             .help("Export the recording as JSON + CSV")
 
@@ -118,6 +122,17 @@ struct PerformanceView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+        .confirmationDialog(
+            "Export this recording before stopping?",
+            isPresented: $confirmingStop,
+            titleVisibility: .visible
+        ) {
+            Button("Export…") { export(); stop() }
+            Button("Stop without exporting", role: .destructive) { stop() }
+            Button("Keep recording", role: .cancel) {}
+        } message: {
+            Text("\(samples.count) samples captured — exported as JSON + CSV.")
+        }
     }
 
     private var recordTitle: String {
@@ -497,6 +512,15 @@ struct PerformanceView: View {
             phase = .recording
             state.recordingActive = true
             launchSampler()
+        }
+    }
+
+    /// Stop, but nudge an export first when there's a captured session to lose.
+    private func requestStop() {
+        if samples.isEmpty {
+            stop()
+        } else {
+            confirmingStop = true
         }
     }
 

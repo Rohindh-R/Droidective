@@ -132,7 +132,7 @@ struct HomeView: View {
 
     private var categoriesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("All \(FeatureRegistry.all.count) features")
+            sectionTitle("All \(FeatureRegistry.catalogFeatureIDs.count) features")
             Text("Grouped into \(FeatureCategory.displayOrder.count) categories — browse and toggle every tool in the catalog.")
                 .font(.callout)
                 .foregroundStyle(.textMuted)
@@ -149,7 +149,7 @@ struct HomeView: View {
     }
 
     private func categoryChip(_ category: FeatureCategory) -> some View {
-        let count = FeatureRegistry.all.filter { $0.category == category }.count
+        let count = FeatureRegistry.all.filter { $0.category == category && !$0.isAbsorbedByHub }.count
         return HStack(spacing: 10) {
             Image(systemName: category.icon)
                 .foregroundStyle(.textMuted)
@@ -259,7 +259,7 @@ struct HomeView: View {
 
 /// The Light / Dark / Auto segmented control, reused on Home and Settings.
 struct ThemePicker: View {
-    @AppStorage("theme") private var theme = "dark"
+    @AppStorage("theme") private var theme = "auto"
 
     var body: some View {
         Picker("", selection: $theme) {

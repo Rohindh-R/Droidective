@@ -80,7 +80,7 @@ struct WirelessAdbSection: View {
             await CommandLog.userInitiated(feature: "wireless-adb") {
                 do {
                     let result = try await operation()
-                    state.showToast(Toast(message: result.message, ok: result.ok, copyText: result.copyText))
+                    state.showToast(Toast(message: result.message, ok: result.ok, copyText: result.copyText, important: true))
                 } catch {
                     state.showToast(Toast(message: error.localizedDescription, ok: false))
                 }

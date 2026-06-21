@@ -47,6 +47,28 @@ struct OverrideToggleControl<Label: View>: View {
     }
 }
 
+/// A form switch whose label is inert — only the switch itself flips it. macOS
+/// makes a bare `Toggle`'s whole row a tap target, which surprised users who
+/// clicked a row's text or empty space and saw the switch flip.
+struct SwitchRow: View {
+    let title: String
+    @Binding var isOn: Bool
+
+    init(_ title: String, isOn: Binding<Bool>) {
+        self.title = title
+        self._isOn = isOn
+    }
+
+    var body: some View {
+        HStack {
+            Text(title)
+            Spacer(minLength: 12)
+            Toggle("", isOn: $isOn)
+                .labelsHidden()
+        }
+    }
+}
+
 /// State-reflecting switch for toggle-action features in the detail pane. The
 /// same flip is also available inline on the sidebar row.
 struct ToggleActionView: View {

@@ -65,9 +65,9 @@ struct ScreenRecordView: View {
                     Text("60s").tag(60)
                     Text("120s").tag(120)
                 }
-                Toggle("Rotate 90°", isOn: $rotate)
-                Toggle("Timestamp overlay (bug report)", isOn: $bugreport)
-                Toggle("Convert to GIF when done (needs ffmpeg)", isOn: $makeGif)
+                SwitchRow("Rotate 90°", isOn: $rotate)
+                SwitchRow("Timestamp overlay (bug report)", isOn: $bugreport)
+                SwitchRow("Convert to GIF when done (needs ffmpeg)", isOn: $makeGif)
             }
             .disabled(isRecording)
 
