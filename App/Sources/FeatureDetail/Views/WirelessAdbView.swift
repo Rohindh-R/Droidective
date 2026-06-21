@@ -19,7 +19,7 @@ struct WirelessAdbView: View {
             Section("Over USB") {
                 if usbDevices.isEmpty {
                     Text("Connect a device over USB to bootstrap wireless ADB.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.textMuted)
                 } else {
                     ForEach(usbDevices) { device in
                         HStack {
@@ -52,13 +52,13 @@ struct WirelessAdbView: View {
 
                 Text("The pairing port (from \"Pair device with pairing code\") differs from the connection port on the Wireless Debugging screen.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
             }
 
             Section("Connected over Wi-Fi") {
                 if wirelessDevices.isEmpty {
                     Text("No wireless devices.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.textMuted)
                 } else {
                     ForEach(wirelessDevices) { device in
                         HStack {
@@ -74,6 +74,8 @@ struct WirelessAdbView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .centeredColumn()
     }
 
     private func runConnection(_ operation: @escaping @Sendable () async throws -> FeatureResult) {

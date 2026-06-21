@@ -44,7 +44,7 @@ struct EmulatorsView: View {
             HStack {
                 Text("\(avds.count) virtual devices")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
                 Spacer()
                 Button {
                     reloadToken += 1
@@ -59,13 +59,13 @@ struct EmulatorsView: View {
             List(avds) { avd in
                 HStack {
                     Image(systemName: avd.runningSerial != nil ? "play.display" : "display")
-                        .foregroundStyle(avd.runningSerial != nil ? .green : .secondary)
+                        .foregroundStyle(avd.runningSerial != nil ? .brandAccent : .textMuted)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(avd.displayName)
                         if let serial = avd.runningSerial {
                             Text("Running — \(serial)")
                                 .font(.footnote)
-                                .foregroundStyle(.green)
+                                .foregroundStyle(.brandAccent)
                         }
                     }
                     Spacer()

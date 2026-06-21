@@ -13,35 +13,92 @@ struct FormActionView: View {
     @State private var presets = Presets()
 
     var body: some View {
-        Form {
+        VStack(alignment: .leading, spacing: 16) {
             ForEach(feature.fields, id: \.name) { field in
-                control(for: field)
+                fieldRow(for: field)
             }
 
-            HStack {
+            HStack(spacing: 10) {
                 Button {
                     submit()
                 } label: {
                     Label("Run", systemImage: "play.fill")
-                        .frame(minWidth: 100)
                 }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.large)
                 .disabled(state.isRunningFeature)
                 .keyboardShortcut(.return, modifiers: .command)
 
-                Text("⌘⏎")
+                Text("⌘⏎ to run")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
+            .padding(.top, 4)
 
             LastResultCard(featureID: feature.id)
         }
-        .formStyle(.grouped)
+        .centeredCard()
         .onAppear { seedDefaults() }
         .task {
             presets = await state.env.stores.presets.load()
         }
         .id(feature.id)
+    }
+
+    /// A labeled row for the flush layout: switches and sliders carry their own
+    /// labels; every other control gets a caption label above it.
+    @ViewBuilder
+    private func fieldRow(for field: FieldDef) -> some View {
+        switch field.control {
+        case .switch, .slider:
+            control(for: field)
+        default:
+            VStack(alignment: .leading, spacing: 5) {
+                Text(field.label)
+                    .font(.callout)
+                    .foregroundStyle(.textMuted)
+                control(for: field)
+                    .frame(maxWidth: fieldWidth(for: field.control), alignment: .leading)
+            }
+        }
+    }
+
+    /// Sized to the input: a port or a count doesn't need a full-width field;
+    /// free text and hosts get more room.
+    private func fieldWidth(for control: FieldControl) -> CGFloat {
+        switch control {
+        case .number: return 160
+        case .preset: return 200
+        case .select: return 300
+        default: return 380
+        }
+    }
+
+    /// A preset field: a text field with recent values tucked into a dropdown
+    /// chevron *inside* the field's trailing edge (combo-box style), so it reads
+    /// as one control instead of a floating arrow beside the field.
+    @ViewBuilder
+    private func presetField(for field: FieldDef) -> some View {
+        let values = presetValues(for: field.presetKey ?? "")
+        TextField("", text: binding(for: field), prompt: field.placeholder.map(Text.init))
+            .textFieldStyle(.roundedBorder)
+            .overlay(alignment: .trailing) {
+                if !values.isEmpty {
+                    Menu {
+                        ForEach(values, id: \.self) { value in
+                            Button(value) { textValues[field.name] = value }
+                        }
+                    } label: {
+                        Image(systemName: "chevron.down")
+                            .foregroundStyle(.textMuted)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                    .padding(.trailing, 5)
+                    .help("Recent values")
+                }
+            }
     }
 
     private func presetValues(for key: String) -> [String] {
@@ -56,29 +113,17 @@ struct FormActionView: View {
     private func control(for field: FieldDef) -> some View {
         switch field.control {
         case .text, .number, .bundle:
-            TextField(field.label, text: binding(for: field), prompt: field.placeholder.map(Text.init))
+            TextField("", text: binding(for: field), prompt: field.placeholder.map(Text.init))
+                .textFieldStyle(.roundedBorder)
         case .preset:
-            HStack {
-                TextField(field.label, text: binding(for: field), prompt: field.placeholder.map(Text.init))
-                let values = presetValues(for: field.presetKey ?? "")
-                if !values.isEmpty {
-                    Menu {
-                        ForEach(values, id: \.self) { value in
-                            Button(value) { textValues[field.name] = value }
-                        }
-                    } label: {
-                        Image(systemName: "chevron.up.chevron.down")
-                    }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
-                }
-            }
+            presetField(for: field)
         case .select:
-            Picker(field.label, selection: binding(for: field)) {
+            Picker("", selection: binding(for: field)) {
                 ForEach(field.options, id: \.value) { option in
                     Text(option.label).tag(option.value)
                 }
             }
+            .labelsHidden()
         case .switch:
             Toggle(field.label, isOn: boolBinding(for: field))
         case .slider:

@@ -87,7 +87,7 @@ struct FileExplorerView: View {
                     listView(entries)
                 }
             } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                ProgressView("Reading files…").frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .alert("New Folder", isPresented: $showNewFolder) {
@@ -119,7 +119,7 @@ struct FileExplorerView: View {
                     Button(rootMode ? "/" : "sdcard") { pathComponents = [] }
                         .buttonStyle(.link)
                     ForEach(Array(pathComponents.enumerated()), id: \.offset) { index, component in
-                        Text("/").foregroundStyle(.secondary)
+                        Text("/").foregroundStyle(.textMuted)
                         Button(component) {
                             pathComponents = Array(pathComponents.prefix(index + 1))
                         }
@@ -192,7 +192,7 @@ struct FileExplorerView: View {
         HStack(spacing: 8) {
             Text("\(selection.count) selected")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
             Spacer()
             Button("Copy") { clipboard = (selectedEntries.map(path(for:)), false) }
             Button("Cut") { clipboard = (selectedEntries.map(path(for:)), true) }
@@ -202,7 +202,7 @@ struct FileExplorerView: View {
         .controlSize(.small)
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .background(.quaternary.opacity(0.4))
+        .background(Color.bgSurface)
     }
 
     private func listView(_ entries: [FsEntry]) -> some View {
@@ -309,7 +309,7 @@ struct FileExplorerView: View {
     private func row(_ entry: FsEntry) -> some View {
         HStack {
             Image(systemName: entry.isDir ? "folder.fill" : "doc")
-                .foregroundStyle(entry.isDir ? .blue : .secondary)
+                .foregroundStyle(entry.isDir ? .textMain : .textMuted)
             if entry.isDir {
                 Button(entry.name) {
                     pathComponents.append(entry.name)
@@ -322,7 +322,7 @@ struct FileExplorerView: View {
             if !entry.isDir {
                 Text(ByteCountFormatter.string(fromByteCount: Int64(entry.size), countStyle: .file))
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
             }
         }
         .contentShape(Rectangle())
@@ -348,7 +348,7 @@ struct FileExplorerView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Image(systemName: entry.isDir ? "folder.fill" : "doc")
-                    .foregroundStyle(entry.isDir ? .blue : .secondary)
+                    .foregroundStyle(entry.isDir ? .textMain : .textMuted)
                 Text(entry.name).font(.headline)
                 Spacer()
                 Button("Done") { infoTarget = nil }
@@ -379,11 +379,12 @@ struct FileExplorerView: View {
                 } else {
                     HStack {
                         ProgressView().controlSize(.small)
-                        Text("Reading file info…").foregroundStyle(.secondary)
+                        Text("Reading file info…").foregroundStyle(.textMuted)
                     }
                 }
             }
             .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
         }
         .frame(width: 420, height: 330)
         .task(id: entry.id) {

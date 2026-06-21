@@ -73,10 +73,12 @@ struct ScrcpyView: View {
                 if state.targetSerials.isEmpty {
                     Text("Connect a device to mirror.")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.textMuted)
                 }
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .centeredColumn()
     }
 }

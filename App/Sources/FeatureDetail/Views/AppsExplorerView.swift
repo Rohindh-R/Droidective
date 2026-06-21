@@ -93,15 +93,15 @@ struct AppsExplorerView: View {
                                         if app.isSystem {
                                             Text("system")
                                                 .font(.caption2)
-                                                .foregroundStyle(.secondary)
+                                                .foregroundStyle(.textMuted)
                                                 .padding(.horizontal, 4)
-                                                .background(.quaternary, in: Capsule())
+                                                .background(Color.bgSurface, in: Capsule())
                                         }
                                         lifecycleBadge(for: app.packageId)
                                     }
                                     Text("\(app.packageId)\(app.versionName.map { " · v\($0)" } ?? "")")
                                         .font(.footnote)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(.textMuted)
                                         .lineLimit(1)
                                 }
                             }
@@ -235,7 +235,7 @@ private struct AppDetailPane: View {
                 } else if info == nil {
                     HStack {
                         ProgressView().controlSize(.small)
-                        Text("Reading app info…").foregroundStyle(.secondary)
+                        Text("Reading app info…").foregroundStyle(.textMuted)
                     }
                 }
             }
@@ -249,7 +249,7 @@ private struct AppDetailPane: View {
                     if showPermissions {
                         if permissions.isEmpty {
                             Text("No runtime permissions declared.")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.textMuted)
                         }
                         ForEach(permissions) { permission in
                             Toggle(isOn: Binding(
@@ -260,18 +260,25 @@ private struct AppDetailPane: View {
                                     Text(permission.shortName)
                                     Text(permission.name)
                                         .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(.textMuted)
                                 }
                             }
                             .toggleStyle(.switch)
                             .controlSize(.small)
                             .disabled(mutating)
+                            .opacity(mutating ? 0.5 : 1)
+                        }
+                        if mutating {
+                            HStack {
+                                ProgressView().controlSize(.small)
+                                Text("Updating…").foregroundStyle(.textMuted)
+                            }
                         }
                     }
                 } else {
                     HStack {
                         ProgressView().controlSize(.small)
-                        Text("Reading permissions…").foregroundStyle(.secondary)
+                        Text("Reading permissions…").foregroundStyle(.textMuted)
                     }
                 }
             }
@@ -316,11 +323,12 @@ private struct AppDetailPane: View {
                     }
                 }
                 if managing {
-                    HStack { ProgressView().controlSize(.small); Text("Working…").foregroundStyle(.secondary) }
+                    HStack { ProgressView().controlSize(.small); Text("Working…").foregroundStyle(.textMuted) }
                 }
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
         .task(id: "\(packageId)|\(state.targetSerials.first ?? "")") {
             await load()
         }

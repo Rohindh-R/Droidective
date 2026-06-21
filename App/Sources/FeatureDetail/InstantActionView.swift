@@ -1,44 +1,54 @@
 import ADBKit
 import SwiftUI
 
+/// Instant actions run straight from the sidebar (one click), so this pane is a
+/// confirmation, not a gate: it shows what the last run produced and offers a
+/// re-run. Before the first run it shows a single Run button and a hint that
+/// clicking the sidebar row is enough.
 struct InstantActionView: View {
     @Environment(AppState.self) private var state
     let feature: FeatureDef
 
+    private var hasResult: Bool { state.lastResults[feature.id] != nil }
+
     var body: some View {
-        VStack(spacing: 18) {
-            Image(systemName: feature.icon)
-                .font(.system(size: 34, weight: .medium))
-                .foregroundStyle(.tint)
-                .frame(width: 84, height: 84)
-                .background(.tint.opacity(0.12), in: Circle())
+        VStack(spacing: 16) {
+            if hasResult {
+                LastResultCard(featureID: feature.id)
+                    .frame(maxWidth: 460)
+                Button {
+                    run()
+                } label: {
+                    Label(state.isRunningFeature ? "Running…" : "Run again", systemImage: "arrow.clockwise")
+                }
+                .controlSize(.large)
+                .disabled(state.isRunningFeature)
+                .keyboardShortcut(.return, modifiers: .command)
+            } else if state.isRunningFeature {
+                ProgressView()
+                    .controlSize(.large)
+            } else {
+                Button {
+                    run()
+                } label: {
+                    Label("Run", systemImage: "play.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .keyboardShortcut(.return, modifiers: .command)
 
-            if let subtitle = feature.subtitle {
-                Text(subtitle)
-                    .foregroundStyle(.secondary)
+                Text("Runs instantly. Tip: just click it in the sidebar — no need to open this.")
+                    .font(.callout)
+                    .foregroundStyle(.textMuted)
                     .multilineTextAlignment(.center)
-                    .frame(maxWidth: 380)
+                    .frame(maxWidth: 340)
             }
-
-            Button {
-                Task { await state.run(feature: feature, params: [:]) }
-            } label: {
-                Label("Run", systemImage: "play.fill")
-                    .frame(minWidth: 130)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(state.isRunningFeature)
-            .keyboardShortcut(.return, modifiers: .command)
-
-            Text("⌘⏎ to run")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-
-            LastResultCard(featureID: feature.id)
-                .frame(maxWidth: 420)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
+        .padding(24)
+    }
+
+    private func run() {
+        Task { await state.run(feature: feature, params: [:]) }
     }
 }

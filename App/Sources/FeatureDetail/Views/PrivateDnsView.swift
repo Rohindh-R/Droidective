@@ -49,8 +49,7 @@ struct PrivateDnsView: View {
                 if busy { ProgressView().controlSize(.small) }
             }
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .centeredCard()
     }
 
     private func load() async {

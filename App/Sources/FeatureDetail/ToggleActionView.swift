@@ -1,38 +1,23 @@
 import ADBKit
 import SwiftUI
 
-/// State-reflecting switch for toggle-action features (dark mode, demo mode,
-/// animation scale). Current state comes from the reconciled overrides; user
-/// flips are tracked as an in-flight intent so a quick on→off isn't swallowed
-/// by stale reconciliation data.
-struct ToggleActionView: View {
+/// A switch bound to a device override (dark mode, demo mode, animation scale).
+/// Current state comes from the reconciled overrides; a user flip is held as an
+/// in-flight intent so a quick on→off isn't swallowed by stale reconciliation.
+/// Shared by the sidebar row (label-less) and the detail pane (on/off label).
+struct OverrideToggleControl<Label: View>: View {
     @Environment(AppState.self) private var state
     let feature: FeatureDef
+    @ViewBuilder var label: (Bool) -> Label
 
     @State private var isOn = false
-    /// The value most recently sent to the device, until reconciliation
-    /// catches up. nil = no run in flight.
+    /// The value most recently sent to the device, until reconciliation catches
+    /// up. nil = no run in flight.
     @State private var pendingValue: Bool?
 
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: feature.icon)
-                .font(.system(size: 34, weight: .medium))
-                .foregroundStyle(.tint)
-                .frame(width: 84, height: 84)
-                .background(.tint.opacity(0.12), in: Circle())
-
-            if let subtitle = feature.subtitle {
-                Text(subtitle)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            Toggle(isOn: $isOn) {
-                Text(isOn ? (feature.toggleOnLabel ?? "On") : (feature.toggleOffLabel ?? "Off"))
-            }
+        Toggle(isOn: $isOn) { label(isOn) }
             .toggleStyle(.switch)
-            .controlSize(.large)
             .disabled(state.targetSerials.isEmpty)
             .onChange(of: isOn) { _, newValue in
                 let current = pendingValue ?? deviceState
@@ -46,28 +31,42 @@ struct ToggleActionView: View {
                     }
                 }
             }
-
-            if state.targetSerials.isEmpty {
-                Text("Connect a device to toggle.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+            .onAppear { isOn = pendingValue ?? deviceState }
+            .onChange(of: deviceState) { _, newValue in
+                // Reconciliation only drives the switch when nothing is in flight.
+                if pendingValue == nil {
+                    isOn = newValue
+                }
             }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-        .onAppear { isOn = pendingValue ?? deviceState }
-        .onChange(of: deviceState) { _, newValue in
-            // Reconciliation only drives the switch when nothing is in flight.
-            if pendingValue == nil {
-                isOn = newValue
-            }
-        }
-        .id(feature.id)
     }
 
     /// True when the reconciled overrides report this kind as active.
     private var deviceState: Bool {
         guard let kind = feature.overrideKind else { return false }
         return state.activeOverrides.contains { $0.kind == kind }
+    }
+}
+
+/// State-reflecting switch for toggle-action features in the detail pane. The
+/// same flip is also available inline on the sidebar row.
+struct ToggleActionView: View {
+    @Environment(AppState.self) private var state
+    let feature: FeatureDef
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            OverrideToggleControl(feature: feature) { isOn in
+                Text(isOn ? (feature.toggleOnLabel ?? "On") : (feature.toggleOffLabel ?? "Off"))
+            }
+            .controlSize(.large)
+
+            if state.targetSerials.isEmpty {
+                Text("Connect a device to toggle.")
+                    .font(.footnote)
+                    .foregroundStyle(.textMuted)
+            }
+        }
+        .centeredCard()
+        .id(feature.id)
     }
 }

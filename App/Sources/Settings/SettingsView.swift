@@ -106,14 +106,14 @@ struct GeneralSettingsView: View {
                 Toggle("Show how-it-works notes", isOn: $showFeatureNotes)
                 Text("The info text beneath each feature, above the command bar.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
             }
 
             Section("Sidebar") {
                 Toggle("Group features by category", isOn: $groupSidebar)
                 Text("Turn off to drag features into your own order.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
             }
 
             Section("Startup") {
@@ -129,7 +129,7 @@ struct GeneralSettingsView: View {
                 ))
                 Text("Updates are delivered via Sparkle from GitHub Releases.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
             }
             #endif
 
@@ -139,7 +139,7 @@ struct GeneralSettingsView: View {
                     DisclosureGroup("Items shown in the menu") {
                         Text("When none are selected, your pinned features (or enabled instant actions) are shown. Screenshot and Mirror Screen always appear.")
                             .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.textMuted)
                             .padding(.vertical, 6)
                         ForEach(state.enabledFeatures) { feature in
                             Toggle(feature.title, isOn: Binding(
@@ -164,7 +164,7 @@ struct GeneralSettingsView: View {
                 ))
                 Text("Crash reports help fix bugs; analytics shows which tools get used. Both are anonymous — no device data, file paths, or command contents are ever sent.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
             }
 
             Section("Data & Storage") {
@@ -172,7 +172,7 @@ struct GeneralSettingsView: View {
                     VStack(alignment: .trailing, spacing: 6) {
                         Text(captureFolderDisplay)
                             .font(.callout)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.textMuted)
                             .lineLimit(1)
                             .truncationMode(.middle)
                         HStack(spacing: 8) {
@@ -269,10 +269,10 @@ struct DoctorSettingsView: View {
     private var summary: some View {
         if report.isEmpty {
             Label("Checking your setup…", systemImage: "stethoscope")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
         } else if blockingMissing.isEmpty {
             Label("All set — every required tool is installed.", systemImage: "checkmark.seal.fill")
-                .foregroundStyle(.green)
+                .foregroundStyle(.brandAccent)
         } else {
             let n = blockingMissing.count
             Label(
@@ -292,7 +292,7 @@ struct DoctorSettingsView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(check.purpose)
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
                 if let status {
                     if let version = status.version {
                         detail("Version", version)
@@ -309,7 +309,7 @@ struct DoctorSettingsView: View {
                         } else {
                             Text(status.installHint)
                                 .font(.callout)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.textMuted)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
@@ -324,7 +324,7 @@ struct DoctorSettingsView: View {
                 if let status, !status.installed {
                     Text("not installed")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.textMuted)
                 }
             }
         }
@@ -334,7 +334,7 @@ struct DoctorSettingsView: View {
     private func statusIcon(_ status: ToolStatus?) -> some View {
         if let status {
             Image(systemName: status.installed ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .foregroundStyle(status.installed ? Color.green : Color.orange)
+                .foregroundStyle(status.installed ? Color.brandAccent : Color.orange)
         } else {
             ProgressView().controlSize(.small)
         }
@@ -344,7 +344,7 @@ struct DoctorSettingsView: View {
     private func detail(_ label: String, _ value: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Text(label)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
                 .frame(width: 56, alignment: .leading)
             Text(value)
                 .textSelection(.enabled)

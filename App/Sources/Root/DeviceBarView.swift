@@ -25,7 +25,7 @@ struct DeviceBarView: View {
             Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
             GridRow {
                 Image(systemName: "iphone")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
                     .gridColumnAlignment(.center)
 
                 deviceControl
@@ -70,7 +70,7 @@ struct DeviceBarView: View {
             if bundleRowVisible {
                 GridRow {
                     Image(systemName: "shippingbox")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.textMuted)
                         .gridColumnAlignment(.center)
 
                     bundleControl
@@ -89,7 +89,7 @@ struct DeviceBarView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
-        .background(.ultraThinMaterial)
+        .background(.bgSurface)
         .overlay(alignment: .bottom) {
             Divider()
         }
@@ -107,7 +107,7 @@ struct DeviceBarView: View {
         if state.devices.isEmpty {
             Text("No device connected")
                 .font(.callout)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
         } else {
             Picker("Device", selection: $state.selectedSerial) {
                 ForEach(state.devices) { device in

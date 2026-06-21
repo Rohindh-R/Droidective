@@ -47,7 +47,7 @@ struct DeviceInfoView: View {
             } else if let props {
                 content(props)
             } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                ProgressView("Reading device info…").frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .task(id: state.targetSerials.first ?? "") { await load() }
@@ -99,7 +99,7 @@ struct DeviceInfoView: View {
                     HStack {
                         ProgressView().controlSize(.small)
                         Text("Reading memory, storage, and battery…")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.textMuted)
                     }
                 }
             }
@@ -115,7 +115,7 @@ struct DeviceInfoView: View {
                             LabeledContent(row.0) {
                                 Text(row.1)
                                     .textSelection(.enabled)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(.textMuted)
                             }
                         }
                     }
@@ -124,10 +124,11 @@ struct DeviceInfoView: View {
             Section("All properties (\(props.count))") {
                 Text("Type in the filter box above to search every raw getprop value.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
 
     private func filtered(_ props: [String: String]) -> some View {
@@ -150,7 +151,7 @@ struct DeviceInfoView: View {
                         Spacer()
                         Text(prop.value)
                             .font(.system(.callout, design: .monospaced))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.textMuted)
                             .textSelection(.enabled)
                     }
                 }

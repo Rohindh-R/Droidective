@@ -30,7 +30,7 @@ struct AppManagementView: View {
             if let bundle = state.selectedBundle {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(bundle.nickname).font(.headline)
-                    Text(bundle.packageId).font(.footnote).foregroundStyle(.secondary)
+                    Text(bundle.packageId).font(.footnote).foregroundStyle(.textMuted)
                 }
             }
 
@@ -43,16 +43,13 @@ struct AppManagementView: View {
 
             Divider()
 
-            Text("Destructive").font(.subheadline).foregroundStyle(.secondary)
+            Text("Destructive").font(.subheadline).foregroundStyle(.textMuted)
             HStack(spacing: 8) {
                 destructiveButton(.clearData, "Clear Data")
                 destructiveButton(.uninstall, "Uninstall")
             }
-
-            Spacer()
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .centeredCard()
         .confirmationDialog(
             confirmTitle,
             isPresented: Binding(

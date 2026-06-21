@@ -14,13 +14,13 @@ struct TelemetryConsentView: View {
             HStack(spacing: 12) {
                 Image(systemName: "hand.raised.fill")
                     .font(.title)
-                    .foregroundStyle(.tint)
+                    .foregroundStyle(.brandAccent)
                 Text("Privacy & telemetry")
                     .font(.title2.bold())
             }
 
             Text("Droidective can send **anonymous** diagnostics to help improve it. No device serials, package names, file paths, IP addresses, or command contents are ever sent.")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
 
             VStack(spacing: 0) {
@@ -28,7 +28,7 @@ struct TelemetryConsentView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Anonymous crash reports")
                         Text("Helps fix the bugs you hit. Recommended.")
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.footnote).foregroundStyle(.textMuted)
                     }
                 }
                 .padding(.vertical, 10)
@@ -37,17 +37,18 @@ struct TelemetryConsentView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Anonymous usage analytics")
                         Text("Which tools get used, so the useful ones improve.")
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.footnote).foregroundStyle(.textMuted)
                     }
                 }
                 .padding(.vertical, 10)
             }
             .padding(.horizontal, 14)
-            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
+            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.borderSubtle, lineWidth: 1))
 
             Text("You can change this anytime in Settings → Privacy.")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textMuted)
 
             HStack {
                 Spacer()
