@@ -1,5 +1,9 @@
 <p align="center">
-  <img src="docs/icon.png" width="120" alt="Droidective app icon">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/icon.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/icon-light.png">
+    <img src="docs/icon.png" width="120" alt="Droidective app icon">
+  </picture>
 </p>
 
 # Droidective
