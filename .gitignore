@@ -7,4 +7,5 @@ xcuserdata/
 App/Info.plist
 .sparkle/
 sparkle-private-key.txt
+.env.telemetry
 .claude/

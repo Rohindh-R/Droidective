@@ -80,20 +80,40 @@ Ranking for competitive terms still needs links and time:
 ### 5. Configure telemetry (optional)
 
 Crash reporting (Sentry) and opt-in analytics (PostHog) stay disabled until you
-add keys in `App/Sources/Telemetry/TelemetryConfig.swift`:
+supply keys. They are **not** committed to source — they're injected at build
+time from the `SENTRY_DSN` and `POSTHOG_KEY` build settings into Info.plist
+(`project.yml` → `info.properties`), so forks don't report to your projects and
+the values can be rotated without a code change. Any build without them leaves
+both empty, and neither SDK starts.
 
-- **Sentry** — paste your DSN (Sentry → Project Settings → Client Keys) into
-  `sentryDSN`. Crash + performance monitoring; anonymous (no PII); on by default
-  for users, opt-out in Settings → Privacy.
-- **PostHog** — paste your project token (starts with `phc_`) into `postHogKey`
-  and set `postHogHost` to your region (`us` or `eu`). Product analytics;
-  anonymous (`personProfiles = .never`, never identified); **opt-in only**.
+- **Sentry** — your DSN (Sentry → Project Settings → Client Keys). Crash +
+  performance monitoring; anonymous (no PII); on by default for users, opt-out in
+  Settings → Privacy.
+- **PostHog** — your project token (starts with `phc_`). Product analytics;
+  anonymous (`personProfiles = .never`, never identified); **opt-in only**. The
+  host is hardcoded to the US endpoint in `TelemetryConfig.swift` — change it
+  there if you're on EU.
 
-Both are client-side write keys, safe to ship in the binary; with the
-placeholders left in place neither SDK starts. Users get a one-time privacy
-disclosure on first launch, managed afterward in Settings → Privacy. Analytics
-sends only the feature id — never device serials, package names, paths, IPs, or
-command contents. Sentry owns crash handling (PostHog's `autoCapture` is off).
+**For CI release builds:** add two repository secrets under **Settings → Secrets
+and variables → Actions** — `SENTRY_DSN` and `POSTHOG_KEY`. The `release` job
+passes them to `xcodebuild`; the plain PR/`main` `build` job leaves them empty on
+purpose (throwaway builds, and fork PRs can't read secrets anyway).
+
+**For local builds:** create `.env.telemetry` (gitignored) in the repo root:
+
+```sh
+SENTRY_DSN=https://…@…ingest.sentry.io/…
+POSTHOG_KEY=phc_…
+```
+
+`make build` / `make dmg` pick it up automatically. Without it, local builds run
+with telemetry disabled — fine for development.
+
+Both are client-side write keys, safe to ship in the binary. Users get a one-time
+privacy disclosure on first launch, managed afterward in Settings → Privacy.
+Analytics sends only the feature id — never device serials, package names, paths,
+IPs, or command contents. Sentry owns crash handling (PostHog's `autoCapture` is
+off).
 
 ## Cutting a release
 
