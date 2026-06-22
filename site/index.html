@@ -9,7 +9,7 @@
   <meta name="keywords" content="adb tool, android debugging tool, all in one android dev tool, react native debugger, scrcpy gui mac, android developer tool macos, logcat viewer mac, adb gui, mobile dev tool, android emulator manager, react native debugging" />
   <meta name="author" content="Rohindh R" />
   <meta name="robots" content="index, follow" />
-  <meta name="theme-color" content="#0b0d12" />
+  <meta name="theme-color" content="#0d0f0e" />
   <link rel="canonical" href="https://rohindh-r.github.io/Droidective/" />
 
   <link rel="icon" type="image/png" href="assets/icon.png" media="(prefers-color-scheme: dark)" />
@@ -30,6 +30,10 @@
   <meta name="twitter:description" content="A Raycast-style command palette for Android & React Native debugging over adb. 45 tools, one keystroke away. Free & open source." />
   <meta name="twitter:image" content="https://rohindh-r.github.io/Droidective/assets/screenshot-home.png" />
 
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet" />
+
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -40,7 +44,7 @@
     "description": "A free, open-source macOS command palette for Android & React Native debugging over adb: screen mirroring, logcat, file explorer, performance monitoring, app management — 45 tools in all.",
     "url": "https://rohindh-r.github.io/Droidective/",
     "downloadUrl": "https://github.com/Rohindh-R/Droidective/releases",
-    "softwareVersion": "2.2.0",
+    "softwareVersion": "2.2.1",
     "screenshot": "https://rohindh-r.github.io/Droidective/assets/screenshot-home.png",
     "license": "https://github.com/Rohindh-R/Droidective/blob/main/LICENSE",
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
@@ -50,323 +54,778 @@
 
   <style>
     :root {
-      --bg: #0b0d12;
-      --bg-soft: #11141b;
-      --card: #14181f;
-      --border: rgba(255, 255, 255, 0.08);
-      --border-strong: rgba(255, 255, 255, 0.14);
-      --text: #e7eaf0;
-      --muted: #9aa3b2;
-      --tint: #5b8cff;
-      --tint-2: #8b5cf6;
-      --green: #34d399;
+      /* Graphite ramp — the "case" the app lives in */
+      --ink-900: #0a0c0b;
+      --ink-850: #0d0f0e;
+      --ink-800: #121514;
+      --ink-700: #16191a;
+      --ink-650: #1b1f1e;
+      --ink-600: #232827;
+      --line: rgba(231, 234, 229, 0.08);
+      --line-2: rgba(231, 234, 229, 0.14);
+
+      /* The electricity — one chromatic accent, everywhere it counts */
+      --green: #9be021;
+      --green-bright: #b6f24a;
+      --green-dim: #7cb81e;
+      --glow: rgba(155, 224, 33, 0.30);
+      --green-wash: rgba(155, 224, 33, 0.10);
+
+      /* Ink */
+      --text: #e7eae5;
+      --muted: #99a39a;
+      --faint: #69716a;
+
+      /* A single warm wink to the detective hat — used almost never */
+      --amber: #f5b544;
+
+      --maxw: 1120px;
       --radius: 16px;
-      --maxw: 1080px;
+      --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
     }
+
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+      font-family: var(--sans);
       color: var(--text);
-      background: radial-gradient(1200px 600px at 70% -10%, rgba(91, 140, 255, 0.18), transparent 60%),
-                  radial-gradient(900px 500px at 0% 0%, rgba(139, 92, 246, 0.12), transparent 55%),
-                  var(--bg);
+      background: var(--ink-850);
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      overflow-x: hidden;
     }
     a { color: inherit; text-decoration: none; }
-    code, .mono { font-family: "SF Mono", ui-monospace, Menlo, monospace; }
+    code, kbd, .mono { font-family: var(--mono); }
     .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
-
-    /* Nav */
-    nav {
-      position: sticky; top: 0; z-index: 50;
-      backdrop-filter: saturate(160%) blur(14px);
-      background: rgba(11, 13, 18, 0.72);
-      border-bottom: 1px solid var(--border);
+    .skip {
+      position: absolute; left: -999px; top: 0; z-index: 200;
+      background: var(--green); color: var(--ink-900); padding: 10px 16px;
+      border-radius: 0 0 10px 0; font-weight: 700;
     }
-    .nav-inner { display: flex; align-items: center; gap: 16px; height: 60px; }
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; }
-    .brand img { width: 28px; height: 28px; border-radius: 7px; }
-    .nav-links { margin-left: auto; display: flex; gap: 22px; align-items: center; }
-    .nav-links a { color: var(--muted); font-size: 14px; font-weight: 500; transition: color .15s; }
-    .nav-links a:hover { color: var(--text); }
+    .skip:focus { left: 0; }
+    :focus-visible { outline: 2px solid var(--green); outline-offset: 3px; border-radius: 6px; }
+
+    /* ---- Section scaffold ---- */
+    .section { padding: 104px 0; position: relative; }
+    .section-head { max-width: 62ch; margin: 0 0 52px; }
+    .section-head.center { margin-left: auto; margin-right: auto; text-align: center; }
+    .section-head h2 {
+      font-size: clamp(28px, 4.2vw, 44px); letter-spacing: -0.03em; line-height: 1.04;
+      margin: 14px 0 16px; font-weight: 800;
+    }
+    .section-head p { color: var(--muted); font-size: 18px; margin: 0; }
+    .eyebrow {
+      font-family: var(--mono); font-size: 12.5px; font-weight: 500; letter-spacing: 0.04em;
+      color: var(--green); text-transform: none; display: inline-flex; gap: 8px; align-items: center;
+    }
+    .eyebrow::before { content: ">_"; color: var(--green-dim); }
+
+    /* ---- Buttons ---- */
     .btn {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 10px 18px; border-radius: 11px; font-weight: 600; font-size: 14px;
-      border: 1px solid var(--border-strong); transition: transform .12s, background .15s, border-color .15s;
-      white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 9px; cursor: pointer;
+      padding: 12px 20px; border-radius: 12px; font-weight: 600; font-size: 15px;
+      font-family: var(--sans); border: 1px solid var(--line-2); background: transparent; color: var(--text);
+      transition: transform .14s ease, background .16s, border-color .16s, box-shadow .16s;
     }
     .btn:hover { transform: translateY(-1px); }
-    .btn-primary { background: linear-gradient(180deg, var(--tint), #4571e6); border-color: transparent; color: #fff; box-shadow: 0 8px 24px rgba(91,140,255,.3); }
-    .btn-ghost { background: rgba(255,255,255,.04); }
-    .nav-links .btn { padding: 8px 14px; }
-
-    /* Hero */
-    .hero { padding: 84px 0 40px; text-align: center; }
-    .badge {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 6px 14px; border-radius: 999px; font-size: 13px; color: var(--muted);
-      border: 1px solid var(--border); background: rgba(255,255,255,.03); margin-bottom: 26px;
+    .btn .ic { width: 17px; height: 17px; }
+    .btn-primary {
+      background: var(--green); color: var(--ink-900); border-color: transparent; font-weight: 700;
+      box-shadow: 0 0 0 1px rgba(155,224,33,.4), 0 10px 30px -8px var(--glow);
     }
-    .badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); }
-    h1 {
-      font-size: clamp(34px, 6vw, 60px); line-height: 1.05; letter-spacing: -0.02em;
-      margin: 0 auto 20px; max-width: 16ch; font-weight: 800;
+    .btn-primary:hover { background: var(--green-bright); box-shadow: 0 0 0 1px var(--green-bright), 0 14px 38px -8px var(--glow); }
+    .btn-ghost { background: rgba(231,234,229,.04); }
+    .btn-ghost:hover { background: rgba(231,234,229,.08); border-color: var(--line-2); }
+
+    /* ---- Nav ---- */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      backdrop-filter: saturate(150%) blur(16px); -webkit-backdrop-filter: saturate(150%) blur(16px);
+      background: rgba(13, 15, 14, 0.72);
+      border-bottom: 1px solid var(--line);
     }
-    h1 .grad {
-      background: linear-gradient(120deg, var(--tint), var(--tint-2));
-      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    .nav-inner { display: flex; align-items: center; gap: 18px; height: 62px; }
+    .brand { display: flex; align-items: center; gap: 11px; font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
+    .brand img { width: 30px; height: 30px; border-radius: 8px; }
+    .nav-links { margin-left: auto; display: flex; gap: 26px; align-items: center; }
+    .nav-links a:not(.btn) { color: var(--muted); font-size: 14px; font-weight: 500; transition: color .15s; }
+    .nav-links a:not(.btn):hover { color: var(--text); }
+    .nav-links .btn { padding: 8px 16px; font-size: 14px; }
+
+    /* ---- Hero ---- */
+    .hero { position: relative; padding: 76px 0 64px; overflow: hidden; }
+    .hero::before {
+      content: ""; position: absolute; inset: -20% 0 auto auto; width: 900px; height: 700px;
+      background: radial-gradient(closest-side, var(--glow), transparent 70%);
+      opacity: .55; pointer-events: none; filter: blur(8px);
     }
-    .lede { font-size: clamp(16px, 2.2vw, 20px); color: var(--muted); max-width: 60ch; margin: 0 auto 32px; }
-    .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
-    .fineprint { margin-top: 16px; font-size: 13px; color: var(--muted); }
-
-    .shot-frame {
-      margin: 56px auto 0; max-width: 980px; border-radius: 18px; overflow: hidden;
-      border: 1px solid var(--border-strong);
-      box-shadow: 0 40px 120px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.02);
-      background: var(--bg-soft);
+    .hero-grid { display: grid; grid-template-columns: 0.92fr 1.08fr; gap: 56px; align-items: center; position: relative; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 9px; font-family: var(--mono); font-size: 12.5px;
+      color: var(--muted); padding: 6px 13px; border: 1px solid var(--line); border-radius: 999px;
+      background: rgba(231,234,229,.03); margin-bottom: 24px;
     }
-    .shot-frame img { display: block; width: 100%; height: auto; }
-
-    /* Stats */
-    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 64px 0; }
-    .stat { text-align: center; padding: 22px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: rgba(255,255,255,.02); }
-    .stat .num { font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
-    .stat .lbl { font-size: 13px; color: var(--muted); margin-top: 4px; }
-
-    /* Sections */
-    section { padding: 56px 0; }
-    .section-head { text-align: center; max-width: 60ch; margin: 0 auto 44px; }
-    .section-head h2 { font-size: clamp(26px, 4vw, 38px); letter-spacing: -.02em; margin: 0 0 14px; font-weight: 800; }
-    .section-head p { color: var(--muted); font-size: 17px; margin: 0; }
-    .eyebrow { color: var(--tint); font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
-
-    /* Feature grid */
-    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-    .feature {
-      padding: 24px; border: 1px solid var(--border); border-radius: var(--radius);
-      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
-      transition: transform .15s, border-color .15s;
+    .hero-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); }
+    .hero h1 {
+      font-size: clamp(38px, 5.4vw, 62px); line-height: 1.02; letter-spacing: -0.035em;
+      margin: 0 0 22px; font-weight: 800; max-width: 14ch;
     }
-    .feature:hover { transform: translateY(-3px); border-color: var(--border-strong); }
-    .ficon {
-      width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center;
-      font-size: 23px; margin-bottom: 16px;
-      background: linear-gradient(180deg, rgba(91,140,255,.22), rgba(139,92,246,.16));
-      border: 1px solid var(--border-strong);
+    .hero h1 .hl { color: var(--green); position: relative; white-space: nowrap; }
+    .hero .lede { font-size: clamp(16px, 1.5vw, 19px); color: var(--muted); max-width: 52ch; margin: 0 0 30px; }
+    .hero .lede strong { color: var(--text); font-weight: 600; }
+    .cta-row { display: flex; gap: 13px; flex-wrap: wrap; }
+    .fineprint { margin-top: 20px; font-family: var(--mono); font-size: 12.5px; color: var(--faint); }
+    .fineprint span { color: var(--muted); }
+
+    /* ---- Command palette (the signature) ---- */
+    .palette {
+      border: 1px solid var(--line-2); border-radius: 18px; overflow: hidden;
+      background: linear-gradient(180deg, var(--ink-700), var(--ink-800));
+      box-shadow: 0 40px 110px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(155,224,33,.06), inset 0 1px 0 rgba(231,234,229,.04);
     }
-    .feature h3 { margin: 0 0 8px; font-size: 17px; }
-    .feature p { margin: 0; color: var(--muted); font-size: 14.5px; }
+    .palette-top {
+      display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--line);
+      background: rgba(10,12,11,.4);
+    }
+    .traffic { display: flex; gap: 7px; }
+    .traffic i { width: 11px; height: 11px; border-radius: 50%; display: block; }
+    .traffic i:nth-child(1) { background: #ff5f57; }
+    .traffic i:nth-child(2) { background: #febc2e; }
+    .traffic i:nth-child(3) { background: #28c840; }
+    .device-pill {
+      margin-left: auto; display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono);
+      font-size: 11.5px; color: var(--muted); padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px;
+    }
+    .device-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 7px var(--green); }
+    .palette-search {
+      display: flex; align-items: center; gap: 11px; padding: 16px 18px; border-bottom: 1px solid var(--line);
+      position: relative;
+    }
+    .palette-search::after {
+      content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--green), transparent); opacity: .5;
+    }
+    .palette-search .pr { font-family: var(--mono); color: var(--green); font-size: 15px; }
+    .palette-search .q { font-family: var(--mono); font-size: 16px; color: var(--text); min-height: 20px; }
+    .palette-search .caret {
+      width: 8px; height: 18px; background: var(--green); display: inline-block; margin-left: -2px;
+      box-shadow: 0 0 8px var(--glow); animation: blink 1.05s steps(1) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+    .palette-search kbd {
+      margin-left: auto; font-size: 11px; color: var(--muted); border: 1px solid var(--line-2);
+      border-radius: 6px; padding: 3px 7px; background: rgba(231,234,229,.03);
+    }
+    .palette-list { list-style: none; margin: 0; padding: 8px; max-height: 372px; overflow: hidden; }
+    .cmd {
+      display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 13px;
+      padding: 11px 12px; border-radius: 11px; transition: background .14s, opacity .2s;
+    }
+    .cmd.is-hidden { display: none; }
+    .cmd.is-active { background: var(--green-wash); box-shadow: inset 0 0 0 1px rgba(155,224,33,.22); }
+    .cmd-ic { width: 21px; height: 21px; color: var(--green); }
+    .cmd-body { min-width: 0; }
+    .cmd-name { font-size: 14.5px; font-weight: 600; color: var(--text); display: block; line-height: 1.3; }
+    .cmd-cat { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+    .cmd-sh {
+      font-family: var(--mono); font-size: 11.5px; color: var(--green-dim); white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; max-width: 220px;
+      background: rgba(10,12,11,.5); border: 1px solid var(--line); padding: 4px 9px; border-radius: 7px;
+    }
+    .palette-foot {
+      display: flex; gap: 18px; padding: 10px 16px; border-top: 1px solid var(--line);
+      font-family: var(--mono); font-size: 11px; color: var(--faint); background: rgba(10,12,11,.35);
+    }
+    .palette-foot b { color: var(--muted); font-weight: 500; }
 
-    /* Showcase */
-    .showcase { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: center; }
-    .showcase + .showcase { margin-top: 24px; }
-    .showcase .shot { border-radius: 14px; overflow: hidden; border: 1px solid var(--border-strong); box-shadow: 0 24px 60px rgba(0,0,0,.45); }
-    .showcase .shot img { display: block; width: 100%; height: auto; }
-    .showcase h3 { font-size: 24px; margin: 0 0 12px; letter-spacing: -.01em; }
-    .showcase p { color: var(--muted); margin: 0 0 10px; }
-    .showcase ul { color: var(--muted); margin: 12px 0 0; padding-left: 18px; }
-    .showcase li { margin: 6px 0; }
+    /* ---- Trust strip ---- */
+    .trust { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--ink-800); }
+    .trust-row { display: grid; grid-template-columns: repeat(4, 1fr); }
+    .trust-item { padding: 30px 18px; text-align: center; border-left: 1px solid var(--line); }
+    .trust-item:first-child { border-left: 0; }
+    .trust-num { font-family: var(--mono); font-size: 30px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+    .trust-num.g { color: var(--green); }
+    .trust-lbl { font-size: 13px; color: var(--muted); margin-top: 5px; }
 
-    /* Install */
-    .steps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; max-width: 880px; margin: 0 auto; }
-    .step { padding: 22px; border: 1px solid var(--border); border-radius: var(--radius); background: rgba(255,255,255,.02); }
-    .step .n { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-weight: 700; background: rgba(91,140,255,.18); border: 1px solid var(--border-strong); margin-bottom: 12px; }
-    .step h4 { margin: 0 0 6px; font-size: 16px; }
-    .step p { margin: 0; color: var(--muted); font-size: 14.5px; }
+    /* ---- Features ---- */
+    .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .card {
+      padding: 26px 24px 22px; border: 1px solid var(--line); border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(231,234,229,.025), rgba(231,234,229,.006));
+      transition: transform .16s, border-color .16s, background .16s;
+    }
+    .card:hover { transform: translateY(-3px); border-color: rgba(155,224,33,.3); background: linear-gradient(180deg, var(--green-wash), rgba(231,234,229,.01)); }
+    .card-ic {
+      width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center;
+      color: var(--green); background: rgba(155,224,33,.08); border: 1px solid rgba(155,224,33,.16); margin-bottom: 17px;
+    }
+    .card-ic svg { width: 23px; height: 23px; }
+    .card h3 { margin: 0 0 8px; font-size: 17px; letter-spacing: -0.01em; }
+    .card p { margin: 0 0 16px; color: var(--muted); font-size: 14.5px; }
+    .card .sh {
+      font-family: var(--mono); font-size: 11.5px; color: var(--green-dim);
+      display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .card .sh::before { content: "$ "; color: var(--faint); }
+
+    /* ---- Watch it work ---- */
+    .window {
+      border-radius: 16px; overflow: hidden; border: 1px solid var(--line-2);
+      box-shadow: 0 40px 100px -30px rgba(0,0,0,.7); background: var(--ink-700); max-width: 980px; margin: 0 auto 84px;
+    }
+    .window img { display: block; width: 100%; height: auto; }
+
+    /* ---- Showcase ---- */
+    .showcase { display: grid; grid-template-columns: 1fr 1fr; gap: 44px; align-items: center; }
+    .showcase + .showcase { margin-top: 88px; }
+    .shot { border-radius: 14px; overflow: hidden; border: 1px solid var(--line-2); box-shadow: 0 30px 70px -28px rgba(0,0,0,.7); }
+    .shot img { display: block; width: 100%; height: auto; }
+    .showcase h3 { font-size: 25px; margin: 0 0 14px; letter-spacing: -0.02em; }
+    .showcase p { color: var(--muted); margin: 0 0 18px; font-size: 16px; }
+    .ticks { list-style: none; margin: 0; padding: 0; }
+    .ticks li { color: var(--muted); margin: 10px 0; padding-left: 26px; position: relative; font-size: 15px; }
+    .ticks li::before {
+      content: ">"; position: absolute; left: 0; top: 0; color: var(--green);
+      font-family: var(--mono); font-weight: 700;
+    }
+    .ticks li b { color: var(--text); font-weight: 600; }
+
+    /* ---- Screenshot gallery ---- */
+    .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-top: 88px; }
+    .gallery figure { margin: 0; }
+    .gallery figcaption { margin-top: 14px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .gallery figcaption b { display: block; color: var(--text); font-weight: 600; font-size: 15px; margin-bottom: 3px; }
+
+    /* ---- How it works ---- */
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .step { padding: 26px 24px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(231,234,229,.02); position: relative; }
+    .step-n { font-family: var(--mono); font-size: 13px; color: var(--green); font-weight: 700; }
+    .step h4 { margin: 14px 0 8px; font-size: 18px; letter-spacing: -0.01em; }
+    .step p { margin: 0 0 14px; color: var(--muted); font-size: 14.5px; }
+    .step pre { margin: 0; }
     pre {
-      background: #0a0c11; border: 1px solid var(--border); border-radius: 10px;
-      padding: 12px 14px; overflow-x: auto; font-size: 13px; margin: 12px 0 0; color: #cfd6e4;
+      background: var(--ink-900); border: 1px solid var(--line); border-radius: 10px;
+      padding: 12px 14px; overflow-x: auto; font-size: 12.5px; margin: 0; color: #cdd5cb;
+      font-family: var(--mono); max-width: 100%;
     }
+    /* Let flex/grid children shrink, so a long code line scrolls inside its own
+       box instead of widening the page on a narrow screen. */
+    .card, .step, .panel, .hero-grid > *, .showcase > * { min-width: 0; }
+    pre .c { color: var(--green); }
 
-    /* Prose / SEO block */
-    .prose { max-width: 70ch; margin: 0 auto; color: var(--muted); text-align: center; font-size: 16px; }
-    .prose strong { color: var(--text); }
+    /* ---- Changelog timeline ---- */
+    .timeline { max-width: 760px; margin: 0 auto; position: relative; padding-left: 30px; }
+    .timeline::before { content: ""; position: absolute; left: 5px; top: 8px; bottom: 8px; width: 1px; background: var(--line-2); }
+    .rel { position: relative; padding: 0 0 36px; }
+    .rel:last-child { padding-bottom: 0; }
+    .rel::before {
+      content: ""; position: absolute; left: -29px; top: 6px; width: 11px; height: 11px; border-radius: 50%;
+      background: var(--ink-850); border: 2px solid var(--green-dim);
+    }
+    .rel.latest::before { background: var(--green); border-color: var(--green); box-shadow: 0 0 12px var(--glow); }
+    .rel-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 7px; }
+    .rel-ver { font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--green); }
+    .rel-tag { font-family: var(--mono); font-size: 11px; color: var(--ink-900); background: var(--green); padding: 1px 8px; border-radius: 999px; font-weight: 700; }
+    .rel-date { font-family: var(--mono); font-size: 12px; color: var(--faint); margin-left: auto; }
+    .rel p { margin: 0; color: var(--muted); font-size: 14.5px; }
+    .rel p b { color: var(--text); font-weight: 600; }
+    .changelog-cta { text-align: center; margin-top: 44px; }
 
-    /* Final CTA */
+    /* ---- FAQ ---- */
+    .faq { max-width: 800px; margin: 0 auto; }
+    .qa { border-bottom: 1px solid var(--line); }
+    .qa summary {
+      list-style: none; cursor: pointer; padding: 22px 4px; display: flex; align-items: center; gap: 14px;
+      font-size: 17px; font-weight: 600; letter-spacing: -0.01em;
+    }
+    .qa summary::-webkit-details-marker { display: none; }
+    .qa summary .plus {
+      margin-left: auto; flex: none; width: 22px; height: 22px; position: relative; transition: transform .2s; color: var(--green);
+    }
+    .qa summary .plus::before, .qa summary .plus::after {
+      content: ""; position: absolute; background: currentColor; border-radius: 2px;
+      left: 50%; top: 50%; transform: translate(-50%, -50%);
+    }
+    .qa summary .plus::before { width: 14px; height: 2px; }
+    .qa summary .plus::after { width: 2px; height: 14px; transition: transform .2s; }
+    .qa[open] summary .plus::after { transform: translate(-50%, -50%) scaleY(0); }
+    .qa .a { padding: 0 4px 24px; color: var(--muted); font-size: 15.5px; max-width: 70ch; }
+    .qa .a code { font-size: 12.5px; background: var(--ink-800); border: 1px solid var(--line); padding: 2px 7px; border-radius: 6px; color: var(--green-dim); }
+    .qa .a a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+
+    /* ---- Contributing / roadmap ---- */
+    .contrib { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 24px; }
+    .panel { padding: 30px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(231,234,229,.02); }
+    .panel h3 { margin: 0 0 12px; font-size: 20px; letter-spacing: -0.01em; }
+    .panel p { color: var(--muted); margin: 0 0 18px; font-size: 15px; }
+    .roadmap { list-style: none; margin: 0; padding: 0; }
+    .roadmap li { display: flex; gap: 12px; align-items: flex-start; padding: 11px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 14.5px; }
+    .roadmap li:first-child { border-top: 0; }
+    .roadmap .box { flex: none; width: 18px; height: 18px; border: 1px solid var(--line-2); border-radius: 5px; margin-top: 2px; }
+    .roadmap li b { color: var(--text); font-weight: 600; }
+
+    /* ---- Final CTA ---- */
     .final {
-      text-align: center; padding: 64px 32px; border-radius: 24px; margin: 24px 0;
-      border: 1px solid var(--border-strong);
-      background: radial-gradient(700px 300px at 50% 0%, rgba(91,140,255,.2), transparent 70%), var(--bg-soft);
+      text-align: center; padding: 76px 32px; border-radius: 24px; position: relative; overflow: hidden;
+      border: 1px solid var(--line-2);
+      background: radial-gradient(600px 280px at 50% -10%, var(--green-wash), transparent 70%), var(--ink-800);
     }
-    .final h2 { font-size: clamp(26px, 4vw, 36px); margin: 0 0 14px; letter-spacing: -.02em; }
-    .final p { color: var(--muted); margin: 0 0 28px; }
+    .final h2 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 14px; letter-spacing: -0.03em; }
+    .final p { color: var(--muted); margin: 0 0 30px; font-size: 17px; }
+    .final .cta-row { justify-content: center; }
 
-    /* Footer */
-    footer { border-top: 1px solid var(--border); padding: 40px 0 60px; color: var(--muted); font-size: 14px; }
-    .foot-inner { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; justify-content: space-between; }
-    .foot-links { display: flex; gap: 20px; flex-wrap: wrap; }
-    .foot-links a:hover { color: var(--text); }
-    .disclaimer { margin-top: 18px; font-size: 12px; opacity: .7; max-width: 70ch; }
+    /* ---- Footer ---- */
+    footer { border-top: 1px solid var(--line); padding: 48px 0 64px; color: var(--muted); font-size: 14px; }
+    .foot-top { display: flex; flex-wrap: wrap; gap: 22px; align-items: center; justify-content: space-between; }
+    .foot-links { display: flex; gap: 22px; flex-wrap: wrap; }
+    .foot-links a { color: var(--muted); transition: color .15s; }
+    .foot-links a:hover { color: var(--green); }
+    .disclaimer { margin-top: 22px; font-size: 12px; color: var(--faint); max-width: 76ch; line-height: 1.7; }
 
-    /* `.reveal` is a styling hook kept always-visible: no JS-gated hiding, so
-       search crawlers, no-JS visitors, and slow loads see every section. */
+    /* ---- Reveal (visible by default; JS+motion enables the animation) ---- */
+    @media (prefers-reduced-motion: no-preference) {
+      .js .reveal { opacity: 0; transform: translateY(16px); transition: opacity .6s ease, transform .6s cubic-bezier(.2,.7,.2,1); }
+      .js .reveal.in { opacity: 1; transform: none; }
+    }
 
-    @media (max-width: 860px) {
-      .grid { grid-template-columns: repeat(2, 1fr); }
-      .stats { grid-template-columns: repeat(2, 1fr); }
-      .showcase { grid-template-columns: 1fr; }
+    /* ---- Responsive ---- */
+    @media (max-width: 940px) {
+      .hero-grid { grid-template-columns: 1fr; gap: 44px; }
+      .hero h1 { max-width: 18ch; }
+      .feature-grid { grid-template-columns: repeat(2, 1fr); }
+      .showcase { grid-template-columns: 1fr; gap: 28px; }
       .showcase.flip .shot { order: -1; }
+      .contrib { grid-template-columns: 1fr; }
       .nav-links a:not(.btn) { display: none; }
     }
-    @media (max-width: 560px) {
-      .grid { grid-template-columns: 1fr; }
+    @media (max-width: 620px) {
+      .section { padding: 72px 0; }
+      .feature-grid { grid-template-columns: 1fr; }
       .steps { grid-template-columns: 1fr; }
+      .trust-row { grid-template-columns: repeat(2, 1fr); }
+      .trust-item:nth-child(2) { border-left: 0; }
+      .trust-item:nth-child(3), .trust-item:nth-child(4) { border-top: 1px solid var(--line); }
+      .cmd-sh { display: none; }
+      .rel-date { margin-left: 0; width: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .caret { animation: none; }
     }
   </style>
 </head>
 <body>
+  <a class="skip" href="#features">Skip to content</a>
+
+  <!-- Inline icon set -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <g id="ic-search" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/></g>
+      <g id="ic-cast" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8"/><path d="M10 9.5l4 2.5-4 2.5z" fill="currentColor" stroke="none"/></g>
+      <g id="ic-log" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11M4 12h16M4 18h8"/><circle cx="19" cy="6" r="1.4" fill="currentColor" stroke="none"/></g>
+      <g id="ic-folder" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></g>
+      <g id="ic-apps" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></g>
+      <g id="ic-activity" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h3l2.5-7 4 14 2.5-7H21"/></g>
+      <g id="ic-react" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><ellipse cx="12" cy="12" rx="10" ry="4.2"/><ellipse cx="12" cy="12" rx="10" ry="4.2" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4.2" transform="rotate(120 12 12)"/></g>
+      <g id="ic-wifi" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 9.5a13 13 0 0 1 15 0"/><path d="M7.5 13a8.5 8.5 0 0 1 9 0"/><path d="M10.5 16.4a4 4 0 0 1 3 0"/><circle cx="12" cy="19.5" r="1.1" fill="currentColor" stroke="none"/></g>
+      <g id="ic-sliders" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h10M18 8h2M4 16h2M10 16h10"/><circle cx="16" cy="8" r="2.4"/><circle cx="8" cy="16" r="2.4"/></g>
+      <g id="ic-gh" fill="currentColor"><path d="M12 1.5A10.5 10.5 0 0 0 8.7 22c.5.1.7-.2.7-.5v-1.8c-2.9.6-3.5-1.4-3.5-1.4-.5-1.2-1.2-1.5-1.2-1.5-.9-.6.1-.6.1-.6 1 .1 1.6 1 1.6 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.3-.3-4.7-1.2-4.7-5.1 0-1.1.4-2 1-2.7-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .6 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.8-4.7 5.1.4.3.7 1 .7 2v2.9c0 .3.2.6.7.5A10.5 10.5 0 0 0 12 1.5"/></g>
+      <g id="ic-dl" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></g>
+      <g id="ic-star" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 17.9 6.7 19.6l1-5.8L3.5 9.7l5.9-.9z"/></g>
+    </defs>
+  </svg>
+
   <nav>
     <div class="wrap nav-inner">
       <a class="brand" href="#top"><img src="assets/icon.png" alt="Droidective icon" /> Droidective</a>
       <div class="nav-links">
         <a href="#features">Features</a>
-        <a href="#screenshots">Screenshots</a>
-        <a href="#install">Install</a>
+        <a href="#screenshots">Screens</a>
+        <a href="#how">How it works</a>
+        <a href="#changelog">Changelog</a>
+        <a href="#faq">FAQ</a>
         <a href="https://github.com/Rohindh-R/Droidective">GitHub</a>
-        <a class="btn btn-primary" href="https://github.com/Rohindh-R/Droidective/releases">Download</a>
+        <a class="btn btn-primary" href="https://github.com/Rohindh-R/Droidective/releases"><svg class="ic"><use href="#ic-dl"/></svg> Download</a>
       </div>
     </div>
   </nav>
 
-  <header class="hero wrap" id="top">
-    <span class="badge"><span class="dot"></span> Free &amp; open source · macOS 14+ · Apple Silicon &amp; Intel</span>
-    <h1>The all-in-one <span class="grad">Android &amp; React Native</span> debugging tool for macOS</h1>
-    <p class="lede">
-      Droidective is a Raycast-style command palette for everything you do over <strong>adb</strong> —
-      mirror screens, tail logcat, browse device files, simulate state, and monitor performance.
-      45 native tools, one keystroke away. No terminal gymnastics.
-    </p>
-    <div class="cta-row">
-      <a class="btn btn-primary" href="https://github.com/Rohindh-R/Droidective/releases">⬇ Download for macOS</a>
-      <a class="btn btn-ghost" href="https://github.com/Rohindh-R/Droidective">★ Star on GitHub</a>
-    </div>
-    <p class="fineprint">Requires macOS 14 Sonoma or later and Android <code>adb</code>. Updates itself automatically.</p>
+  <header class="hero" id="top">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="hero-badge"><span class="dot"></span> Free &amp; open source · macOS 14+ · Apple Silicon &amp; Intel</span>
+        <h1>Every adb tool, <span class="hl">one keystroke</span> away.</h1>
+        <p class="lede">
+          Droidective is a native macOS command palette for <strong>Android &amp; React Native</strong>
+          debugging over adb. Mirror screens, tail logcat, browse device files, fake any state, and watch
+          performance live — <strong>45 tools</strong>, no terminal required.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="https://github.com/Rohindh-R/Droidective/releases"><svg class="ic"><use href="#ic-dl"/></svg> Download for macOS</a>
+          <a class="btn btn-ghost" href="https://github.com/Rohindh-R/Droidective"><svg class="ic"><use href="#ic-star"/></svg> Star on GitHub</a>
+        </div>
+        <p class="fineprint">$ <span>requires Android adb · auto-updates via Sparkle · v2.2.1</span></p>
+      </div>
 
-    <div class="shot-frame reveal">
-      <img src="assets/screenshot-home.png" alt="Droidective on macOS — command palette sidebar with 45 Android debugging tools and a welcome screen" width="1512" height="948" loading="eager" />
+      <div class="palette reveal" aria-hidden="true">
+        <div class="palette-top">
+          <span class="traffic"><i></i><i></i><i></i></span>
+          <span class="device-pill"><span class="dot"></span> Pixel 8 · Android 14</span>
+        </div>
+        <div class="palette-search">
+          <span class="pr">&gt;</span>
+          <span class="q" id="pq">logcat</span><span class="caret"></span>
+          <kbd>⌘K</kbd>
+        </div>
+        <ul class="palette-list" id="plist">
+          <li class="cmd" data-keys="logcat log logs crash"><svg class="cmd-ic"><use href="#ic-log"/></svg><span class="cmd-body"><span class="cmd-name">Live Logcat</span> <span class="cmd-cat">Logs &amp; Diagnostics</span></span><code class="cmd-sh">adb logcat -v color</code></li>
+          <li class="cmd" data-keys="scrcpy mirror screen cast control"><svg class="cmd-ic"><use href="#ic-cast"/></svg><span class="cmd-body"><span class="cmd-name">Mirror Screen</span> <span class="cmd-cat">Screen &amp; Capture</span></span><code class="cmd-sh">scrcpy --max-size 1920</code></li>
+          <li class="cmd" data-keys="battery fake state simulate level"><svg class="cmd-ic"><use href="#ic-sliders"/></svg><span class="cmd-body"><span class="cmd-name">Fake Battery</span> <span class="cmd-cat">Device State</span></span><code class="cmd-sh">dumpsys battery set level 15</code></li>
+          <li class="cmd" data-keys="file files explorer storage browse pull push"><svg class="cmd-ic"><use href="#ic-folder"/></svg><span class="cmd-body"><span class="cmd-name">File Explorer</span> <span class="cmd-cat">Device State</span></span><code class="cmd-sh">adb shell ls /sdcard</code></li>
+          <li class="cmd" data-keys="fps performance cpu ram jank monitor profile"><svg class="cmd-ic"><use href="#ic-activity"/></svg><span class="cmd-body"><span class="cmd-name">Performance Monitor</span> <span class="cmd-cat">Logs &amp; Diagnostics</span></span><code class="cmd-sh">dumpsys gfxinfo</code></li>
+          <li class="cmd" data-keys="react native reload metro dev menu rn"><svg class="cmd-ic"><use href="#ic-react"/></svg><span class="cmd-body"><span class="cmd-name">Reload React Native</span> <span class="cmd-cat">React Native</span></span><code class="cmd-sh">adb shell input text "RR"</code></li>
+          <li class="cmd" data-keys="wifi wireless connect tcpip pair network"><svg class="cmd-ic"><use href="#ic-wifi"/></svg><span class="cmd-body"><span class="cmd-name">Wireless ADB</span> <span class="cmd-cat">Connection</span></span><code class="cmd-sh">adb tcpip 5555</code></li>
+          <li class="cmd" data-keys="apps app manage install uninstall permissions package"><svg class="cmd-ic"><use href="#ic-apps"/></svg><span class="cmd-body"><span class="cmd-name">Apps Explorer</span> <span class="cmd-cat">App Management</span></span><code class="cmd-sh">pm list packages</code></li>
+        </ul>
+        <div class="palette-foot">
+          <span><b>↩</b> run</span><span><b>⌘K</b> search</span><span><b>esc</b> close</span>
+          <span style="margin-left:auto"><b>45</b> tools</span>
+        </div>
+      </div>
     </div>
   </header>
 
-  <div class="wrap">
-    <div class="stats reveal">
-      <div class="stat"><div class="num">45</div><div class="lbl">built-in tools</div></div>
-      <div class="stat"><div class="num">⌘K</div><div class="lbl">command palette</div></div>
-      <div class="stat"><div class="num">100%</div><div class="lbl">open source (MIT)</div></div>
-      <div class="stat"><div class="num">$0</div><div class="lbl">free, forever</div></div>
-    </div>
-  </div>
-
-  <section id="features" class="wrap">
-    <div class="section-head reveal">
-      <span class="eyebrow">Everything in one place</span>
-      <h2>An entire adb toolkit, behind one keystroke</h2>
-      <p>Stop memorizing flags and juggling terminal tabs. Droidective wraps the Android Debug Bridge in a fast, native macOS UI built for mobile and React Native developers.</p>
-    </div>
-    <div class="grid">
-      <div class="feature reveal"><div class="ficon">⌘</div><h3>Command palette</h3><p>Fuzzy-search every tool and run it instantly. Pin favorites, assign global hotkeys, and never look up an adb flag again.</p></div>
-      <div class="feature reveal"><div class="ficon">📱</div><h3>Screen mirroring &amp; control</h3><p>A friendly GUI for scrcpy — mirror and control your device, tune bitrate, FPS and crop, and record straight to a file or GIF.</p></div>
-      <div class="feature reveal"><div class="ficon">📜</div><h3>Live logcat &amp; crash catcher</h3><p>Stream logs with level, tag and per-app filters, follow an app across restarts, and grab the last crash formatted for Slack or Jira.</p></div>
-      <div class="feature reveal"><div class="ficon">🗂️</div><h3>Device file explorer</h3><p>Browse shared storage — or the whole filesystem on rooted devices — copy, move, delete, and push/pull files to your Mac.</p></div>
-      <div class="feature reveal"><div class="ficon">📦</div><h3>App management &amp; inspection</h3><p>Install, uninstall, force-stop, clear data, toggle runtime permissions, pull APKs, and browse a debug app's private sandbox.</p></div>
-      <div class="feature reveal"><div class="ficon">📈</div><h3>Performance monitor</h3><p>Live per-core CPU, RAM, FPS &amp; jank, and network throughput — charted, recordable, and exportable to JSON &amp; CSV.</p></div>
-      <div class="feature reveal"><div class="ficon">⚛️</div><h3>React Native debugger tools</h3><p>Open the dev menu, reload the JS bundle, reverse the Metro port, and point the app at any dev server — built for RN workflows.</p></div>
-      <div class="feature reveal"><div class="ficon">📶</div><h3>Wireless ADB &amp; device control</h3><p>Connect over Wi-Fi (including Android 11 pairing), manage Wi-Fi and private DNS, check root status, and flip developer restrictions.</p></div>
-      <div class="feature reveal"><div class="ficon">🎛️</div><h3>State simulation</h3><p>Fake the battery, force dark mode, change locale, scale fonts and density, set an HTTP proxy, and toggle networks to test edge cases.</p></div>
+  <section class="trust">
+    <div class="wrap trust-row">
+      <div class="trust-item"><div class="trust-num g">45</div><div class="trust-lbl">built-in tools</div></div>
+      <div class="trust-item"><div class="trust-num">⌘K</div><div class="trust-lbl">command palette</div></div>
+      <div class="trust-item"><div class="trust-num">MIT</div><div class="trust-lbl">open source</div></div>
+      <div class="trust-item"><div class="trust-num">$0</div><div class="trust-lbl">free, forever</div></div>
     </div>
   </section>
 
-  <section id="screenshots" class="wrap">
+  <section class="section wrap" id="features">
     <div class="section-head reveal">
-      <span class="eyebrow">See it in action</span>
-      <h2>Native, fast, and built for Mac</h2>
+      <span class="eyebrow">~/features</span>
+      <h2>An entire adb toolkit, behind one keystroke.</h2>
+      <p>Stop memorizing flags and juggling terminal tabs. Droidective wraps the Android Debug Bridge in a fast, native macOS UI — and shows you the exact command behind every action.</p>
+    </div>
+    <div class="feature-grid">
+      <div class="card reveal"><div class="card-ic"><svg><use href="#ic-search"/></svg></div><h3>Command palette</h3><p>Fuzzy-search every tool and run it instantly. Pin favorites, bind global hotkeys, and stop looking up adb flags.</p><span class="sh">⌘K → run anything</span></div>
+      <div class="card reveal"><div class="card-ic"><svg><use href="#ic-cast"/></svg></div><h3>Screen mirror &amp; record</h3><p>A friendly GUI for scrcpy — mirror and control the device, tune bitrate, FPS and crop, record to file or GIF.</p><span class="sh">scrcpy --max-size 1920</span></div>
+      <div class="card reveal"><div class="card-ic"><svg><use href="#ic-log"/></svg></div><h3>Logcat &amp; crash catcher</h3><p>Stream logs with level, tag and per-app filters, follow an app across restarts, grab the last crash for Slack or Jira.</p><span class="sh">adb logcat -v color</span></div>
+      <div class="card reveal"><div class="card-ic"><svg><use href="#ic-folder"/></svg></div><h3>Device file explorer</h3><p>Browse shared storage — or the whole filesystem on rooted devices — copy, move, delete, and push/pull to your Mac.</p><span class="sh">adb pull /sdcard/...</span></div>
+      <div class="card reveal"><div class="card-ic"><svg><use href="#ic-apps"/></svg></div><h3>App management</h3><p>Install, uninstall, force-stop, clear data, toggle runtime permissions, pull APKs, and browse a debug app's sandbox.</p><span class="sh">pm grant &lt;pkg&gt; ...</span></div>
+      <div class="card reveal"><div class="card-ic"><svg><use href="#ic-activity"/></svg></div><h3>Performance monitor</h3><p>Live per-core CPU, RAM, FPS &amp; jank, and network throughput — charted, recordable, exportable to JSON &amp; CSV.</p><span class="sh">dumpsys gfxinfo</span></div>
+      <div class="card reveal"><div class="card-ic"><svg><use href="#ic-react"/></svg></div><h3>React Native tools</h3><p>Open the dev menu, reload the JS bundle, reverse the Metro port, and point the app at any dev server.</p><span class="sh">adb reverse tcp:8081</span></div>
+      <div class="card reveal"><div class="card-ic"><svg><use href="#ic-wifi"/></svg></div><h3>Wireless ADB &amp; connection</h3><p>Connect over Wi-Fi (with Android 11 pairing), manage Wi-Fi and private DNS, check root status, fan out to every device.</p><span class="sh">adb tcpip 5555</span></div>
+      <div class="card reveal"><div class="card-ic"><svg><use href="#ic-sliders"/></svg></div><h3>State simulation</h3><p>Fake the battery, force dark mode, change locale, scale fonts and density, set a proxy — every override is reset-tracked.</p><span class="sh">cmd uimode night yes</span></div>
+    </div>
+  </section>
+
+  <section class="section wrap" id="screenshots">
+    <div class="section-head center reveal">
+      <span class="eyebrow">see it in action</span>
+      <h2>Real screens. Real device.</h2>
+      <p>Every shot below is the actual app driving a live Android emulator — no mockups.</p>
+    </div>
+
+    <div class="window reveal">
+      <img src="assets/demo.gif" alt="Droidective in action — pressing ⌘K, searching for 'performance', and opening the Performance Monitor on a live Android emulator" width="940" height="594" loading="lazy" />
     </div>
 
     <div class="showcase reveal">
       <div>
-        <h3>One palette, every tool</h3>
-        <p>A searchable sidebar groups all 45 tools into eight categories. Hit <code>⌘K</code> from anywhere to jump straight to the one you need.</p>
-        <ul>
-          <li>Pin favorites and assign global hotkeys</li>
-          <li>Persistent device bar — switch or target all devices</li>
-          <li>Per-feature command bar with the exact adb commands run</li>
+        <span class="eyebrow">the palette</span>
+        <h3>One keystroke to everything</h3>
+        <p>Hit <code>⌘K</code> from any screen and fuzzy-search all 45 tools. The device bar follows you, so every command targets the device you mean.</p>
+        <ul class="ticks">
+          <li><b>Pin favorites</b> and bind global hotkeys</li>
+          <li><b>Target one device</b> or fan out to all of them</li>
+          <li><b>Every run is logged</b> with the exact adb command</li>
         </ul>
       </div>
-      <div class="shot"><img src="assets/screenshot-home.png" alt="Droidective command palette showing Android debugging tools grouped by category" loading="lazy" /></div>
+      <div class="shot"><img src="assets/screenshot-palette.webp" alt="Droidective ⌘K command palette filtering features for the query 'screen' — Screenshot, Screen Record, Mirror Screen and more" width="1600" height="1012" loading="lazy" /></div>
     </div>
 
     <div class="showcase flip reveal">
-      <div class="shot"><img src="assets/screenshot-catalog.png" alt="Droidective feature catalog listing all 45 Android and React Native debugging tools with toggles" loading="lazy" /></div>
+      <div class="shot"><img src="assets/screenshot-logcat.webp" alt="Droidective live logcat streaming color-coded log lines with level, app, tag and text filters" width="1600" height="1012" loading="lazy" /></div>
       <div>
-        <h3>Enable only what you use</h3>
-        <p>The feature catalog lets you toggle, reorder, and pin any of the 45 tools, so your sidebar stays exactly as busy as you want it.</p>
-        <ul>
-          <li>Drag to reorder, or group by category</li>
-          <li>Setup Doctor checks your adb / scrcpy / emulator toolchain</li>
-          <li>Built-in terminal and command log</li>
+        <span class="eyebrow">logs &amp; diagnostics</span>
+        <h3>Tail logs, not terminal tabs</h3>
+        <p>A live logcat with the filters you actually reach for — and a crash catcher that formats the last crash for Slack or Jira.</p>
+        <ul class="ticks">
+          <li><b>Filter</b> by level, app, tag, or text</li>
+          <li><b>Follow an app</b> across restarts</li>
+          <li><b>Export</b> the buffer to a file</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="showcase reveal">
+      <div>
+        <span class="eyebrow">performance</span>
+        <h3>Watch performance live</h3>
+        <p>Per-core CPU, system RAM, app FPS &amp; jank, and network throughput — charted as they happen, with a hover crosshair.</p>
+        <ul class="ticks">
+          <li><b>Record a session</b>, export to JSON &amp; CSV</li>
+          <li><b>Per-process</b> CPU and memory</li>
+          <li><b>Dynamic axes</b> that track the live range</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="assets/screenshot-performance.webp" alt="Droidective performance monitor charting per-core CPU, system RAM and network throughput live" width="1600" height="1012" loading="lazy" /></div>
+    </div>
+
+    <div class="showcase flip reveal">
+      <div class="shot"><img src="assets/screenshot-react.webp" alt="Droidective React Native hub — reload JS, open the dev menu, force process death, and set the Metro dev-server host" width="1600" height="1012" loading="lazy" /></div>
+      <div>
+        <span class="eyebrow">react native</span>
+        <h3>Made for React Native</h3>
+        <p>The RN essentials in one hub — no more remembering adb incantations to reload a bundle or reach Metro.</p>
+        <ul class="ticks">
+          <li><b>Reload JS</b>, open the dev menu, force process death</li>
+          <li><b>Reverse the Metro port</b> in a click</li>
+          <li><b>Set the dev-server host</b>; save deep links per app</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="gallery reveal">
+      <figure>
+        <div class="shot"><img src="assets/screenshot-files.webp" alt="Droidective file explorer browsing the device's /sdcard directory" width="1600" height="1012" loading="lazy" /></div>
+        <figcaption><b>File explorer</b>Browse, push &amp; pull device files with a real progress bar.</figcaption>
+      </figure>
+      <figure>
+        <div class="shot"><img src="assets/screenshot-device.webp" alt="Droidective device info showing RAM, storage, battery health and CPU for the connected device" width="1600" height="1012" loading="lazy" /></div>
+        <figcaption><b>Device info</b>RAM, storage, battery health, CPU, and every getprop — searchable.</figcaption>
+      </figure>
+      <figure>
+        <div class="shot"><img src="assets/screenshot-catalog.webp" alt="Droidective feature catalog listing all 45 tools with on/off toggles" loading="lazy" /></div>
+        <figcaption><b>Feature catalog</b>Toggle, reorder, and pin any of the 45 tools.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="section wrap" id="how">
+    <div class="section-head center reveal">
+      <span class="eyebrow">how it works</span>
+      <h2>Connected in under a minute.</h2>
+      <p>Three steps. The app handles the rest — it even finds adb for you and offers a one-click install if it's missing.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <span class="step-n">01 / setup</span>
+        <h4>Install adb</h4>
+        <p>Droidective finds the Android platform-tools automatically. If they're missing, it installs them for you:</p>
+        <pre><span class="c">$</span> brew install android-platform-tools</pre>
+      </div>
+      <div class="step reveal">
+        <span class="step-n">02 / connect</span>
+        <h4>Plug in your device</h4>
+        <p>Connect over USB, or go wireless with the built-in pairing wizard. Emulators show up automatically.</p>
+        <pre><span class="c">$</span> adb devices
+List of devices attached
+Pixel 8     device</pre>
+      </div>
+      <div class="step reveal">
+        <span class="step-n">03 / go</span>
+        <h4>Press ⌘K and run</h4>
+        <p>Search any of the 45 tools and run it. The Setup Doctor confirms your toolchain on first launch.</p>
+        <pre><span class="c">⌘K</span> mirror screen   ↩</pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="section wrap" id="changelog">
+    <div class="section-head center reveal">
+      <span class="eyebrow">changelog</span>
+      <h2>Shipped, and still moving.</h2>
+      <p>Five releases since the first public build, with signed in-app updates from v2.1.0 on.</p>
+    </div>
+    <div class="timeline reveal">
+      <div class="rel latest">
+        <div class="rel-head"><span class="rel-ver">v2.2.1</span><span class="rel-tag">latest</span><span class="rel-date">Jun 2026</span></div>
+        <p>Controls now always use the brand green, regardless of the macOS system accent.</p>
+      </div>
+      <div class="rel">
+        <div class="rel-head"><span class="rel-ver">v2.2.0</span><span class="rel-date">Jun 2026</span></div>
+        <p><b>Screenshot annotation editor</b> (pen, shapes, text, blur/solid redaction, crop, undo/redo), <b>feature hubs</b> that keep the sidebar short, a <b>live memory graph</b>, and every feature on by default.</p>
+      </div>
+      <div class="rel">
+        <div class="rel-head"><span class="rel-ver">v2.1.0</span><span class="rel-date">Jun 2026</span></div>
+        <p><b>Device control suite</b> — Wi-Fi, private DNS, root status, system restrictions — plus in-app feedback and <b>automatic updates</b> via Sparkle.</p>
+      </div>
+      <div class="rel">
+        <div class="rel-head"><span class="rel-ver">v2.0.0</span><span class="rel-date">Jun 2026</span></div>
+        <p><b>Performance monitor</b> and <b>network speed</b> graphs, a home screen and welcome tour, and a per-feature command bar with an embedded terminal.</p>
+      </div>
+      <div class="rel">
+        <div class="rel-head"><span class="rel-ver">v1.0.0</span><span class="rel-date">Jun 2026</span></div>
+        <p>First public release — 37 one-click adb actions behind <code>⌘K</code>, built on a fully tested ADBKit engine.</p>
+      </div>
+    </div>
+    <div class="changelog-cta">
+      <a class="btn btn-ghost" href="https://github.com/Rohindh-R/Droidective/releases">All releases on GitHub →</a>
+    </div>
+  </section>
+
+  <section class="section wrap" id="faq">
+    <div class="section-head center reveal">
+      <span class="eyebrow">faq</span>
+      <h2>Questions, answered.</h2>
+    </div>
+    <div class="faq reveal">
+      <details class="qa">
+        <summary>Is it really free?<span class="plus"></span></summary>
+        <div class="a">Yes. Droidective is MIT-licensed and fully open source — no account, no paywall, no pro tier. Star it, fork it, ship it.</div>
+      </details>
+      <details class="qa">
+        <summary>Why does macOS say the app "is damaged"?<span class="plus"></span></summary>
+        <div class="a">It's ad-hoc signed but not notarized (there's no paid Apple Developer account behind it yet), so Gatekeeper quarantines it. Clear that once and you're done: <code>xattr -dr com.apple.quarantine "/Applications/Droidective.app"</code>. Building from source avoids the quarantine entirely.</div>
+      </details>
+      <details class="qa">
+        <summary>Do I need a rooted device?<span class="plus"></span></summary>
+        <div class="a">No. Everything works on a normal device. A few extras — full-filesystem browsing, saved Wi-Fi passwords, SELinux mode and read-write remount — unlock automatically when root is available.</div>
+      </details>
+      <details class="qa">
+        <summary>What do I need installed?<span class="plus"></span></summary>
+        <div class="a">Just Android <code>adb</code>. Droidective finds it via <code>ANDROID_HOME</code>, the default SDK path, or Homebrew, and offers a one-click install if it's missing. <code>scrcpy</code>, <code>ffmpeg</code>, and the Android <code>emulator</code> are optional — they enable mirroring, GIF export, and AVD management.</div>
+      </details>
+      <details class="qa">
+        <summary>Does it send my data anywhere?<span class="plus"></span></summary>
+        <div class="a">Anonymous crash reports are on by default (opt-out) and usage analytics are opt-in — both disclosed on first launch and controlled in Settings → Privacy. Device serials, file paths, and command contents are never sent.</div>
+      </details>
+      <details class="qa">
+        <summary>Does it work with React Native?<span class="plus"></span></summary>
+        <div class="a">Yes — there's a dedicated React Native hub: open the dev menu, reload the JS bundle, reverse the Metro port, save deep links per app, and set the dev-server host.</div>
+      </details>
+      <details class="qa">
+        <summary>Apple Silicon or Intel?<span class="plus"></span></summary>
+        <div class="a">Both. Droidective runs on any Mac with macOS 14 Sonoma or later.</div>
+      </details>
+    </div>
+  </section>
+
+  <section class="section wrap" id="contribute">
+    <div class="section-head center reveal">
+      <span class="eyebrow">open source</span>
+      <h2>Built in the open. Yours to shape.</h2>
+    </div>
+    <div class="contrib">
+      <div class="panel reveal">
+        <h3>Contribute</h3>
+        <p>All logic lives in a platform-agnostic Swift package (<code class="mono" style="color:var(--green-dim)">ADBKit</code>) with 186 passing tests; the SwiftUI shell stays thin. Bug reports, feature ideas, and PRs are all welcome.</p>
+        <pre><span class="c">$</span> brew install xcodegen
+<span class="c">$</span> make test    <span style="color:var(--faint)"># ADBKit unit tests — no device needed</span>
+<span class="c">$</span> make run     <span style="color:var(--faint)"># build &amp; launch</span></pre>
+        <div class="cta-row" style="margin-top:20px">
+          <a class="btn btn-primary" href="https://github.com/Rohindh-R/Droidective"><svg class="ic"><use href="#ic-gh"/></svg> View on GitHub</a>
+          <a class="btn btn-ghost" href="https://github.com/Rohindh-R/Droidective/issues/new/choose">Open an issue</a>
+        </div>
+      </div>
+      <div class="panel reveal">
+        <h3>On the roadmap</h3>
+        <p>Honest about what's next:</p>
+        <ul class="roadmap">
+          <li><span class="box"></span><span><b>Notarized builds</b> — drop the quarantine step on first launch.</span></li>
+          <li><span class="box"></span><span><b>Resizable Apps divider</b> — drag the list / detail split in the Apps explorer.</span></li>
+          <li><span class="box"></span><span><b>Your idea here</b> — open an issue and let's talk.</span></li>
         </ul>
       </div>
     </div>
   </section>
 
-  <section class="wrap">
-    <div class="prose reveal">
-      <p>
-        Whether you call it an <strong>adb tool</strong>, an <strong>all-in-one Android dev tool</strong>,
-        a <strong>React Native debugger</strong>, or just the thing that saves you from typing
-        <code>adb shell</code> a hundred times a day — Droidective puts every common Android debugging
-        task behind a fast, native macOS interface. It's built for mobile developers, React Native
-        engineers, and QA teams who live on the Android Debug Bridge.
-      </p>
-    </div>
-  </section>
-
-  <section id="install" class="wrap">
-    <div class="section-head reveal">
-      <span class="eyebrow">Get started in a minute</span>
-      <h2>Install Droidective</h2>
-      <p>Ad-hoc signed and notarization-free — clearing quarantine once is all it takes.</p>
-    </div>
-    <div class="steps">
-      <div class="step reveal"><div class="n">1</div><h4>Download the DMG</h4><p>Grab the latest <code>Droidective-vX.dmg</code> from GitHub Releases and drag the app into Applications.</p></div>
-      <div class="step reveal"><div class="n">2</div><h4>Clear quarantine once</h4><p>It's not notarized (no paid Apple account), so run this once:</p><pre>xattr -dr com.apple.quarantine /Applications/Droidective.app</pre></div>
-      <div class="step reveal"><div class="n">3</div><h4>Install adb</h4><p>Droidective drives the Android Debug Bridge. If you don't have it:</p><pre>brew install android-platform-tools</pre></div>
-      <div class="step reveal"><div class="n">4</div><h4>Open &amp; connect</h4><p>Launch the app — the built-in Doctor checks your toolchain, and you can connect over USB or Wi-Fi. Updates arrive automatically from then on.</p></div>
-    </div>
-  </section>
-
-  <section class="wrap">
+  <section class="section wrap">
     <div class="final reveal">
-      <h2>Open source. Free. Yours to shape.</h2>
-      <p>Droidective is MIT-licensed. Star it, file an issue, request a feature, or send a pull request.</p>
+      <h2>Debug Android without the terminal.</h2>
+      <p>Free, open source, and one keystroke away.</p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="https://github.com/Rohindh-R/Droidective/releases">⬇ Download for macOS</a>
-        <a class="btn btn-ghost" href="https://github.com/Rohindh-R/Droidective">★ Star on GitHub</a>
-        <a class="btn btn-ghost" href="https://github.com/Rohindh-R/Droidective/issues/new">Report an issue</a>
+        <a class="btn btn-primary" href="https://github.com/Rohindh-R/Droidective/releases"><svg class="ic"><use href="#ic-dl"/></svg> Download for macOS</a>
+        <a class="btn btn-ghost" href="https://github.com/Rohindh-R/Droidective"><svg class="ic"><use href="#ic-star"/></svg> Star on GitHub</a>
       </div>
     </div>
   </section>
 
   <footer>
     <div class="wrap">
-      <div class="foot-inner">
-        <a class="brand" href="#top"><img src="assets/icon.png" alt="" width="24" height="24" style="border-radius:6px" /> Droidective</a>
+      <div class="foot-top">
+        <a class="brand" href="#top"><img src="assets/icon.png" alt="" width="26" height="26" /> Droidective</a>
         <div class="foot-links">
           <a href="https://github.com/Rohindh-R/Droidective">GitHub</a>
           <a href="https://github.com/Rohindh-R/Droidective/releases">Releases</a>
+          <a href="#changelog">Changelog</a>
           <a href="https://github.com/Rohindh-R/Droidective/issues">Issues</a>
-          <a href="https://github.com/Rohindh-R">@Rohindh-R</a>
+          <a href="https://github.com/Rohindh-R/Droidective/blob/main/LICENSE">License</a>
         </div>
       </div>
       <p class="disclaimer">
         Made by Rohindh R · MIT licensed · © 2026. Not affiliated with Google or the Android Open
-        Source Project. Android is a trademark of Google LLC. scrcpy and adb are independent projects.
+        Source Project. Android is a trademark of Google LLC. scrcpy, adb, ffmpeg, and the Android
+        emulator are independent projects with their own licenses; Droidective shells out to them and
+        does not bundle them.
       </p>
     </div>
   </footer>
 
+  <script>
+    document.documentElement.classList.add("js");
+    const motionOK = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    /* Scroll reveal */
+    if (motionOK && "IntersectionObserver" in window) {
+      const io = new IntersectionObserver((entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+        }
+      }, { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
+      document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+    } else {
+      document.querySelectorAll(".reveal").forEach((el) => el.classList.add("in"));
+    }
+
+    /* Hero palette — type a query and live-filter the real feature list */
+    (function () {
+      const q = document.getElementById("pq");
+      const list = document.getElementById("plist");
+      if (!q || !list) return;
+      const items = Array.from(list.querySelectorAll(".cmd"));
+      const filter = (query) => {
+        const v = query.trim().toLowerCase();
+        let first = true;
+        for (const li of items) {
+          const hay = (li.dataset.keys + " " + li.querySelector(".cmd-name").textContent).toLowerCase();
+          const match = v === "" || hay.includes(v);
+          li.classList.toggle("is-hidden", !match);
+          li.classList.toggle("is-active", match && first);
+          if (match) first = false;
+        }
+      };
+
+      if (!motionOK) { q.textContent = "logcat"; filter("logcat"); return; }
+
+      const queries = ["logcat", "scrcpy", "battery", "fps", "wifi", "react"];
+      let qi = 0;
+      q.textContent = "";
+      filter("");
+
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      async function loop() {
+        // small idle so the section can settle before the first keystroke
+        await sleep(700);
+        while (true) {
+          const word = queries[qi % queries.length];
+          for (let i = 1; i <= word.length; i++) { q.textContent = word.slice(0, i); filter(word.slice(0, i)); await sleep(95); }
+          await sleep(1500);
+          for (let i = word.length; i >= 0; i--) { q.textContent = word.slice(0, i); filter(word.slice(0, i)); await sleep(45); }
+          await sleep(450);
+          qi++;
+        }
+      }
+      loop();
+    })();
+  </script>
 </body>
 </html>
