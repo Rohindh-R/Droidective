@@ -99,7 +99,8 @@ extension Annotation {
                 CGPoint(x: b.maxX, y: b.maxY), CGPoint(x: b.minX, y: b.maxY),
             ]
         case .text:
-            return []
+            let b = boundingBox
+            return [CGPoint(x: b.maxX, y: b.maxY)]
         }
     }
 
@@ -138,7 +139,12 @@ extension Annotation {
                 )
             }
         case .text:
-            break
+            // Drag the corner handle to scale the text: its distance below the
+            // top-left anchor sets the font scale (`width`, which drives font size).
+            if let anchor = points.first {
+                let height = max(0.012, p.y - anchor.y)
+                copy.width = min(60, max(2, height * 120))
+            }
         }
         return copy
     }
