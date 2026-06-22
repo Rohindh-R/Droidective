@@ -539,7 +539,7 @@ struct FeatureRowView: View {
             state.toggleFavorite(feature.id)
         } label: {
             Image(systemName: isPinned ? "pin.fill" : "pin")
-                .foregroundStyle(isPinned ? AnyShapeStyle(.orange) : AnyShapeStyle(.textMuted))
+                .foregroundStyle(isPinned ? AnyShapeStyle(.warning) : AnyShapeStyle(.textMuted))
         }
         .buttonStyle(.plain)
         .help(isPinned ? "Unpin from top" : "Pin to top")
@@ -667,6 +667,6 @@ private struct HotkeyPopover: View {
         }
         .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
         .padding(.horizontal, 10)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+        .background(.borderSubtle, in: RoundedRectangle(cornerRadius: 6))
     }
 }

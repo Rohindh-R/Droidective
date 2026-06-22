@@ -71,7 +71,7 @@ struct CustomCommandsView: View {
                             commands.removeAll { $0.id == command.id }
                             persist()
                         } label: {
-                            Image(systemName: "trash").foregroundStyle(.red)
+                            Image(systemName: "trash").foregroundStyle(.danger)
                         }
                         .buttonStyle(.plain)
                     }

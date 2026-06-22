@@ -154,7 +154,7 @@ struct NotificationBell: View {
                             .padding(.horizontal, 3)
                             .frame(minWidth: 9)
                             .padding(.vertical, 1)
-                            .background(.red, in: Capsule())
+                            .background(.danger, in: Capsule())
                             .offset(x: 6, y: -5)
                     }
                 }

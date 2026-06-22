@@ -28,8 +28,8 @@ struct OverridesPillView: View {
             .fixedSize()
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(.orange.opacity(0.18), in: Capsule())
-            .foregroundStyle(.orange)
+            .background(.warning.opacity(0.18), in: Capsule())
+            .foregroundStyle(.warning)
             .help("Device-state overrides are active")
         }
     }

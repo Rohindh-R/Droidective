@@ -92,7 +92,7 @@ struct AppManagementView: View {
             confirmingAction = action
         } label: {
             Label(title, systemImage: "trash")
-                .foregroundStyle(.red)
+                .foregroundStyle(.danger)
         }
         .disabled(pendingAction != nil)
     }

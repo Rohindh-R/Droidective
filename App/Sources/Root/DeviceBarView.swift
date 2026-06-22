@@ -45,7 +45,7 @@ struct DeviceBarView: View {
                     if state.adbMissing {
                         Label("adb not found", systemImage: "exclamationmark.triangle.fill")
                             .font(.footnote)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.warning)
                         Button(state.installingTool == .adb ? "Installing…" : "Install") {
                             state.installTool(.adb)
                         }
@@ -167,9 +167,9 @@ struct DeviceBarView: View {
 
     private var deviceStatusColor: Color {
         guard let device = selectedDevice else { return Color("TextMuted") }
-        if device.isReady { return .green }
-        if device.state == "unauthorized" { return .orange }
-        return .red
+        if device.isReady { return .success }
+        if device.state == "unauthorized" { return .warning }
+        return .danger
     }
 
     private var bundleIconColor: Color {
@@ -202,7 +202,7 @@ struct DeviceBarView: View {
         }
         .fixedSize()
         .controlSize(.large)
-        .tint(.red)
+        .tint(.danger)
         .help("Disconnect \(device.label)")
         .disabled(state.recordingActive)
     }
@@ -272,13 +272,13 @@ struct DeviceBarView: View {
                     .fontWeight(.semibold)
                     .lineLimit(1)
                 Text(bundle.packageId)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
                     .lineLimit(1)
             } else {
                 Image(systemName: "shippingbox")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
                 Text("Choose app bundle…")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textMuted)
             }
         }
     }

@@ -398,7 +398,7 @@ struct FileExplorerView: View {
                     }
                     Text("Android doesn't record file creation time — Modified is the closest signal.")
                         .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(.textFaint)
                 } else {
                     HStack {
                         ProgressView().controlSize(.small)

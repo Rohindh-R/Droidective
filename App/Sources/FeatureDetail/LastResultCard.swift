@@ -12,13 +12,13 @@ struct LastResultCard: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
                     Image(systemName: entry.result.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundStyle(entry.result.ok ? .brandAccent : .red)
+                        .foregroundStyle(entry.result.ok ? .success : .danger)
                     Text(entry.result.message)
                         .textSelection(.enabled)
                     Spacer()
                     Text(entry.at, style: .time)
                         .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(.textFaint)
                 }
 
                 HStack(spacing: 8) {

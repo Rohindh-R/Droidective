@@ -44,7 +44,7 @@ struct CommandReferenceList: View {
                         if let note = command.note {
                             Text(note)
                                 .font(.caption2)
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(.textFaint)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
@@ -79,7 +79,7 @@ struct CommandLogRow: View {
                     Spacer(minLength: 6)
                     Text(Self.exitLabel(entry))
                         .font(.caption)
-                        .foregroundStyle(entry.exitCode == 0 ? Color.brandAccent : Color.red)
+                        .foregroundStyle(entry.exitCode == 0 ? Color.success : Color.danger)
                     Text(entry.timestamp, style: .time)
                         .font(.caption)
                         .foregroundStyle(.textMuted)
@@ -93,12 +93,12 @@ struct CommandLogRow: View {
                     outputBlock(entry.stdout, tint: nil)
                 }
                 if !entry.stderr.isEmpty {
-                    outputBlock(entry.stderr, tint: .red)
+                    outputBlock(entry.stderr, tint: .danger)
                 }
                 if entry.stdout.isEmpty && entry.stderr.isEmpty {
                     Text("(no output)")
                         .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(.textFaint)
                         .padding(.leading, 18)
                 }
             }
@@ -109,7 +109,7 @@ struct CommandLogRow: View {
     private func outputBlock(_ text: String, tint: Color?) -> some View {
         Text(text)
             .font(.system(.caption, design: .monospaced))
-            .foregroundStyle(tint ?? .primary)
+            .foregroundStyle(tint ?? .textMain)
             .textSelection(.enabled)
             .padding(6)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -167,7 +167,7 @@ struct FeatureCommandLog: View {
             if entries.isEmpty {
                 Text("No runs yet — run this feature to see its commands and output here.")
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.textFaint)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 ForEach(entries) { entry in

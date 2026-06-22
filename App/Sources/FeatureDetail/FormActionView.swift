@@ -32,7 +32,7 @@ struct FormActionView: View {
 
                 Text("⌘⏎ to run")
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.textFaint)
             }
             .padding(.top, 4)
 

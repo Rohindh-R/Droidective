@@ -279,7 +279,7 @@ struct DoctorSettingsView: View {
                 "\(n) tool\(n == 1 ? "" : "s") missing — some features won't work until installed.",
                 systemImage: "exclamationmark.triangle.fill"
             )
-            .foregroundStyle(.orange)
+            .foregroundStyle(.warning)
         }
     }
 
@@ -334,7 +334,7 @@ struct DoctorSettingsView: View {
     private func statusIcon(_ status: ToolStatus?) -> some View {
         if let status {
             Image(systemName: status.installed ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .foregroundStyle(status.installed ? Color.brandAccent : Color.orange)
+                .foregroundStyle(status.installed ? Color.success : Color.warning)
         } else {
             ProgressView().controlSize(.small)
         }

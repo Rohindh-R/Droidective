@@ -60,7 +60,7 @@ struct MeminfoView: View {
                 }
                 Text("Refreshes every 2 seconds.")
                     .font(.footnote)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.textFaint)
             }
             .centeredColumn(maxWidth: 640)
             .padding(20)

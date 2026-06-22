@@ -42,7 +42,7 @@ struct BundleManagerView: View {
                             state.removeBundle(id: bundle.id)
                         } label: {
                             Image(systemName: "trash")
-                                .foregroundStyle(.red)
+                                .foregroundStyle(.danger)
                         }
                         .buttonStyle(.plain)
                     }

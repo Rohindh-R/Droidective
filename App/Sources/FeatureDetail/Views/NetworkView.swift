@@ -72,7 +72,7 @@ struct NetworkView: View {
                             .frame(minWidth: 84)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(isRecording ? .red : .brandAccent)
+                    .tint(isRecording ? .danger : .brandAccent)
                     .disabled(!isLive)
                     .help(isRecording ? "Stop recording" : "Record a session to export")
 
@@ -84,7 +84,7 @@ struct NetworkView: View {
                 }
                 if let last = liveSamples.last {
                     HStack(spacing: 0) {
-                        readout("Download", last.downloadBps, "arrow.down", .blue)
+                        readout("Download", last.downloadBps, "arrow.down", .chart1)
                         Divider().frame(height: 54)
                         readout("Upload", last.uploadBps, "arrow.up", .brandAccent)
                     }
@@ -101,7 +101,7 @@ struct NetworkView: View {
     @ViewBuilder
     private var statusDot: some View {
         if isRecording {
-            Circle().fill(.red).frame(width: 8, height: 8)
+            Circle().fill(.danger).frame(width: 8, height: 8)
         } else if isLive {
             Circle().fill(.brandAccent).frame(width: 8, height: 8)
         }
@@ -169,7 +169,7 @@ struct NetworkView: View {
                 .foregroundStyle(by: .value("Series", "Upload"))
                 .interpolationMethod(.monotone)
             }
-            .chartForegroundStyleScale(["Download": Color.blue, "Upload": Color.brandAccent])
+            .chartForegroundStyleScale(["Download": Color.chart1, "Upload": Color.brandAccent])
             .chartXAxisLabel("seconds")
             .chartLegend(position: .bottom, spacing: 6)
             .frame(height: 170)
@@ -179,7 +179,7 @@ struct NetworkView: View {
     private var totalsCard: some View {
         card("This session", subtitle: statusText) {
             HStack(spacing: 0) {
-                total("Downloaded", sessionRx, .blue)
+                total("Downloaded", sessionRx, .chart1)
                 Divider().frame(height: 36)
                 total("Uploaded", sessionTx, .brandAccent)
             }

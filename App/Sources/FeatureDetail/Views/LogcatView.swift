@@ -134,7 +134,7 @@ struct LogcatView: View {
             } else {
                 Text("\(lines.count) lines")
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.textFaint)
             }
         }
         .padding(.horizontal, 10)
@@ -144,8 +144,8 @@ struct LogcatView: View {
 
     private var statusColor: Color {
         if state.targetSerials.isEmpty { return .textMuted }
-        if waitingForPackage != nil { return .orange }
-        return paused ? .yellow : .brandAccent
+        if waitingForPackage != nil { return .warning }
+        return paused ? .warning : .success
     }
 
     private var statusText: String {
@@ -294,9 +294,9 @@ struct LogcatView: View {
 
     private func color(for level: String) -> Color {
         switch level {
-        case "E", "F": return .red
-        case "W": return .orange
-        case "I": return .primary
+        case "E", "F": return .danger
+        case "W": return .warning
+        case "I": return .textMain
         default: return .textMuted
         }
     }

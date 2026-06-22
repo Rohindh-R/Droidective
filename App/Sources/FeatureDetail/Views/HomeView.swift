@@ -188,7 +188,7 @@ struct HomeView: View {
             if state.adbMissing {
                 Label("adb isn't installed yet — use the Install button in the device bar first.", systemImage: "exclamationmark.triangle")
                     .font(.footnote)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(.warning)
             }
         }
         .padding(16)

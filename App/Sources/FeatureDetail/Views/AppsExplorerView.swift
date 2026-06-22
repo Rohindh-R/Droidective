@@ -112,7 +112,7 @@ struct AppsExplorerView: View {
                     HStack {
                         Text("\(visibleApps.count) of \(apps.count) apps")
                             .font(.caption)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(.textFaint)
                         Spacer()
                     }
                     .padding(6)
@@ -148,9 +148,9 @@ struct AppsExplorerView: View {
     @ViewBuilder
     private func lifecycleBadge(for packageId: String) -> some View {
         if let lifecycle = states[packageId], lifecycle.removed {
-            badge("removed", .red)
+            badge("removed", .danger)
         } else if let lifecycle = states[packageId], lifecycle.disabled {
-            badge("disabled", .orange)
+            badge("disabled", .warning)
         }
     }
 

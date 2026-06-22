@@ -93,7 +93,7 @@ struct PerformanceView: View {
                 Label(recordTitle, systemImage: recordIcon).frame(minWidth: 78)
             }
             .buttonStyle(.borderedProminent)
-            .tint(phase == .recording ? .orange : .red)
+            .tint(phase == .recording ? .warning : .danger)
             .disabled(serial == nil)
             .help("Start, pause, or resume sampling")
 
@@ -165,11 +165,11 @@ struct PerformanceView: View {
 
     private func summaryChips(_ sample: Sample) -> some View {
         HStack(spacing: 8) {
-            chip("CPU", sample.totalCpu.map { String(format: "%.0f%%", $0) } ?? "—", .blue)
+            chip("CPU", sample.totalCpu.map { String(format: "%.0f%%", $0) } ?? "—", .chart1)
             chip("RAM", sample.ramUsedKb.map { "\(mb($0)) MB" } ?? "—", .brandAccent)
-            chip("NET", "↓\(speedCompact(sample.downloadBps)) ↑\(speedCompact(sample.uploadBps))", .teal)
+            chip("NET", "↓\(speedCompact(sample.downloadBps)) ↑\(speedCompact(sample.uploadBps))", .chart2)
             if packageId != nil {
-                chip("FPS", sample.appFps.map { String(format: "%.0f", $0) } ?? "—", .purple)
+                chip("FPS", sample.appFps.map { String(format: "%.0f", $0) } ?? "—", .chart3)
             }
         }
     }
@@ -271,7 +271,7 @@ struct PerformanceView: View {
                         x: .value("Time", sample.elapsed),
                         y: .value("MB", Double(pss) / 1024.0)
                     )
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(.chart4)
                     .interpolationMethod(.monotone)
                 }
                 hoverRule { "\(Int($0.elapsed))s · \($0.appPssKb.map { "\(mb($0)) MB" } ?? "—")" }
@@ -297,7 +297,7 @@ struct PerformanceView: View {
                             x: .value("Time", sample.elapsed),
                             y: .value("FPS", fps)
                         )
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(.chart3)
                         .interpolationMethod(.monotone)
                     }
                 }
@@ -347,7 +347,7 @@ struct PerformanceView: View {
                 }
                 hoverRule { "\(Int($0.elapsed))s · ↓\(self.speedShort($0.downloadBps)) ↑\(self.speedShort($0.uploadBps))" }
             }
-            .chartForegroundStyleScale(["Download": Color.blue, "Upload": Color.brandAccent])
+            .chartForegroundStyleScale(["Download": Color.chart1, "Upload": Color.brandAccent])
             .chartXSelection(value: $selectedElapsed)
             .chartXAxisLabel("seconds")
             .chartLegend(position: .bottom, spacing: 6)

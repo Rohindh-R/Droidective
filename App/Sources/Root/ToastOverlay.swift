@@ -79,8 +79,8 @@ enum ToastStyle {
         switch level {
         case .success: Color("BrandAccent")
         case .info: Color("TextMuted")
-        case .warning: .orange
-        case .error: .red
+        case .warning: .warning
+        case .error: .danger
         }
     }
 }

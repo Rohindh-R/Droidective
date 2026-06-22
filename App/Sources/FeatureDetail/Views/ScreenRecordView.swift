@@ -33,7 +33,7 @@ struct ScreenRecordView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "video")
                         .font(.title2)
-                        .foregroundStyle(isRecording ? .red : .textMuted)
+                        .foregroundStyle(isRecording ? .danger : .textMuted)
                         .symbolEffect(.pulse, isActive: isRecording)
                     if isRecording, let startedAt {
                         Text(startedAt, style: .timer)
@@ -82,7 +82,7 @@ struct ScreenRecordView: View {
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(isRecording ? .red : .brandAccent)
+                .tint(isRecording ? .danger : .brandAccent)
                 .controlSize(.large)
                 .disabled(isStarting || isSaving || state.targetSerials.isEmpty)
 

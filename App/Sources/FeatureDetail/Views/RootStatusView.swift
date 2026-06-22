@@ -93,7 +93,7 @@ struct RootStatusView: View {
 
     private func tint(_ status: RootStatus) -> Color {
         if status.hasRootShell { return .brandAccent }
-        return status.likelyRooted ? .orange : .textMuted
+        return status.likelyRooted ? .warning : .textMuted
     }
 
     private func load() async {

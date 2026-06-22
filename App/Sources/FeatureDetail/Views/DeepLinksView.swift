@@ -48,7 +48,7 @@ struct DeepLinksSection: View {
                         }
                         .buttonStyle(.borderless)
                         Button { remove(link) } label: {
-                            Image(systemName: "trash").foregroundStyle(.red)
+                            Image(systemName: "trash").foregroundStyle(.danger)
                         }
                         .buttonStyle(.borderless)
                     }

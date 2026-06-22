@@ -46,7 +46,7 @@ struct CrashView: View {
                 ScrollView {
                     Text(crash)
                         .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(.danger)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(8)

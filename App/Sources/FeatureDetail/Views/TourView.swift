@@ -92,7 +92,7 @@ struct TourView: View {
             HStack(spacing: 7) {
                 ForEach(steps.indices, id: \.self) { i in
                     Circle()
-                        .fill(i == index ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.quaternary))
+                        .fill(i == index ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.borderSubtle))
                         .frame(width: 7, height: 7)
                 }
             }

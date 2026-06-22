@@ -146,7 +146,7 @@ struct FeatureDescription: View {
                 withAnimation(.easeInOut(duration: 0.15)) { showFeatureNotes = false }
             } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.textFaint)
             }
             .buttonStyle(.plain)
             .help("Hide this note (toggle back with ⓘ in the bar below)")

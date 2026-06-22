@@ -114,7 +114,7 @@ struct GroupHeaderView: View {
             }
         }
         .font(compact ? .caption : nil)
-        .foregroundStyle(compact ? AnyShapeStyle(.textMuted) : AnyShapeStyle(.primary))
+        .foregroundStyle(compact ? AnyShapeStyle(.textMuted) : AnyShapeStyle(.textMain))
         .textCase(compact ? .uppercase : nil)
         // Breathing room so the drop guideline (drawn at the row's top/bottom
         // edge during a drag) sits clear of the label instead of touching it.
