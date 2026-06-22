@@ -27,6 +27,9 @@ struct ScreenshotEditorView: View {
     @State private var cropping = false
     @State private var cropStart: CGPoint?
     @State private var cropRect: CGRect?
+    /// Crop-box rotation in radians; the drag is rotating the box (vs drawing it).
+    @State private var cropRotation: Double = 0
+    @State private var cropRotating = false
     /// Normalized location of the text field currently being typed (nil = none).
     @State private var textPoint: CGPoint?
     @State private var editingText = ""
@@ -264,7 +267,7 @@ struct ScreenshotEditorView: View {
                 .buttonStyle(.bordered)
                 .help("Rotate right 90°")
 
-            Button { cropping.toggle(); cropRect = nil; selecting = false; selectedID = nil } label: {
+            Button { cropping.toggle(); cropRect = nil; cropRotation = 0; cropRotating = false; selecting = false; selectedID = nil } label: {
                 Image(systemName: "crop")
             }
             .buttonStyle(.bordered)
@@ -334,15 +337,81 @@ struct ScreenshotEditorView: View {
 
     private func cropOverlay(display: CGSize) -> some View {
         Canvas { context, size in
-            let r = (cropRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)).scaled(to: size)
-            let dim = GraphicsContext.Shading.color(.black.opacity(0.5))
-            context.fill(Path(CGRect(x: 0, y: 0, width: size.width, height: r.minY)), with: dim)
-            context.fill(Path(CGRect(x: 0, y: r.maxY, width: size.width, height: size.height - r.maxY)), with: dim)
-            context.fill(Path(CGRect(x: 0, y: r.minY, width: r.minX, height: r.height)), with: dim)
-            context.fill(Path(CGRect(x: r.maxX, y: r.minY, width: size.width - r.maxX, height: r.height)), with: dim)
-            context.stroke(Path(r), with: .color(.white), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+            let normRect = cropRect ?? CGRect(x: 0, y: 0, width: 1, height: 1)
+            let r = normRect.scaled(to: size)
+            let center = CGPoint(x: normRect.midX * size.width, y: normRect.midY * size.height)
+            var corners = [
+                CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.maxX, y: r.minY),
+                CGPoint(x: r.maxX, y: r.maxY), CGPoint(x: r.minX, y: r.maxY),
+            ]
+            if cropRotation != 0 {
+                corners = corners.map { ScreenshotMarkup.rotate($0, around: center, by: cropRotation) }
+            }
+            var cropPath = Path()
+            cropPath.move(to: corners[0])
+            corners.dropFirst().forEach { cropPath.addLine(to: $0) }
+            cropPath.closeSubpath()
+
+            // Dim everything outside the (rotated) crop region via even-odd fill.
+            var dimPath = Path()
+            dimPath.addRect(CGRect(x: 0, y: 0, width: size.width, height: size.height))
+            dimPath.addPath(cropPath)
+            context.fill(dimPath, with: .color(.black.opacity(0.5)), style: FillStyle(eoFill: true))
+            context.stroke(cropPath, with: .color(.white), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+
+            if cropRect != nil {
+                let handleNorm = cropRotationHandle(normRect, display: size)
+                let handle = CGPoint(x: handleNorm.x * size.width, y: handleNorm.y * size.height)
+                let topMid = CGPoint(x: (corners[0].x + corners[1].x) / 2, y: (corners[0].y + corners[1].y) / 2)
+                var line = Path(); line.move(to: topMid); line.addLine(to: handle)
+                context.stroke(line, with: .color(.white.opacity(0.85)), style: StrokeStyle(lineWidth: 1.5))
+                let dot = CGRect(x: handle.x - 5, y: handle.y - 5, width: 10, height: 10)
+                context.fill(Path(ellipseIn: dot), with: .color(.white))
+                context.stroke(Path(ellipseIn: dot), with: .color(.black.opacity(0.65)), style: StrokeStyle(lineWidth: 1))
+            }
         }
         .allowsHitTesting(false)
+    }
+
+    /// Normalized rotation-handle position for the crop box (above its top edge).
+    private func cropRotationHandle(_ r: CGRect, display: CGSize) -> CGPoint {
+        let offset = 26 / max(display.height, 1)
+        let raw = CGPoint(x: r.midX, y: r.minY - offset)
+        guard cropRotation != 0 else { return raw }
+        let center = CGPoint(x: r.midX * display.width, y: r.midY * display.height)
+        let rawPx = CGPoint(x: raw.x * display.width, y: raw.y * display.height)
+        let rotated = ScreenshotMarkup.rotate(rawPx, around: center, by: cropRotation)
+        return CGPoint(x: rotated.x / display.width, y: rotated.y / display.height)
+    }
+
+    private func cropRotationAngle(toward target: CGPoint, rect r: CGRect, display: CGSize) -> Double {
+        let cx = r.midX * display.width, cy = r.midY * display.height
+        let tx = target.x * display.width, ty = target.y * display.height
+        return atan2(ty - cy, tx - cx) + .pi / 2
+    }
+
+    /// In crop mode: dragging the rotation handle rotates the box; any other drag
+    /// draws a fresh (un-rotated) crop rectangle.
+    private func cropChanged(value: DragGesture.Value, display: CGSize) {
+        let norm = normalize(value.location, in: display)
+        if cropStart == nil && !cropRotating {
+            if let r = cropRect {
+                let handleNorm = cropRotationHandle(r, display: display)
+                let hpx = CGPoint(x: handleNorm.x * display.width, y: handleNorm.y * display.height)
+                if hypot(value.startLocation.x - hpx.x, value.startLocation.y - hpx.y) <= 14 {
+                    cropRotating = true
+                }
+            }
+            if !cropRotating {
+                cropStart = normalize(value.startLocation, in: display)
+                cropRotation = 0
+            }
+        }
+        if cropRotating, let r = cropRect {
+            cropRotation = cropRotationAngle(toward: norm, rect: r, display: display)
+        } else if let start = cropStart {
+            cropRect = CGRect(origin: start, size: .zero).expanded(to: norm)
+        }
     }
 
     /// Dashed bounding box, resize handles, and a rotation handle around the
@@ -419,9 +488,7 @@ struct ScreenshotEditorView: View {
                 if textPoint != nil { return }
                 let norm = normalize(value.location, in: display)
                 if cropping {
-                    let start = cropStart ?? normalize(value.startLocation, in: display)
-                    cropStart = start
-                    cropRect = CGRect(origin: start, size: .zero).expanded(to: norm)
+                    cropChanged(value: value, display: display)
                 } else if selecting {
                     selectChanged(value: value, display: display)
                 } else if tool.isDragShape {
@@ -437,7 +504,7 @@ struct ScreenshotEditorView: View {
             }
             .onEnded { value in
                 if textPoint != nil { commitText(); return }
-                if cropping { cropStart = nil; return }
+                if cropping { cropStart = nil; cropRotating = false; return }
                 if selecting { selectEnded(); return }
                 if tool == .text {
                     placeText(at: normalize(value.startLocation, in: display))
@@ -643,6 +710,8 @@ struct ScreenshotEditorView: View {
         editingTextID = nil
         cropping = false
         cropRect = nil
+        cropRotation = 0
+        cropRotating = false
         selectedID = nil
         selectDragActive = false
         selectDragMode = .none
@@ -658,7 +727,7 @@ struct ScreenshotEditorView: View {
                     .font(.footnote)
                     .foregroundStyle(.textMuted)
                 Spacer()
-                Button("Cancel") { cropping = false; cropRect = nil }
+                Button("Cancel") { cropping = false; cropRect = nil; cropRotation = 0; cropRotating = false }
                 Button("Apply Crop") { applyCrop() }
                     .buttonStyle(.borderedProminent)
                     .disabled((cropRect?.width ?? 0) < 0.02 || (cropRect?.height ?? 0) < 0.02)
@@ -698,13 +767,17 @@ struct ScreenshotEditorView: View {
     // MARK: - Output
 
     private func applyCrop() {
-        guard let rect = cropRect, let cropped = ScreenshotMarkup.crop(image, annotations: annotations, to: rect) else { return }
+        guard let rect = cropRect,
+              let cropped = ScreenshotMarkup.crop(image, annotations: annotations, to: rect, rotation: cropRotation) else { return }
         pushUndo()
         image = cropped
         annotations.removeAll()
         draft = nil
+        selectedID = nil
         cropping = false
         cropRect = nil
+        cropRotation = 0
+        cropRotating = false
         zoom = 1
         pinchAnchor = 1
     }
