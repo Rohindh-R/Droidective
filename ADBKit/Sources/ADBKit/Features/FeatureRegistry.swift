@@ -327,9 +327,9 @@ public enum FeatureRegistry {
             category: .appManagement, icon: "shippingbox", kind: .view, needsBundle: true
         ),
         FeatureDef(
-            id: "current-activity", num: 28, title: "Current Activity",
+            id: "current-activity", num: 28, title: "Copy Current Activity",
             subtitle: "Show the foreground Activity right now",
-            keywords: ["activity", "foreground", "screen", "resumed", "dumpsys"],
+            keywords: ["activity", "foreground", "screen", "resumed", "dumpsys", "copy"],
             category: .appManagement, icon: "square.stack.3d.up", kind: .instantAction
         ),
         FeatureDef(

@@ -27,7 +27,7 @@ struct ReactNativeView: View {
             Section("Dev server host") {
                 HStack(spacing: 8) {
                     TextField("Dev server host", text: $devHost, prompt: Text("192.168.1.10:8081"))
-                        .textFieldStyle(.roundedBorder)
+                        .brandField()
                         .labelsHidden()
                         .frame(maxWidth: 240)
                     Button("Set") {

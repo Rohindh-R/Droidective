@@ -36,14 +36,18 @@ struct WirelessAdbSection: View {
 
         Section("Pair (Android 11+)") {
             TextField("Host / IP", text: $host, prompt: Text("192.168.1.42"))
+                .brandField()
             TextField("Pairing port", text: $pairingPort, prompt: Text("37123"))
+                .brandField()
             TextField("Pairing code", text: $pairingCode, prompt: Text("123456"))
+                .brandField()
             Button("Pair") {
                 pair()
             }
             .disabled(busy || host.isEmpty || pairingPort.isEmpty || pairingCode.isEmpty)
 
             TextField("Connection port", text: $connectionPort, prompt: Text("5555"))
+                .brandField()
             Button("Connect") {
                 connect()
             }

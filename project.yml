@@ -57,7 +57,7 @@ targets:
       base:
         PRODUCT_NAME: Droidective
         PRODUCT_BUNDLE_IDENTIFIER: com.rohindh.droidective
-        MARKETING_VERSION: "2.2.1"
+        MARKETING_VERSION: "2.3.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete

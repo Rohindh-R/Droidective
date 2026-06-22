@@ -83,7 +83,7 @@ struct WiFiView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Connect to a network").font(.headline)
             HStack {
-                TextField("SSID", text: $newSSID).textFieldStyle(.roundedBorder)
+                TextField("SSID", text: $newSSID).brandField()
                 Picker("", selection: $newSecurity) {
                     Text("WPA2").tag("wpa2")
                     Text("WPA3").tag("wpa3")
@@ -92,7 +92,7 @@ struct WiFiView: View {
                 .labelsHidden()
                 .frame(width: 110)
             }
-            SecureField("Password (blank for open)", text: $newPassword).textFieldStyle(.roundedBorder)
+            SecureField("Password (blank for open)", text: $newPassword).brandField()
             HStack {
                 Text("`cmd wifi connect-network` (Android 11+); some ROMs block it over adb.")
                     .font(.caption)

@@ -61,6 +61,7 @@ struct SimulateView: View {
                     Slider(value: $fontScale, in: 0.85...1.3, step: 0.05)
                 }
                 TextField("Density (dpi, blank = keep)", text: $density)
+                    .brandField()
                     .frame(maxWidth: 200)
                 Button("Apply") {
                     var params: [String: FeatureValue] = ["fontScale": .number(fontScale)]
@@ -90,6 +91,7 @@ struct SimulateView: View {
 
             Section("Proxy") {
                 TextField("Proxy (host:port)", text: $proxy)
+                    .brandField()
                     .frame(maxWidth: 200)
                 HStack {
                     Button("Set") { run("http-proxy", ["proxy": .string(proxy.trimmingCharacters(in: .whitespaces))]) }

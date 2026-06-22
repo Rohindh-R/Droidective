@@ -72,7 +72,9 @@ struct DeepLinksSection: View {
             Text(editingLink == nil ? "Add Deep Link" : "Edit Deep Link")
                 .font(.headline)
             TextField("URL (e.g. myapp://orders/123)", text: $draftURL)
+                .brandField()
             TextField("Label (optional)", text: $draftLabel)
+                .brandField()
             HStack {
                 Spacer()
                 Button("Cancel") { showEditor = false }

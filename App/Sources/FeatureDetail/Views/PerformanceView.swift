@@ -388,7 +388,7 @@ struct PerformanceView: View {
             VStack(spacing: 6) {
                 HStack {
                     TextField("Filter by name…", text: $filter)
-                        .textFieldStyle(.roundedBorder)
+                        .brandField()
                     Picker("Sort", selection: $sortKey) {
                         ForEach(SortKey.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                     }

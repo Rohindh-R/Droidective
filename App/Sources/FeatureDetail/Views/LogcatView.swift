@@ -68,7 +68,7 @@ struct LogcatView: View {
             .font(.callout)
 
             TextField("Search lines…", text: $search)
-                .textFieldStyle(.roundedBorder)
+                .brandField()
                 .frame(maxWidth: 220)
 
             Spacer()

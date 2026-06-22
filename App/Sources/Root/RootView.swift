@@ -63,21 +63,22 @@ struct RootView: View {
 
     /// macOS ignores SwiftUI dynamic type, so ⌘=/⌘- zoom is done by scaling the
     /// content: it's laid out at size/scale, then scaled up to fill the window,
-    /// which enlarges every font and reflows the layout. The transform breaks
-    /// `.help` tooltips, so at 1.0× (the default) the content renders untouched.
-    @ViewBuilder
+    /// which enlarges every font and reflows the layout. The GeometryReader and
+    /// scaleEffect wrap `split` unconditionally — at 1.0× it's an identity
+    /// transform (no coordinate offset, so `.help`/hover/chart selection keep
+    /// working) — so `split` holds one stable view identity across zoom steps.
+    /// Branching on the scale (plain `split` at 1.0×, wrapped otherwise) moved
+    /// `split` between two conditional branches, which rebuilt the subtree and
+    /// wiped descendants' @State (e.g. a captured screenshot) on every zoom
+    /// across 1.0×.
     private var zoomedContent: some View {
-        if state.fontScale == 1.0 {
+        GeometryReader { geo in
             split
-        } else {
-            GeometryReader { geo in
-                split
-                    .frame(
-                        width: geo.size.width / state.fontScale,
-                        height: geo.size.height / state.fontScale
-                    )
-                    .scaleEffect(state.fontScale, anchor: .topLeading)
-            }
+                .frame(
+                    width: geo.size.width / state.fontScale,
+                    height: geo.size.height / state.fontScale
+                )
+                .scaleEffect(state.fontScale, anchor: .topLeading)
         }
     }
 

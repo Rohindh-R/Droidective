@@ -1,3 +1,45 @@
+## Droidective v2.3.0
+
+A big screenshot-editor update — annotations you can move, resize, and rotate
+after drawing, blur and opacity controls, editable text, and a rotatable crop —
+plus a handful of fixes.
+
+### New features
+
+- **Editable annotations** — select any markup (shapes, arrows, pen, text,
+  redactions) to move, resize, or delete it; a freshly drawn one is selected
+  automatically so you can adjust it right away.
+- **Rotate** — rotate any annotation, the crop box, or the whole screenshot
+  (90°) with a drag handle.
+- **Redaction controls** — adjustable blur strength for blur redactions, and
+  fill opacity for solid ones.
+- **Editable text** — re-open a text label to change it, and drag a handle to
+  resize it.
+- **Rotatable crop** — tilt the crop box to straighten as you crop.
+
+### Fixes
+
+- Text fields now show the brand-green focus ring on every Mac (it followed the
+  macOS system accent before) and dim when the window is inactive.
+- Blur redaction no longer leaks the original image at its edges.
+- ⌘= / ⌘- zoom no longer discards in-progress work, such as a captured
+  screenshot.
+- **Apps** — uninstalling a user app no longer reports a false "protected"
+  error, and the detail pane clears once the app is removed.
+- Demo Mode is a sidebar toggle instead of a separate screen.
+- Renamed **Current Activity** to **Copy Current Activity**.
+
+### Install
+
+Download the `.dmg` below and drag **Droidective** into **Applications**. The
+build is ad-hoc signed but not notarized, so clear the quarantine once:
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/Droidective.app"
+```
+
+Installed copies from v2.1.0+ update in place via Sparkle.
+
 ## Droidective v2.2.1
 
 A fix for the accent color on Macs set to a specific system accent.

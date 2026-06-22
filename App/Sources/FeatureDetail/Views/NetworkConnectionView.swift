@@ -24,7 +24,7 @@ struct NetworkConnectionView: View {
             Section("Reverse port") {
                 HStack(spacing: 8) {
                     TextField("Port", text: $reversePort, prompt: Text("8081"))
-                        .textFieldStyle(.roundedBorder)
+                        .brandField()
                         .labelsHidden()
                         .frame(maxWidth: 140)
                     Button("Forward") {

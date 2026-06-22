@@ -56,7 +56,7 @@ struct DeviceInfoView: View {
     private func content(_ props: [String: String]) -> some View {
         VStack(spacing: 0) {
             TextField("Filter properties…", text: $search)
-                .textFieldStyle(.roundedBorder)
+                .brandField()
                 .padding(10)
 
             Divider()

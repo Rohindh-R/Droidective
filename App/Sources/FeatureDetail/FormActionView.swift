@@ -105,7 +105,7 @@ struct FormActionView: View {
         let values = presetValues(for: field.presetKey ?? "")
         HStack(spacing: 4) {
             TextField("", text: binding(for: field), prompt: field.placeholder.map(Text.init))
-                .textFieldStyle(.roundedBorder)
+                .brandField()
                 .focused($focusedField, equals: field.name)
             if !values.isEmpty {
                 Menu {
@@ -137,7 +137,7 @@ struct FormActionView: View {
         switch field.control {
         case .text, .number, .bundle:
             TextField("", text: binding(for: field), prompt: field.placeholder.map(Text.init))
-                .textFieldStyle(.roundedBorder)
+                .brandField()
                 .focused($focusedField, equals: field.name)
         case .preset:
             presetField(for: field)

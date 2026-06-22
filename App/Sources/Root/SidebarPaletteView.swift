@@ -6,10 +6,13 @@ import UniformTypeIdentifiers
 
 extension FeatureDef {
     /// Instant actions taking no input fire immediately (click or ⏎) and show
-    /// only a toast — no detail screen. Screenshot keeps its panel (delay +
-    /// preview); an unimplemented action falls back to its placeholder.
+    /// only a toast — no detail screen. Toggle actions flip in place too (the
+    /// sidebar switch shows state, so they need no screen); Screenshot keeps its
+    /// panel (delay + preview); an unimplemented action falls back to its
+    /// placeholder.
     var firesWithoutScreen: Bool {
-        kind == .instantAction && id != "screenshot" && FeatureEngine.implementedIDs.contains(id)
+        (kind == .instantAction || kind == .toggleAction)
+            && id != "screenshot" && FeatureEngine.implementedIDs.contains(id)
     }
 }
 
@@ -117,7 +120,7 @@ struct SidebarPaletteView: View {
         @Bindable var state = state
         VStack(spacing: 0) {
             TextField("Search features…", text: $state.searchText)
-                .textFieldStyle(.roundedBorder)
+                .brandField()
                 .controlSize(.large)
                 .font(.title3)
                 .focused($searchFocused)
