@@ -136,9 +136,23 @@ struct ScreenshotEditorView: View {
                         .overlay(Circle().strokeBorder(.brandAccent, lineWidth: color == swatch ? 2.5 : 0).padding(-2))
                         .onTapGesture { color = swatch }
                 }
+                // Native color picker, masked behind a color-wheel "logo" so it
+                // reads as "pick any color" instead of a plain swatch. The wheel
+                // is non-interactive, so taps fall through to the picker.
                 ColorPicker("", selection: $color, supportsOpacity: false)
                     .labelsHidden()
-                    .frame(width: 36)
+                    .frame(width: 20, height: 20)
+                    .clipShape(Circle())
+                    .overlay {
+                        Circle()
+                            .fill(AngularGradient(
+                                colors: [.red, .orange, .yellow, .green, .cyan, .blue, .purple, .red],
+                                center: .center
+                            ))
+                            .overlay(Circle().strokeBorder(.white.opacity(0.7), lineWidth: 1))
+                            .allowsHitTesting(false)
+                    }
+                    .padding(.leading, 6)
                     .help("Custom color")
             }
 
