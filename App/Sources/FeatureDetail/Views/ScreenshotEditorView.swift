@@ -337,6 +337,7 @@ struct ScreenshotEditorView: View {
                     pushUndo()
                     annotations.append(finished)
                     draft = nil
+                    selectAfterDrawing(finished.id)
                 }
             }
     }
@@ -359,7 +360,9 @@ struct ScreenshotEditorView: View {
         let trimmed = editingText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         pushUndo()
-        annotations.append(Annotation(tool: .text, color: color, width: width, points: [point], text: trimmed))
+        let annotation = Annotation(tool: .text, color: color, width: width, points: [point], text: trimmed)
+        annotations.append(annotation)
+        selectAfterDrawing(annotation.id)
     }
 
     private func clearAll() {
@@ -424,6 +427,13 @@ struct ScreenshotEditorView: View {
         selectDragMode = .none
         selectDragOrigin = nil
         selectDidEdit = false
+    }
+
+    /// After a shape/stroke/text is drawn, switch to Select mode with it selected
+    /// so it can be moved or resized right away.
+    private func selectAfterDrawing(_ id: Annotation.ID) {
+        selecting = true
+        selectedID = id
     }
 
     private func deleteSelected() {
