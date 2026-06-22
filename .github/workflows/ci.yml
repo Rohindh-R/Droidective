@@ -88,12 +88,16 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Build and package release DMG
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          POSTHOG_KEY: ${{ secrets.POSTHOG_KEY }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           xcodegen generate
           xcodebuild -project Droidective.xcodeproj -scheme App -configuration Release \
             -derivedDataPath DerivedData build CODE_SIGNING_ALLOWED=NO \
-            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="${{ github.run_number }}"
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            SENTRY_DSN="$SENTRY_DSN" POSTHOG_KEY="$POSTHOG_KEY"
           ./scripts/package-dmg.sh "${GITHUB_REF_NAME}"
       - name: Extract notes for this release
         run: awk '/^## /{c++} c==1{print} c==2{exit}' RELEASE_NOTES.md > release-body.md
