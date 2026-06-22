@@ -50,6 +50,8 @@ targets:
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         LSApplicationCategoryType: public.app-category.developer-tools
         NSHumanReadableCopyright: ""
+        SentryDSN: $(SENTRY_DSN)
+        PostHogKey: $(POSTHOG_KEY)
         SUFeedURL: https://rohindh-r.github.io/Droidective/appcast.xml
         SUPublicEDKey: "ma0kTe35r55/PKmemQOEBX7n6SuZPZjOBo973SdJqJ8="
         SUEnableAutomaticChecks: true
@@ -57,6 +59,8 @@ targets:
       base:
         PRODUCT_NAME: Droidective
         PRODUCT_BUNDLE_IDENTIFIER: com.rohindh.droidective
+        SENTRY_DSN: ""
+        POSTHOG_KEY: ""
         MARKETING_VERSION: "2.3.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "6.0"
