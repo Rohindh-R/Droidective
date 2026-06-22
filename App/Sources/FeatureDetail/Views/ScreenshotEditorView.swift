@@ -43,6 +43,11 @@ struct ScreenshotEditorView: View {
     @State private var selectDragOrigin: Annotation?
     @State private var selectDragStart: CGPoint = .zero
     @State private var selectDidEdit = false
+    /// Redact defaults for new regions (per-annotation values live on `Annotation`).
+    @State private var blurStrength: Double = 0.4
+    @State private var fillOpacity: Double = 1
+    /// The text annotation currently being re-edited (nil = placing new text).
+    @State private var editingTextID: Annotation.ID?
 
     private static let palette: [Color] = [.red, .orange, .yellow, .green, .blue, .purple, .black, .white]
     private static let widths: [(String, CGFloat)] = [("Thin", 3), ("Medium", 6), ("Thick", 12)]
@@ -60,6 +65,61 @@ struct ScreenshotEditorView: View {
     private var selectedAnnotation: Annotation? {
         guard let selectedID else { return nil }
         return annotations.first { $0.id == selectedID }
+    }
+
+    /// Annotations drawn on the canvas — minus the text being re-edited, which
+    /// shows in the live text field instead.
+    private var visibleAnnotations: [Annotation] {
+        guard let editingTextID else { return annotations }
+        return annotations.filter { $0.id != editingTextID }
+    }
+
+    private var editingAnnotation: Annotation? {
+        guard let editingTextID else { return nil }
+        return annotations.first { $0.id == editingTextID }
+    }
+    private var activeTextColor: Color { editingAnnotation?.color ?? color }
+    private var activeTextWidth: CGFloat { editingAnnotation?.width ?? width }
+
+    // Redact controls drive the selected redact when one is selected, else the
+    // defaults applied to new redactions.
+    private var editingRedact: Annotation? {
+        guard selecting, let annotation = selectedAnnotation, annotation.tool == .redact else { return nil }
+        return annotation
+    }
+    private var showsRedactControls: Bool { (tool == .redact && !selecting) || editingRedact != nil }
+    private var activeRedactStyle: RedactStyle { editingRedact?.redactStyle ?? redactStyle }
+
+    private var redactStyleBinding: Binding<RedactStyle> {
+        Binding(
+            get: { activeRedactStyle },
+            set: { value in
+                if let id = editingRedact?.id { pushUndo(); updateAnnotation(id) { $0.redactStyle = value } }
+                else { redactStyle = value }
+            }
+        )
+    }
+    private var blurBinding: Binding<Double> {
+        Binding(
+            get: { editingRedact?.blurStrength ?? blurStrength },
+            set: { value in
+                if let id = editingRedact?.id { updateAnnotation(id) { $0.blurStrength = value } }
+                else { blurStrength = value }
+            }
+        )
+    }
+    private var opacityBinding: Binding<Double> {
+        Binding(
+            get: { editingRedact?.fillOpacity ?? fillOpacity },
+            set: { value in
+                if let id = editingRedact?.id { updateAnnotation(id) { $0.fillOpacity = value } }
+                else { fillOpacity = value }
+            }
+        )
+    }
+    private func updateAnnotation(_ id: Annotation.ID, _ mutate: (inout Annotation) -> Void) {
+        guard let index = annotations.firstIndex(where: { $0.id == id }) else { return }
+        mutate(&annotations[index])
     }
 
     var body: some View {
@@ -165,13 +225,34 @@ struct ScreenshotEditorView: View {
             .fixedSize()
             .help("Stroke width")
 
-            if tool == .redact && !selecting {
-                Picker("", selection: $redactStyle) {
+            if showsRedactControls {
+                Picker("", selection: redactStyleBinding) {
                     ForEach(RedactStyle.allCases) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .fixedSize()
                 .help("Redaction style")
+
+                HStack(spacing: 5) {
+                    Image(systemName: activeRedactStyle == .blur ? "drop.fill" : "circle.lefthalf.filled")
+                        .font(.caption)
+                        .foregroundStyle(.textMuted)
+                    Slider(
+                        value: activeRedactStyle == .blur ? blurBinding : opacityBinding,
+                        in: activeRedactStyle == .blur ? 0.0...1.0 : 0.1...1.0,
+                        onEditingChanged: { editing in if editing, editingRedact != nil { pushUndo() } }
+                    )
+                    .frame(width: 88)
+                }
+                .help(activeRedactStyle == .blur ? "Blur amount" : "Fill opacity")
+            }
+
+            if selecting, selectedAnnotation?.tool == .text {
+                Button { beginEditingSelectedText() } label: {
+                    Label("Edit Text", systemImage: "pencil")
+                }
+                .buttonStyle(.bordered)
+                .help("Edit the selected text")
             }
 
             Spacer()
@@ -236,14 +317,14 @@ struct ScreenshotEditorView: View {
             .interpolation(.high)
             .frame(width: display.width, height: display.height)
             .overlay {
-                RedactBlurLayer(image: image, rects: ScreenshotMarkup.blurRects(annotations, draft: draft))
+                RedactBlurLayer(image: image, regions: ScreenshotMarkup.blurRegions(annotations, draft: draft))
             }
             .overlay {
                 Canvas { context, size in
-                    ScreenshotMarkup.draw(annotations, draft: draft, in: context, size: size)
+                    ScreenshotMarkup.draw(visibleAnnotations, draft: draft, in: context, size: size)
                 }
             }
-            .overlay { if selecting { selectionOverlay(display: display) } }
+            .overlay { if selecting, textPoint == nil { selectionOverlay(display: display) } }
             .overlay { if cropping { cropOverlay(display: display) } }
             .overlay { textEditor(display: display) }
             .contentShape(Rectangle())
@@ -295,12 +376,12 @@ struct ScreenshotEditorView: View {
             // Mirror the committed annotation's font and top-leading anchor
             // (ScreenshotMarkup.drawOne) so the text doesn't jump in size or
             // position the moment it's committed.
-            let fontSize = max(11, display.width * 0.03 * (width / 6))
+            let fontSize = max(11, display.width * 0.03 * (activeTextWidth / 6))
             let fieldWidth = max(120, display.width - point.x - 8)
             TextField("Type, then ⏎", text: $editingText)
                 .textFieldStyle(.plain)
                 .font(.system(size: fontSize, weight: .semibold))
-                .foregroundStyle(color)
+                .foregroundStyle(activeTextColor)
                 .focused($textFocused)
                 .frame(width: fieldWidth, alignment: .leading)
                 .position(x: point.x + fieldWidth / 2, y: point.y + fontSize / 2)
@@ -325,7 +406,7 @@ struct ScreenshotEditorView: View {
                     selectChanged(value: value, display: display)
                 } else if tool.isDragShape {
                     let start = normalize(value.startLocation, in: display)
-                    draft = Annotation(tool: tool, color: color, width: width, points: [start, norm], redactStyle: redactStyle)
+                    draft = Annotation(tool: tool, color: color, width: width, points: [start, norm], redactStyle: redactStyle, blurStrength: blurStrength, fillOpacity: fillOpacity)
                 } else if tool != .text {
                     if draft == nil {
                         draft = Annotation(tool: tool, color: color, width: width, points: [norm])
@@ -368,15 +449,42 @@ struct ScreenshotEditorView: View {
         editingText = ""
     }
 
+    /// Re-open the selected text annotation for editing (its content only —
+    /// color and size are preserved).
+    private func beginEditingSelectedText() {
+        guard let annotation = selectedAnnotation, annotation.tool == .text,
+              let point = annotation.points.first else { return }
+        editingTextID = annotation.id
+        editingText = annotation.text
+        textPoint = point
+        textFocused = true
+    }
+
     private func commitText() {
-        defer { textPoint = nil; textFocused = false }
-        guard let point = textPoint else { return }
+        let committedPoint = textPoint
+        let editID = editingTextID
+        textPoint = nil
+        textFocused = false
+        editingTextID = nil
+        guard let committedPoint else { return }
         let trimmed = editingText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        pushUndo()
-        let annotation = Annotation(tool: .text, color: color, width: width, points: [point], text: trimmed)
-        annotations.append(annotation)
-        selectAfterDrawing(annotation.id)
+        if let editID, let index = annotations.firstIndex(where: { $0.id == editID }) {
+            // Editing existing text: update content (or delete if emptied).
+            pushUndo()
+            if trimmed.isEmpty {
+                annotations.remove(at: index)
+                selectedID = nil
+            } else {
+                annotations[index].text = trimmed
+                selectedID = editID
+            }
+        } else {
+            guard !trimmed.isEmpty else { return }
+            pushUndo()
+            let annotation = Annotation(tool: .text, color: color, width: width, points: [committedPoint], text: trimmed)
+            annotations.append(annotation)
+            selectAfterDrawing(annotation.id)
+        }
     }
 
     private func clearAll() {
@@ -503,6 +611,7 @@ struct ScreenshotEditorView: View {
         annotations = snapshot.annotations
         draft = nil
         textPoint = nil
+        editingTextID = nil
         cropping = false
         cropRect = nil
         selectedID = nil

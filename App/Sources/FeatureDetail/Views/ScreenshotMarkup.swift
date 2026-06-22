@@ -65,6 +65,10 @@ struct Annotation: Identifiable {
     var text: String = ""
     /// Only meaningful for `.redact`.
     var redactStyle: RedactStyle = .solid
+    /// Blur intensity (0...1) for a blur-style redact.
+    var blurStrength: Double = 0.4
+    /// Fill opacity (0...1) for a solid-style redact.
+    var fillOpacity: Double = 1
 }
 
 extension Annotation {
@@ -203,7 +207,7 @@ enum ScreenshotMarkup {
             // Solid fills here; blur regions are drawn by `RedactBlurLayer`
             // beneath this canvas (a 2-D context can't sample the image).
             guard pts.count >= 2, a.redactStyle == .solid else { return }
-            context.fill(Path(rect(first, pts[1])), with: .color(a.color))
+            context.fill(Path(rect(first, pts[1])), with: .color(a.color.opacity(a.fillOpacity)))
         case .text:
             let fontSize = max(11, size.width * 0.03 * (a.width / 6))
             let label = Text(a.text.isEmpty ? "Text" : a.text)
@@ -238,15 +242,21 @@ enum ScreenshotMarkup {
         CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y))
     }
 
-    /// Normalized rects of every blur-style redact region (plus an in-progress
-    /// draft) — drawn by `RedactBlurLayer`, not the 2-D canvas.
-    static func blurRects(_ annotations: [Annotation], draft: Annotation?) -> [CGRect] {
-        var result: [CGRect] = []
+    /// A blur-style redact region: a normalized rect plus blur strength (0...1).
+    struct BlurRegion {
+        let rect: CGRect
+        let strength: Double
+    }
+
+    /// Blur-style redact regions (plus an in-progress draft) — drawn by
+    /// `RedactBlurLayer`, not the 2-D canvas. Each carries its own blur strength.
+    static func blurRegions(_ annotations: [Annotation], draft: Annotation?) -> [BlurRegion] {
+        var result: [BlurRegion] = []
         for a in annotations where a.tool == .redact && a.redactStyle == .blur && a.points.count >= 2 {
-            result.append(rect(a.points[0], a.points[1]))
+            result.append(BlurRegion(rect: rect(a.points[0], a.points[1]), strength: a.blurStrength))
         }
         if let d = draft, d.tool == .redact, d.redactStyle == .blur, d.points.count >= 2 {
-            result.append(rect(d.points[0], d.points[1]))
+            result.append(BlurRegion(rect: rect(d.points[0], d.points[1]), strength: d.blurStrength))
         }
         return result
     }
@@ -326,7 +336,7 @@ enum ScreenshotMarkup {
         let size = pixelSize(of: image)
         let composite = ZStack(alignment: .topLeading) {
             Image(nsImage: image).resizable().interpolation(.high).frame(width: size.width, height: size.height)
-            RedactBlurLayer(image: image, rects: blurRects(annotations, draft: nil))
+            RedactBlurLayer(image: image, regions: blurRegions(annotations, draft: nil))
                 .frame(width: size.width, height: size.height)
             Canvas { context, canvasSize in
                 draw(annotations, draft: nil, in: context, size: canvasSize)
@@ -367,29 +377,31 @@ enum ScreenshotMarkup {
 /// the export renderer so blur is WYSIWYG. `rects` are normalized (0...1).
 struct RedactBlurLayer: View {
     let image: NSImage
-    let rects: [CGRect]
+    let regions: [ScreenshotMarkup.BlurRegion]
 
     var body: some View {
-        if rects.isEmpty {
+        if regions.isEmpty {
             Color.clear
         } else {
             GeometryReader { geo in
-                Image(nsImage: image)
-                    .resizable()
-                    .interpolation(.high)
-                    .frame(width: geo.size.width, height: geo.size.height)
-                    .blur(radius: max(8, geo.size.width * 0.02))
-                    .mask {
-                        Canvas { context, size in
-                            for r in rects {
-                                let scaled = CGRect(
-                                    x: r.minX * size.width, y: r.minY * size.height,
-                                    width: r.width * size.width, height: r.height * size.height
+                // One blurred copy per region, each masked to its rect, so every
+                // region can carry its own blur strength.
+                ForEach(Array(regions.enumerated()), id: \.offset) { _, region in
+                    Image(nsImage: image)
+                        .resizable()
+                        .interpolation(.high)
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .blur(radius: max(2, region.strength * geo.size.width * 0.06))
+                        .mask {
+                            let r = region.rect
+                            Rectangle()
+                                .frame(width: r.width * geo.size.width, height: r.height * geo.size.height)
+                                .position(
+                                    x: (r.minX + r.width / 2) * geo.size.width,
+                                    y: (r.minY + r.height / 2) * geo.size.height
                                 )
-                                context.fill(Path(scaled), with: .color(.white))
-                            }
                         }
-                    }
+                }
             }
             .allowsHitTesting(false)
         }
