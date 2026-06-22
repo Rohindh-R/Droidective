@@ -114,6 +114,7 @@ final class AppState {
     var selectedBundleId: String?
     var adbStatus: ToolStatus?
     var scrcpyStatus: ToolStatus?
+    var ffmpegStatus: ToolStatus?
     var installingTool: Tool?
     /// Set by RootView so hotkeys/menu bar can reopen a closed main window.
     var openMainWindow: (() -> Void)?
@@ -254,6 +255,7 @@ final class AppState {
         let status = await env.engine.toolDetection.detect()
         adbStatus = status.adb
         scrcpyStatus = status.scrcpy
+        ffmpegStatus = status.ffmpeg
     }
 
     func installTool(_ tool: Tool) {

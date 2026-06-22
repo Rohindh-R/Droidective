@@ -34,8 +34,16 @@ struct FeatureDetailView: View {
             if showFeatureNotes, let note = FeatureRegistry.howTo(for: feature.id) {
                 FeatureDescription(note: note)
             }
-            FeatureCommandBar(feature: feature)
+            if !hidesCommandBar(feature.id) {
+                FeatureCommandBar(feature: feature)
+            }
         }
+    }
+
+    /// Full-pane editor/recorder features manage their own actions and need the
+    /// whole pane, so the command bar is hidden for them.
+    private func hidesCommandBar(_ id: String) -> Bool {
+        id == "video-editor" || id == "screen-record"
     }
 
     @ViewBuilder
@@ -84,6 +92,8 @@ struct FeatureDetailView: View {
                 SystemRestrictionsView()
             case "screen-record":
                 ScreenRecordView()
+            case "video-editor":
+                VideoEditorView()
             case "crash-catcher":
                 CrashView()
             case "wireless-adb":
