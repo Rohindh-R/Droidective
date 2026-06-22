@@ -45,7 +45,7 @@ enum HotkeyManager {
         for feature in FeatureRegistry.all {
             KeyboardShortcuts.onKeyUp(for: featureName(feature.id)) { [weak state] in
                 guard let state else { return }
-                if feature.kind == .instantAction {
+                if feature.kind == .instantAction || feature.kind == .toggleAction {
                     Task { await state.run(feature: feature, params: [:]) }
                 } else {
                     state.activateMainWindow()

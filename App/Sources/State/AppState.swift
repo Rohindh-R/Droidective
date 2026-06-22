@@ -536,6 +536,12 @@ final class AppState {
         }
 
         var params = params
+        // A state-override fired without an explicit target flips its current
+        // state — so a sidebar tap, hotkey, or ⌘K toggles it in place with no
+        // detail screen (the sidebar switch reflects the result).
+        if feature.isStateOverride, params["on"] == nil, let kind = feature.overrideKind {
+            params["on"] = .bool(!activeOverrides.contains { $0.kind == kind })
+        }
         if feature.needsBundle {
             guard let bundle = selectedBundle else {
                 showToast(Toast(message: "Pick a saved bundle first.", ok: false))
