@@ -345,25 +345,45 @@ struct ScreenshotEditorView: View {
         .allowsHitTesting(false)
     }
 
-    /// Dashed bounding box plus resize handles around the selected annotation.
+    /// Dashed bounding box, resize handles, and a rotation handle around the
+    /// selected annotation. The box and handles follow the annotation's rotation.
     private func selectionOverlay(display: CGSize) -> some View {
         Canvas { context, size in
             guard let annotation = selectedAnnotation else { return }
-            let b = ScreenshotMarkup.bounds(annotation, in: size)
-            let box = CGRect(
-                x: b.minX * size.width, y: b.minY * size.height,
-                width: b.width * size.width, height: b.height * size.height
-            ).insetBy(dx: -5, dy: -5)
-            context.stroke(
-                Path(roundedRect: box, cornerRadius: 5),
-                with: .color(.white.opacity(0.95)),
-                style: StrokeStyle(lineWidth: 1.5, dash: [5, 3])
-            )
-            for handle in annotation.handlePoints(in: size) {
-                let center = CGPoint(x: handle.x * size.width, y: handle.y * size.height)
-                let rect = CGRect(x: center.x - 5, y: center.y - 5, width: 10, height: 10)
+            func dot(_ p: CGPoint) {
+                let rect = CGRect(x: p.x - 5, y: p.y - 5, width: 10, height: 10)
                 context.fill(Path(ellipseIn: rect), with: .color(.white))
                 context.stroke(Path(ellipseIn: rect), with: .color(.black.opacity(0.65)), style: StrokeStyle(lineWidth: 1))
+            }
+
+            let b = ScreenshotMarkup.bounds(annotation, in: size)
+            let center = CGPoint(x: b.midX * size.width, y: b.midY * size.height)
+            let pad: CGFloat = 5
+            var corners = [
+                CGPoint(x: b.minX * size.width - pad, y: b.minY * size.height - pad),
+                CGPoint(x: b.maxX * size.width + pad, y: b.minY * size.height - pad),
+                CGPoint(x: b.maxX * size.width + pad, y: b.maxY * size.height + pad),
+                CGPoint(x: b.minX * size.width - pad, y: b.maxY * size.height + pad),
+            ]
+            if annotation.rotation != 0 {
+                corners = corners.map { ScreenshotMarkup.rotate($0, around: center, by: annotation.rotation) }
+            }
+            var boxPath = Path()
+            boxPath.move(to: corners[0])
+            corners.dropFirst().forEach { boxPath.addLine(to: $0) }
+            boxPath.closeSubpath()
+            context.stroke(boxPath, with: .color(.white.opacity(0.95)), style: StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+
+            if let rotationHandle = annotation.rotationHandle(in: size) {
+                let topMid = CGPoint(x: (corners[0].x + corners[1].x) / 2, y: (corners[0].y + corners[1].y) / 2)
+                let point = CGPoint(x: rotationHandle.x * size.width, y: rotationHandle.y * size.height)
+                var line = Path(); line.move(to: topMid); line.addLine(to: point)
+                context.stroke(line, with: .color(.white.opacity(0.8)), style: StrokeStyle(lineWidth: 1.5))
+                dot(point)
+            }
+
+            for handle in annotation.handlePoints(in: size) {
+                dot(CGPoint(x: handle.x * size.width, y: handle.y * size.height))
             }
         }
         .allowsHitTesting(false)
@@ -516,6 +536,7 @@ struct ScreenshotEditorView: View {
         switch selectDragMode {
         case .move: annotations[index] = origin.moved(by: delta)
         case .resize(let handle): annotations[index] = origin.resizing(handle: handle, to: current, in: display)
+        case .rotate: annotations[index] = origin.rotated(toward: current, in: display)
         case .none: break
         }
     }
@@ -524,6 +545,14 @@ struct ScreenshotEditorView: View {
     /// the body of an annotation (selecting it), or empty space (deselect).
     private func beginSelectDrag(atDisplay point: CGPoint, display: CGSize) {
         if let selected = selectedAnnotation {
+            if let rotationHandle = selected.rotationHandle(in: display) {
+                let inPixels = CGPoint(x: rotationHandle.x * display.width, y: rotationHandle.y * display.height)
+                if hypot(point.x - inPixels.x, point.y - inPixels.y) <= 14 {
+                    selectDragMode = .rotate
+                    selectDragOrigin = selected
+                    return
+                }
+            }
             for (handle, position) in selected.handlePoints(in: display).enumerated() {
                 let inPixels = CGPoint(x: position.x * display.width, y: position.y * display.height)
                 if hypot(point.x - inPixels.x, point.y - inPixels.y) <= 12 {
@@ -742,6 +771,7 @@ private enum SelectDragMode {
     case none
     case move
     case resize(Int)
+    case rotate
 }
 
 /// Undo/redo actions the editor publishes to the app's Edit menu while its

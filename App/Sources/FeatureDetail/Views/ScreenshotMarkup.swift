@@ -69,6 +69,8 @@ struct Annotation: Identifiable {
     var blurStrength: Double = 0.4
     /// Fill opacity (0...1) for a solid-style redact.
     var fillOpacity: Double = 1
+    /// Rotation in radians around the annotation's bounding-box center.
+    var rotation: Double = 0
 }
 
 extension Annotation {
@@ -93,19 +95,41 @@ extension Annotation {
     /// defining points; freehand strokes expose bounding-box corners; text has
     /// none (move only).
     func handlePoints(in size: CGSize) -> [CGPoint] {
+        let raw: [CGPoint]
         switch tool {
         case .line, .arrow, .rectangle, .ellipse, .redact:
-            return points.count >= 2 ? [points[0], points[1]] : []
+            raw = points.count >= 2 ? [points[0], points[1]] : []
         case .pen, .highlighter:
             let b = boundingBox
-            return [
+            raw = [
                 CGPoint(x: b.minX, y: b.minY), CGPoint(x: b.maxX, y: b.minY),
                 CGPoint(x: b.maxX, y: b.maxY), CGPoint(x: b.minX, y: b.maxY),
             ]
         case .text:
             let b = ScreenshotMarkup.bounds(self, in: size)
-            return [CGPoint(x: b.maxX, y: b.maxY)]
+            raw = [CGPoint(x: b.maxX, y: b.maxY)]
         }
+        return raw.map { rotatedHandle($0, in: size) }
+    }
+
+    /// A handle dragged to rotate the annotation, sitting above its top edge
+    /// (nil when the annotation is empty).
+    func rotationHandle(in size: CGSize) -> CGPoint? {
+        let b = ScreenshotMarkup.bounds(self, in: size)
+        guard b.width > 0 || b.height > 0 else { return nil }
+        let offset = 26 / max(size.height, 1)
+        return rotatedHandle(CGPoint(x: b.midX, y: b.minY - offset), in: size)
+    }
+
+    /// Apply the annotation's rotation to a normalized point, rotating in pixel
+    /// space (isotropic) around the bounding-box center.
+    private func rotatedHandle(_ normalized: CGPoint, in size: CGSize) -> CGPoint {
+        guard rotation != 0 else { return normalized }
+        let b = ScreenshotMarkup.bounds(self, in: size)
+        let center = CGPoint(x: b.midX * size.width, y: b.midY * size.height)
+        let px = CGPoint(x: normalized.x * size.width, y: normalized.y * size.height)
+        let rotated = ScreenshotMarkup.rotate(px, around: center, by: rotation)
+        return CGPoint(x: rotated.x / size.width, y: rotated.y / size.height)
     }
 
     /// Translate every point, clamped so the bounding box stays within 0...1
@@ -122,7 +146,17 @@ extension Annotation {
     /// Move handle `index` to `target` (normalized). Two-point shapes move that
     /// endpoint; freehand strokes scale every point from the opposite corner.
     func resizing(handle index: Int, to target: CGPoint, in size: CGSize) -> Annotation {
-        let p = CGPoint(x: min(1, max(0, target.x)), y: min(1, max(0, target.y)))
+        // Resize handles live on the rotated shape, so map the cursor back into
+        // the un-rotated frame before applying the (rotation-agnostic) edit.
+        var localTarget = target
+        if rotation != 0 {
+            let b = ScreenshotMarkup.bounds(self, in: size)
+            let center = CGPoint(x: b.midX * size.width, y: b.midY * size.height)
+            let targetPx = CGPoint(x: target.x * size.width, y: target.y * size.height)
+            let unrotated = ScreenshotMarkup.rotate(targetPx, around: center, by: -rotation)
+            localTarget = CGPoint(x: unrotated.x / size.width, y: unrotated.y / size.height)
+        }
+        let p = CGPoint(x: min(1, max(0, localTarget.x)), y: min(1, max(0, localTarget.y)))
         var copy = self
         switch tool {
         case .line, .arrow, .rectangle, .ellipse, .redact:
@@ -156,6 +190,17 @@ extension Annotation {
         }
         return copy
     }
+
+    /// Rotate so the rotation handle (which sits above the shape) points toward
+    /// `target` (normalized). Angle is computed in pixel space (isotropic).
+    func rotated(toward target: CGPoint, in size: CGSize) -> Annotation {
+        let b = ScreenshotMarkup.bounds(self, in: size)
+        let cx = b.midX * size.width, cy = b.midY * size.height
+        let tx = target.x * size.width, ty = target.y * size.height
+        var copy = self
+        copy.rotation = atan2(ty - cy, tx - cx) + .pi / 2
+        return copy
+    }
 }
 
 /// Stateless drawing + rasterization for the screenshot editor. Drawing routines
@@ -184,36 +229,47 @@ enum ScreenshotMarkup {
         let weight = max(1, a.width * size.width / 1000)
         let solid = StrokeStyle(lineWidth: weight, lineCap: .round, lineJoin: .round)
 
+        // Rotate a copy of the context around the annotation's center; the
+        // original context is untouched for the next annotation.
+        var ctx = context
+        if a.rotation != 0 {
+            let b = bounds(a, in: size)
+            let cx = b.midX * size.width, cy = b.midY * size.height
+            ctx.translateBy(x: cx, y: cy)
+            ctx.rotate(by: Angle(radians: a.rotation))
+            ctx.translateBy(x: -cx, y: -cy)
+        }
+
         switch a.tool {
         case .pen:
-            context.stroke(freehandPath(pts), with: .color(a.color), style: solid)
+            ctx.stroke(freehandPath(pts), with: .color(a.color), style: solid)
         case .highlighter:
             let thick = StrokeStyle(lineWidth: weight * 3.5, lineCap: .round, lineJoin: .round)
-            context.stroke(freehandPath(pts), with: .color(a.color.opacity(0.35)), style: thick)
+            ctx.stroke(freehandPath(pts), with: .color(a.color.opacity(0.35)), style: thick)
         case .line:
             guard pts.count >= 2 else { return }
             var path = Path(); path.move(to: first); path.addLine(to: pts[1])
-            context.stroke(path, with: .color(a.color), style: solid)
+            ctx.stroke(path, with: .color(a.color), style: solid)
         case .arrow:
             guard pts.count >= 2 else { return }
-            drawArrow(from: first, to: pts[1], weight: weight, color: a.color, in: context)
+            drawArrow(from: first, to: pts[1], weight: weight, color: a.color, in: ctx)
         case .rectangle:
             guard pts.count >= 2 else { return }
-            context.stroke(Path(roundedRect: rect(first, pts[1]), cornerRadius: weight), with: .color(a.color), style: solid)
+            ctx.stroke(Path(roundedRect: rect(first, pts[1]), cornerRadius: weight), with: .color(a.color), style: solid)
         case .ellipse:
             guard pts.count >= 2 else { return }
-            context.stroke(Path(ellipseIn: rect(first, pts[1])), with: .color(a.color), style: solid)
+            ctx.stroke(Path(ellipseIn: rect(first, pts[1])), with: .color(a.color), style: solid)
         case .redact:
             // Solid fills here; blur regions are drawn by `RedactBlurLayer`
             // beneath this canvas (a 2-D context can't sample the image).
             guard pts.count >= 2, a.redactStyle == .solid else { return }
-            context.fill(Path(rect(first, pts[1])), with: .color(a.color.opacity(a.fillOpacity)))
+            ctx.fill(Path(rect(first, pts[1])), with: .color(a.color.opacity(a.fillOpacity)))
         case .text:
             let fontSize = max(11, size.width * 0.03 * (a.width / 6))
             let label = Text(a.text.isEmpty ? "Text" : a.text)
                 .font(.system(size: fontSize, weight: .semibold))
                 .foregroundColor(a.color)
-            context.draw(label, at: first, anchor: .topLeading)
+            ctx.draw(label, at: first, anchor: .topLeading)
         }
     }
 
@@ -242,21 +298,23 @@ enum ScreenshotMarkup {
         CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y))
     }
 
-    /// A blur-style redact region: a normalized rect plus blur strength (0...1).
+    /// A blur-style redact region: a normalized rect, blur strength (0...1), and
+    /// rotation in radians around its center.
     struct BlurRegion {
         let rect: CGRect
         let strength: Double
+        let rotation: Double
     }
 
     /// Blur-style redact regions (plus an in-progress draft) — drawn by
-    /// `RedactBlurLayer`, not the 2-D canvas. Each carries its own blur strength.
+    /// `RedactBlurLayer`, not the 2-D canvas. Each carries its own blur + rotation.
     static func blurRegions(_ annotations: [Annotation], draft: Annotation?) -> [BlurRegion] {
         var result: [BlurRegion] = []
         for a in annotations where a.tool == .redact && a.redactStyle == .blur && a.points.count >= 2 {
-            result.append(BlurRegion(rect: rect(a.points[0], a.points[1]), strength: a.blurStrength))
+            result.append(BlurRegion(rect: rect(a.points[0], a.points[1]), strength: a.blurStrength, rotation: a.rotation))
         }
         if let d = draft, d.tool == .redact, d.redactStyle == .blur, d.points.count >= 2 {
-            result.append(BlurRegion(rect: rect(d.points[0], d.points[1]), strength: d.blurStrength))
+            result.append(BlurRegion(rect: rect(d.points[0], d.points[1]), strength: d.blurStrength, rotation: d.rotation))
         }
         return result
     }
@@ -276,6 +334,14 @@ enum ScreenshotMarkup {
         return CGRect(x: origin.x, y: origin.y, width: measured.width / size.width, height: measured.height / size.height)
     }
 
+    /// Rotate `p` around `center` by `angle` radians. Use a consistent space —
+    /// pixels — so it's isotropic.
+    static func rotate(_ p: CGPoint, around center: CGPoint, by angle: Double) -> CGPoint {
+        let s = sin(angle), c = cos(angle)
+        let dx = p.x - center.x, dy = p.y - center.y
+        return CGPoint(x: center.x + dx * c - dy * s, y: center.y + dx * s + dy * c)
+    }
+
     // MARK: - Hit-testing (display-pixel space, so it's isotropic)
 
     /// Index of the top-most annotation under `point` (display px), or nil. Area
@@ -287,7 +353,15 @@ enum ScreenshotMarkup {
         return nil
     }
 
-    private static func hits(_ a: Annotation, _ p: CGPoint, _ display: CGSize, _ tol: CGFloat) -> Bool {
+    private static func hits(_ a: Annotation, _ point: CGPoint, _ display: CGSize, _ tol: CGFloat) -> Bool {
+        // Map the cursor into the annotation's un-rotated frame, then test the
+        // upright geometry.
+        var p = point
+        if a.rotation != 0 {
+            let b = bounds(a, in: display)
+            let center = CGPoint(x: b.midX * display.width, y: b.midY * display.height)
+            p = rotate(point, around: center, by: -a.rotation)
+        }
         switch a.tool {
         case .rectangle, .ellipse, .redact, .text:
             let b = bounds(a, in: display)
@@ -399,6 +473,7 @@ struct RedactBlurLayer: View {
                             let r = region.rect
                             Rectangle()
                                 .frame(width: r.width * geo.size.width, height: r.height * geo.size.height)
+                                .rotationEffect(.radians(region.rotation))
                                 .position(
                                     x: (r.minX + r.width / 2) * geo.size.width,
                                     y: (r.minY + r.height / 2) * geo.size.height
