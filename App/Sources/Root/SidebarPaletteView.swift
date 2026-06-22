@@ -117,7 +117,7 @@ struct SidebarPaletteView: View {
         @Bindable var state = state
         VStack(spacing: 0) {
             TextField("Search features…", text: $state.searchText)
-                .textFieldStyle(.roundedBorder)
+                .brandField()
                 .controlSize(.large)
                 .font(.title3)
                 .focused($searchFocused)

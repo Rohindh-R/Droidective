@@ -60,7 +60,7 @@ struct AppsExplorerView: View {
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
                     TextField("Search name, version, or bundle…", text: $search)
-                        .textFieldStyle(.roundedBorder)
+                        .brandField()
                     Picker("", selection: $scope) {
                         ForEach(Scope.allCases, id: \.self) { scope in
                             Text(scope.rawValue).tag(scope)
