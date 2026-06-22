@@ -265,7 +265,7 @@ struct ScreenshotEditorView: View {
                 .help("Rotate right 90°")
 
             Button { cropping.toggle(); cropRect = nil; selecting = false; selectedID = nil } label: {
-                Label("Crop", systemImage: "crop")
+                Image(systemName: "crop")
             }
             .buttonStyle(.bordered)
             .tint(cropping ? .brandAccent : nil)
