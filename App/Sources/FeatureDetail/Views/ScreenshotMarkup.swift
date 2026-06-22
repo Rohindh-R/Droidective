@@ -1,4 +1,6 @@
 import AppKit
+import CoreImage
+import ImageIO
 import SwiftUI
 
 /// A markup tool in the screenshot editor.
@@ -63,6 +65,83 @@ struct Annotation: Identifiable {
     var text: String = ""
     /// Only meaningful for `.redact`.
     var redactStyle: RedactStyle = .solid
+}
+
+extension Annotation {
+    /// Normalized (0...1) bounding box. Text gets an approximate extent (its real
+    /// size depends on the render width) so it's still selectable and movable.
+    var boundingBox: CGRect {
+        guard let first = points.first else { return .zero }
+        if tool == .text {
+            let w = max(0.06, CGFloat(max(text.count, 4)) * 0.011 * (width / 6))
+            let h = max(0.03, 0.05 * (width / 6))
+            return CGRect(x: first.x, y: first.y, width: w, height: h)
+        }
+        var minX = first.x, minY = first.y, maxX = first.x, maxY = first.y
+        for p in points {
+            minX = min(minX, p.x); minY = min(minY, p.y)
+            maxX = max(maxX, p.x); maxY = max(maxY, p.y)
+        }
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+
+    /// Normalized resize-handle positions. Two-point shapes expose their two
+    /// defining points; freehand strokes expose bounding-box corners; text has
+    /// none (move only).
+    var handlePoints: [CGPoint] {
+        switch tool {
+        case .line, .arrow, .rectangle, .ellipse, .redact:
+            return points.count >= 2 ? [points[0], points[1]] : []
+        case .pen, .highlighter:
+            let b = boundingBox
+            return [
+                CGPoint(x: b.minX, y: b.minY), CGPoint(x: b.maxX, y: b.minY),
+                CGPoint(x: b.maxX, y: b.maxY), CGPoint(x: b.minX, y: b.maxY),
+            ]
+        case .text:
+            return []
+        }
+    }
+
+    /// Translate every point, clamped so the bounding box stays within 0...1
+    /// (the shape moves rigidly and stops at the edge).
+    func moved(by delta: CGPoint) -> Annotation {
+        let b = boundingBox
+        let dx = min(max(delta.x, -b.minX), 1 - b.maxX)
+        let dy = min(max(delta.y, -b.minY), 1 - b.maxY)
+        var copy = self
+        copy.points = points.map { CGPoint(x: $0.x + dx, y: $0.y + dy) }
+        return copy
+    }
+
+    /// Move handle `index` to `target` (normalized). Two-point shapes move that
+    /// endpoint; freehand strokes scale every point from the opposite corner.
+    func resizing(handle index: Int, to target: CGPoint) -> Annotation {
+        let p = CGPoint(x: min(1, max(0, target.x)), y: min(1, max(0, target.y)))
+        var copy = self
+        switch tool {
+        case .line, .arrow, .rectangle, .ellipse, .redact:
+            if copy.points.indices.contains(index) { copy.points[index] = p }
+        case .pen, .highlighter:
+            let b = boundingBox
+            let corners = [
+                CGPoint(x: b.minX, y: b.minY), CGPoint(x: b.maxX, y: b.minY),
+                CGPoint(x: b.maxX, y: b.maxY), CGPoint(x: b.minX, y: b.maxY),
+            ]
+            let anchor = corners[(index + 2) % 4]
+            let sx = abs(p.x - anchor.x) / max(b.width, 0.0001)
+            let sy = abs(p.y - anchor.y) / max(b.height, 0.0001)
+            copy.points = points.map {
+                CGPoint(
+                    x: min(1, max(0, anchor.x + ($0.x - anchor.x) * sx)),
+                    y: min(1, max(0, anchor.y + ($0.y - anchor.y) * sy))
+                )
+            }
+        case .text:
+            break
+        }
+        return copy
+    }
 }
 
 /// Stateless drawing + rasterization for the screenshot editor. Drawing routines
@@ -162,7 +241,58 @@ enum ScreenshotMarkup {
         return result
     }
 
+    // MARK: - Hit-testing (display-pixel space, so it's isotropic)
+
+    /// Index of the top-most annotation under `point` (display px), or nil. Area
+    /// shapes hit inside their box; strokes/lines hit near their path.
+    static func hitTest(_ annotations: [Annotation], atDisplay point: CGPoint, display: CGSize, tolerance: CGFloat) -> Int? {
+        for index in annotations.indices.reversed() where hits(annotations[index], point, display, tolerance) {
+            return index
+        }
+        return nil
+    }
+
+    private static func hits(_ a: Annotation, _ p: CGPoint, _ display: CGSize, _ tol: CGFloat) -> Bool {
+        switch a.tool {
+        case .rectangle, .ellipse, .redact, .text:
+            let b = a.boundingBox
+            let box = CGRect(
+                x: b.minX * display.width, y: b.minY * display.height,
+                width: b.width * display.width, height: b.height * display.height
+            )
+            return box.insetBy(dx: -tol, dy: -tol).contains(p)
+        case .pen, .highlighter, .line, .arrow:
+            let pts = a.points.map { CGPoint(x: $0.x * display.width, y: $0.y * display.height) }
+            return distanceToPolyline(pts, p) <= tol
+        }
+    }
+
+    private static func distanceToPolyline(_ pts: [CGPoint], _ p: CGPoint) -> CGFloat {
+        guard let first = pts.first else { return .greatestFiniteMagnitude }
+        if pts.count == 1 { return hypot(p.x - first.x, p.y - first.y) }
+        var best = CGFloat.greatestFiniteMagnitude
+        for i in 0..<(pts.count - 1) { best = min(best, distance(p, segment: pts[i], pts[i + 1])) }
+        return best
+    }
+
+    private static func distance(_ p: CGPoint, segment a: CGPoint, _ b: CGPoint) -> CGFloat {
+        let dx = b.x - a.x, dy = b.y - a.y
+        let lengthSquared = dx * dx + dy * dy
+        if lengthSquared < 1e-9 { return hypot(p.x - a.x, p.y - a.y) }
+        let t = min(1, max(0, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSquared))
+        return hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
+    }
+
     // MARK: - Rasterization
+
+    /// Rotate an image 90° (clockwise or counter-clockwise) at pixel resolution.
+    @MainActor
+    static func rotated(_ image: NSImage, clockwise: Bool) -> NSImage? {
+        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        let oriented = CIImage(cgImage: cg).oriented(clockwise ? .right : .left)
+        guard let out = CIContext().createCGImage(oriented, from: oriented.extent) else { return nil }
+        return NSImage(cgImage: out, size: NSSize(width: out.width, height: out.height))
+    }
 
     /// Flatten the base image + annotations into a new image at the base's pixel
     /// resolution.

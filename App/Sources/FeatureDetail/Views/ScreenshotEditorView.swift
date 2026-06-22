@@ -32,6 +32,17 @@ struct ScreenshotEditorView: View {
     @State private var editingText = ""
     @State private var lastSavedURL: URL?
     @FocusState private var textFocused: Bool
+    /// Select-mode editing: tap an existing annotation to select it, drag its
+    /// body to move it, drag a handle to resize it.
+    @State private var selecting = false
+    @State private var selectedID: Annotation.ID?
+    @State private var selectDragActive = false
+    @State private var selectDragMode: SelectDragMode = .none
+    /// The selected annotation as it was when the drag began, so each frame
+    /// transforms from the original rather than accumulating drift.
+    @State private var selectDragOrigin: Annotation?
+    @State private var selectDragStart: CGPoint = .zero
+    @State private var selectDidEdit = false
 
     private static let palette: [Color] = [.red, .orange, .yellow, .green, .blue, .purple, .black, .white]
     private static let widths: [(String, CGFloat)] = [("Thin", 3), ("Medium", 6), ("Thick", 12)]
@@ -45,6 +56,11 @@ struct ScreenshotEditorView: View {
     }
 
     private var pixelSize: CGSize { ScreenshotMarkup.pixelSize(of: image) }
+
+    private var selectedAnnotation: Annotation? {
+        guard let selectedID else { return nil }
+        return annotations.first { $0.id == selectedID }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -78,16 +94,31 @@ struct ScreenshotEditorView: View {
     private var toolbar: some View {
         HStack(spacing: 12) {
             HStack(spacing: 2) {
+                Button {
+                    selecting = true
+                    cropping = false
+                } label: {
+                    Image(systemName: "cursorarrow")
+                        .frame(width: 26, height: 24)
+                        .background(selecting ? AnyShapeStyle(.brandAccent.opacity(0.18)) : AnyShapeStyle(.clear),
+                                   in: RoundedRectangle(cornerRadius: 6))
+                        .foregroundStyle(selecting ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMain))
+                }
+                .buttonStyle(.plain)
+                .help("Select, move & resize")
+
                 ForEach(MarkupTool.allCases) { item in
                     Button {
                         tool = item
                         cropping = false
+                        selecting = false
+                        selectedID = nil
                     } label: {
                         Image(systemName: item.systemImage)
                             .frame(width: 26, height: 24)
-                            .background(tool == item && !cropping ? AnyShapeStyle(.brandAccent.opacity(0.18)) : AnyShapeStyle(.clear),
+                            .background(tool == item && !cropping && !selecting ? AnyShapeStyle(.brandAccent.opacity(0.18)) : AnyShapeStyle(.clear),
                                        in: RoundedRectangle(cornerRadius: 6))
-                            .foregroundStyle(tool == item && !cropping ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMain))
+                            .foregroundStyle(tool == item && !cropping && !selecting ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMain))
                     }
                     .buttonStyle(.plain)
                     .help(item.label)
@@ -120,7 +151,7 @@ struct ScreenshotEditorView: View {
             .fixedSize()
             .help("Stroke width")
 
-            if tool == .redact {
+            if tool == .redact && !selecting {
                 Picker("", selection: $redactStyle) {
                     ForEach(RedactStyle.allCases) { Text($0.label).tag($0) }
                 }
@@ -131,7 +162,14 @@ struct ScreenshotEditorView: View {
 
             Spacer()
 
-            Button { cropping.toggle(); cropRect = nil } label: {
+            Button { rotate(clockwise: false) } label: { Image(systemName: "rotate.left") }
+                .buttonStyle(.bordered)
+                .help("Rotate left 90°")
+            Button { rotate(clockwise: true) } label: { Image(systemName: "rotate.right") }
+                .buttonStyle(.bordered)
+                .help("Rotate right 90°")
+
+            Button { cropping.toggle(); cropRect = nil; selecting = false; selectedID = nil } label: {
                 Label("Crop", systemImage: "crop")
             }
             .buttonStyle(.bordered)
@@ -146,10 +184,12 @@ struct ScreenshotEditorView: View {
                 .buttonStyle(.bordered)
                 .disabled(!canRedo)
                 .help("Redo (⇧⌘Z)")
-            Button { clearAll() } label: { Image(systemName: "trash") }
+            Button {
+                if selecting, selectedID != nil { deleteSelected() } else { clearAll() }
+            } label: { Image(systemName: "trash") }
                 .buttonStyle(.bordered)
-                .disabled(annotations.isEmpty)
-                .help("Clear all markup")
+                .disabled(selecting ? selectedID == nil : annotations.isEmpty)
+                .help(selecting && selectedID != nil ? "Delete selection" : "Clear all markup")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -189,6 +229,7 @@ struct ScreenshotEditorView: View {
                     ScreenshotMarkup.draw(annotations, draft: draft, in: context, size: size)
                 }
             }
+            .overlay { if selecting { selectionOverlay(display: display) } }
             .overlay { if cropping { cropOverlay(display: display) } }
             .overlay { textEditor(display: display) }
             .contentShape(Rectangle())
@@ -205,6 +246,30 @@ struct ScreenshotEditorView: View {
             context.fill(Path(CGRect(x: 0, y: r.minY, width: r.minX, height: r.height)), with: dim)
             context.fill(Path(CGRect(x: r.maxX, y: r.minY, width: size.width - r.maxX, height: r.height)), with: dim)
             context.stroke(Path(r), with: .color(.white), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+        }
+        .allowsHitTesting(false)
+    }
+
+    /// Dashed bounding box plus resize handles around the selected annotation.
+    private func selectionOverlay(display: CGSize) -> some View {
+        Canvas { context, size in
+            guard let annotation = selectedAnnotation else { return }
+            let b = annotation.boundingBox
+            let box = CGRect(
+                x: b.minX * size.width, y: b.minY * size.height,
+                width: b.width * size.width, height: b.height * size.height
+            ).insetBy(dx: -5, dy: -5)
+            context.stroke(
+                Path(roundedRect: box, cornerRadius: 5),
+                with: .color(.white.opacity(0.95)),
+                style: StrokeStyle(lineWidth: 1.5, dash: [5, 3])
+            )
+            for handle in annotation.handlePoints {
+                let center = CGPoint(x: handle.x * size.width, y: handle.y * size.height)
+                let rect = CGRect(x: center.x - 5, y: center.y - 5, width: 10, height: 10)
+                context.fill(Path(ellipseIn: rect), with: .color(.white))
+                context.stroke(Path(ellipseIn: rect), with: .color(.black.opacity(0.65)), style: StrokeStyle(lineWidth: 1))
+            }
         }
         .allowsHitTesting(false)
     }
@@ -242,6 +307,8 @@ struct ScreenshotEditorView: View {
                     let start = cropStart ?? normalize(value.startLocation, in: display)
                     cropStart = start
                     cropRect = CGRect(origin: start, size: .zero).expanded(to: norm)
+                } else if selecting {
+                    selectChanged(value: value, display: display)
                 } else if tool.isDragShape {
                     let start = normalize(value.startLocation, in: display)
                     draft = Annotation(tool: tool, color: color, width: width, points: [start, norm], redactStyle: redactStyle)
@@ -256,6 +323,7 @@ struct ScreenshotEditorView: View {
             .onEnded { value in
                 if textPoint != nil { commitText(); return }
                 if cropping { cropStart = nil; return }
+                if selecting { selectEnded(); return }
                 if tool == .text {
                     placeText(at: normalize(value.startLocation, in: display))
                     return
@@ -299,6 +367,89 @@ struct ScreenshotEditorView: View {
         pushUndo()
         annotations.removeAll()
         draft = nil
+        selectedID = nil
+    }
+
+    // MARK: - Select / move / resize
+
+    private func selectChanged(value: DragGesture.Value, display: CGSize) {
+        let current = normalize(value.location, in: display)
+        if !selectDragActive {
+            selectDragActive = true
+            selectDidEdit = false
+            selectDragStart = normalize(value.startLocation, in: display)
+            beginSelectDrag(atDisplay: value.startLocation, display: display)
+        }
+        guard let origin = selectDragOrigin else { return }
+        let delta = CGPoint(x: current.x - selectDragStart.x, y: current.y - selectDragStart.y)
+        if !selectDidEdit {
+            guard abs(delta.x) > 0.002 || abs(delta.y) > 0.002 else { return }
+            pushUndo()
+            selectDidEdit = true
+        }
+        guard let index = annotations.firstIndex(where: { $0.id == origin.id }) else { return }
+        switch selectDragMode {
+        case .move: annotations[index] = origin.moved(by: delta)
+        case .resize(let handle): annotations[index] = origin.resizing(handle: handle, to: current)
+        case .none: break
+        }
+    }
+
+    /// On drag start, decide what was grabbed: a handle of the current selection,
+    /// the body of an annotation (selecting it), or empty space (deselect).
+    private func beginSelectDrag(atDisplay point: CGPoint, display: CGSize) {
+        if let selected = selectedAnnotation {
+            for (handle, position) in selected.handlePoints.enumerated() {
+                let inPixels = CGPoint(x: position.x * display.width, y: position.y * display.height)
+                if hypot(point.x - inPixels.x, point.y - inPixels.y) <= 12 {
+                    selectDragMode = .resize(handle)
+                    selectDragOrigin = selected
+                    return
+                }
+            }
+        }
+        if let index = ScreenshotMarkup.hitTest(annotations, atDisplay: point, display: display, tolerance: 10) {
+            selectedID = annotations[index].id
+            selectDragMode = .move
+            selectDragOrigin = annotations[index]
+        } else {
+            selectedID = nil
+            selectDragMode = .none
+            selectDragOrigin = nil
+        }
+    }
+
+    private func selectEnded() {
+        selectDragActive = false
+        selectDragMode = .none
+        selectDragOrigin = nil
+        selectDidEdit = false
+    }
+
+    private func deleteSelected() {
+        guard let id = selectedID, annotations.contains(where: { $0.id == id }) else { return }
+        pushUndo()
+        annotations.removeAll { $0.id == id }
+        selectedID = nil
+    }
+
+    /// Rotate the image 90°. Current markup is flattened in first (like Crop), so
+    /// shapes and text rotate correctly without per-annotation transforms.
+    private func rotate(clockwise: Bool) {
+        let source = annotations.isEmpty ? image : (flattened() ?? image)
+        guard let rotated = ScreenshotMarkup.rotated(source, clockwise: clockwise) else {
+            state.showToast(Toast(message: "Couldn't rotate the image", ok: false))
+            return
+        }
+        pushUndo()
+        image = rotated
+        annotations.removeAll()
+        draft = nil
+        selectedID = nil
+        cropping = false
+        cropRect = nil
+        zoom = 1
+        pinchAnchor = 1
     }
 
     // MARK: - Undo / redo
@@ -330,6 +481,10 @@ struct ScreenshotEditorView: View {
         textPoint = nil
         cropping = false
         cropRect = nil
+        selectedID = nil
+        selectDragActive = false
+        selectDragMode = .none
+        selectDragOrigin = nil
     }
 
     // MARK: - Bottom bar
@@ -446,6 +601,14 @@ private extension CGPoint {
 struct EditorSnapshot {
     var image: NSImage
     var annotations: [Annotation]
+}
+
+/// What a select-mode drag is doing: nothing, moving the selection, or dragging
+/// one of its resize handles.
+private enum SelectDragMode {
+    case none
+    case move
+    case resize(Int)
 }
 
 /// Undo/redo actions the editor publishes to the app's Edit menu while its
