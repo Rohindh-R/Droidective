@@ -423,11 +423,13 @@ enum ScreenshotMarkup {
         return renderer.nsImage
     }
 
-    /// Flatten, then crop to a normalized rectangle. Returns a new image.
+    /// Flatten, then crop to a normalized rectangle. A non-zero `rotation`
+    /// extracts the tilted region, straightened. Returns a new image.
     @MainActor
-    static func crop(_ image: NSImage, annotations: [Annotation], to normalized: CGRect) -> NSImage? {
-        guard let flat = flatten(image, annotations: annotations),
-              let cg = flat.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+    static func crop(_ image: NSImage, annotations: [Annotation], to normalized: CGRect, rotation: Double = 0) -> NSImage? {
+        guard let flat = flatten(image, annotations: annotations) else { return nil }
+        if rotation != 0 { return straightenedCrop(flat, to: normalized, rotation: rotation) }
+        guard let cg = flat.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
         let w = CGFloat(cg.width), h = CGFloat(cg.height)
         let pxRect = CGRect(
             x: (normalized.minX * w).rounded(),
@@ -437,6 +439,29 @@ enum ScreenshotMarkup {
         ).intersection(CGRect(x: 0, y: 0, width: w, height: h))
         guard pxRect.width >= 1, pxRect.height >= 1, let cropped = cg.cropping(to: pxRect) else { return nil }
         return NSImage(cgImage: cropped, size: NSSize(width: cropped.width, height: cropped.height))
+    }
+
+    /// Extract a rotated crop region, straightened: render the flattened image
+    /// rotated by −angle around the crop center, clipped to the output frame.
+    @MainActor
+    private static func straightenedCrop(_ flat: NSImage, to normalized: CGRect, rotation: Double) -> NSImage? {
+        let size = pixelSize(of: flat)
+        let w = size.width, h = size.height
+        let outW = max(1, (normalized.width * w).rounded())
+        let outH = max(1, (normalized.height * h).rounded())
+        let content = ZStack(alignment: .topLeading) {
+            Image(nsImage: flat)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: w, height: h)
+                .rotationEffect(.radians(-rotation), anchor: UnitPoint(x: normalized.midX, y: normalized.midY))
+                .offset(x: outW / 2 - normalized.midX * w, y: outH / 2 - normalized.midY * h)
+        }
+        .frame(width: outW, height: outH, alignment: .topLeading)
+        .clipped()
+        let renderer = ImageRenderer(content: content)
+        renderer.scale = 1
+        return renderer.nsImage
     }
 
     /// PNG bytes for an image at its pixel resolution.
