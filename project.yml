@@ -61,8 +61,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.rohindh.droidective
         SENTRY_DSN: ""
         POSTHOG_KEY: ""
-        MARKETING_VERSION: "2.3.0"
-        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "2.4.0"
+        CURRENT_PROJECT_VERSION: "2"
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete
         CODE_SIGN_IDENTITY: "-"

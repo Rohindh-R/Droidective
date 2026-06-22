@@ -1,3 +1,38 @@
+## Droidective v2.4.0
+
+Screen recording rebuilt on scrcpy — no time limit, with audio — and a new
+video editor for trimming, rotating, cropping, converting, and compressing clips.
+
+### New features
+
+- **Screen recording via scrcpy** — recording now happens on the Mac, so there's
+  no ~3-minute cap, audio is captured by default (Android 11+), and it no longer
+  stops when the device rotates. Set max size, bit-rate, FPS, audio, and an
+  optional time limit. Needs `brew install scrcpy`.
+- **Video Editor** — trim, rotate, flip, crop, change speed, mute, convert the
+  format (MP4 / MOV / MKV / WebM / GIF), and compress — with undo/redo
+  (`⌘Z` / `⇧⌘Z`). A finished recording opens straight in the editor, and you can
+  open any existing video to edit. Needs `brew install ffmpeg`.
+
+### Improvements
+
+- **Screen Record** screen redesigned — a centered record control with the common
+  options up front and the rest under an Advanced drop-down.
+- **Live edit preview** — rotate, flip, crop, speed, and mute reflect in the
+  preview as you change them. Crop is a focused mode with the player controls
+  hidden and Apply / Cancel / Reset (Esc) actions.
+
+### Install
+
+Download the `.dmg` below and drag **Droidective** into **Applications**. The
+build is ad-hoc signed but not notarized, so clear the quarantine once:
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/Droidective.app"
+```
+
+Installed copies from v2.1.0+ update in place via Sparkle.
+
 ## Droidective v2.3.0
 
 A big screenshot-editor update — annotations you can move, resize, and rotate
