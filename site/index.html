@@ -276,7 +276,7 @@
       border-radius: 16px; overflow: hidden; border: 1px solid var(--line-2);
       box-shadow: 0 40px 100px -30px rgba(0,0,0,.7); background: var(--ink-700); max-width: 980px; margin: 0 auto 84px;
     }
-    .window img { display: block; width: 100%; height: auto; }
+    .window img, .window video { display: block; width: 100%; height: auto; }
 
     /* ---- Showcase ---- */
     .showcase { display: grid; grid-template-columns: 1fr 1fr; gap: 44px; align-items: center; }
@@ -534,7 +534,10 @@
     </div>
 
     <div class="window reveal">
-      <img src="assets/demo.gif" alt="Droidective in action — pressing ⌘K, searching for 'performance', and opening the Performance Monitor on a live Android emulator" width="940" height="594" loading="lazy" />
+      <video class="demo-vid" autoplay muted loop playsinline preload="metadata" poster="assets/demo-poster.webp" width="1280" height="810"
+             aria-label="Droidective in action — pressing ⌘K to jump between live Logcat, Device Info, and the File Explorer on a connected Android emulator">
+        <source src="assets/demo.mp4" type="video/mp4" />
+      </video>
     </div>
 
     <div class="showcase reveal">
