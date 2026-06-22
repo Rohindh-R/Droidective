@@ -30,7 +30,7 @@ struct InstalledAppsPickerView: View {
 
             HStack(spacing: 10) {
                 TextField("Filter…", text: $filter)
-                    .textFieldStyle(.roundedBorder)
+                    .brandField()
                 Toggle("System apps", isOn: $includeSystem)
                     .toggleStyle(.checkbox)
             }

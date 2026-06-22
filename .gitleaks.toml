@@ -1,0 +1,13 @@
+# gitleaks configuration. Extends the default ruleset and allowlists strings in
+# this repo that look like secrets but aren't.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Known non-secrets (public by design or not credentials)"
+regexes = [
+  # Sparkle EdDSA *public* key — embedded in the app to verify updates; meant to ship publicly.
+  '''ma0kTe35r55/PKmemQOEBX7n6SuZPZjOBo973SdJqJ8=''',
+  # UserDefaults migration key, not a credential.
+  '''didMigrateDefaultsV2''',
+]

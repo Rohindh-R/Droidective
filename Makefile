@@ -10,6 +10,8 @@ test:
 	cd ADBKit && swift test
 
 run: build
+	-pkill -x Droidective
+	@sleep 0.3
 	open "DerivedData/Build/Products/Debug/Droidective.app"
 
 dmg: generate

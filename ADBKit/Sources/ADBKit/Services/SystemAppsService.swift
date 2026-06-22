@@ -17,6 +17,17 @@ public struct AppLifecycle: Sendable, Equatable {
     }
 }
 
+/// How an uninstall-for-user attempt resolved, read back from the package's
+/// post-attempt lifecycle.
+public enum UninstallOutcome: Sendable, Equatable {
+    /// Gone from the device entirely — a user app, removed for good.
+    case removed
+    /// Still on the system image but uninstalled for this user (restorable).
+    case removedForUser
+    /// Still installed — the package manager refused (a protected package).
+    case stillInstalled
+}
+
 /// App lifecycle control behind the Apps view: disable, uninstall-for-user, or
 /// restore any package. All actions are reversible (`pm enable` /
 /// `cmd package install-existing`) and per-user — they never touch the system
@@ -81,5 +92,13 @@ public struct SystemAppsService: Sendable {
             map[package] = AppLifecycle(disabled: disabled.contains(package), removed: !installed.contains(package))
         }
         return map
+    }
+
+    /// Classify an uninstall-for-user attempt from the package's post-attempt
+    /// lifecycle. A `nil` entry means the package is no longer known to the
+    /// device — a user app removed for good, which is success, not a failure.
+    public static func uninstallOutcome(for entry: AppLifecycle?) -> UninstallOutcome {
+        guard let entry else { return .removed }
+        return entry.removed ? .removedForUser : .stillInstalled
     }
 }

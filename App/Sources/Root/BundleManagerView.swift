@@ -55,7 +55,9 @@ struct BundleManagerView: View {
             Text(editingBundle == nil ? "Add new bundle" : "Edit bundle")
                 .font(.subheadline.bold())
             TextField("Nickname (e.g. My App)", text: $nickname)
+                .brandField()
             TextField("Package id (e.g. com.myapp)", text: $packageId)
+                .brandField()
 
             HStack {
                 Spacer()

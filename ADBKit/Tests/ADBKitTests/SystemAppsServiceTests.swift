@@ -23,4 +23,16 @@ import Testing
         #expect(map["com.c"] == AppLifecycle(disabled: false, removed: true))
         #expect(map["com.c"]?.label == "Removed")
     }
+
+    @Test func uninstallOutcomeTreatsAbsentPackageAsRemoved() {
+        // A user app fully uninstalled drops out of the lifecycle map entirely;
+        // that's success, not a protected-package failure.
+        #expect(SystemAppsService.uninstallOutcome(for: nil) == .removed)
+        #expect(SystemAppsService.uninstallOutcome(
+            for: AppLifecycle(disabled: false, removed: true)) == .removedForUser)
+        #expect(SystemAppsService.uninstallOutcome(
+            for: AppLifecycle(disabled: false, removed: false)) == .stillInstalled)
+        #expect(SystemAppsService.uninstallOutcome(
+            for: AppLifecycle(disabled: true, removed: false)) == .stillInstalled)
+    }
 }

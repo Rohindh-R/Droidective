@@ -1,0 +1,10 @@
+# Pre-commit hooks. Install with `prek install`; run manually with `prek run --all-files`.
+# Blocks commits that contain secrets (API keys, tokens, DSNs) using the system gitleaks.
+repos:
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: gitleaks (block committing secrets)
+        entry: gitleaks protect --staged --redact --no-banner
+        language: system
+        pass_filenames: false

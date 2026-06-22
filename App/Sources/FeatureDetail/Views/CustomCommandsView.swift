@@ -92,7 +92,9 @@ struct CustomCommandsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(editing == nil ? "New Command" : "Edit Command").font(.headline)
             TextField("Name", text: $draftName)
+                .brandField()
             TextField("Command (e.g. shell am force-stop {bundleId})", text: $draftCommand)
+                .brandField()
                 .font(.system(.body, design: .monospaced))
             SwitchRow("Requires a saved bundle", isOn: $draftNeedsBundle)
             HStack {

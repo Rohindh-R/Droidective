@@ -60,7 +60,7 @@ struct AppsExplorerView: View {
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
                     TextField("Search name, version, or bundle…", text: $search)
-                        .textFieldStyle(.roundedBorder)
+                        .brandField()
                     Picker("", selection: $scope) {
                         ForEach(Scope.allCases, id: \.self) { scope in
                             Text(scope.rawValue).tag(scope)
@@ -184,8 +184,14 @@ struct AppsExplorerView: View {
             return await (listing, lifecycle)
         }
         guard !Task.isCancelled else { return }
-        apps = listing ?? []
+        let newApps = listing ?? []
+        apps = newApps
         states = lifecycle
+        // Drop a selection whose package no longer exists (e.g. just
+        // uninstalled) so the detail pane doesn't linger on an app that's gone.
+        if let selectedPackage, !newApps.contains(where: { $0.packageId == selectedPackage }) {
+            self.selectedPackage = nil
+        }
     }
 }
 
@@ -383,19 +389,23 @@ private struct AppDetailPane: View {
         }
     }
 
-    /// Uninstall-for-user, then verify it actually went away — protected system
-    /// apps report success but the package manager keeps them. When it didn't
-    /// stick, flag it non-removable so the button disappears.
+    /// Uninstall-for-user, then read back the lifecycle to see what happened: a
+    /// user app vanishes from the device (success), a system app stays on the
+    /// image removed-for-user (success, restorable), and a protected package is
+    /// still installed — flag it non-removable so the button disappears.
     private func uninstall() {
         managing = true
         Task {
             await CommandLog.userInitiated(feature: "apps") {
                 do {
                     _ = try await state.env.engine.systemApps.setRemoved(serial: serial, packageId: packageId, true)
-                    let removed = await state.env.engine.systemApps.states(serial: serial)[packageId]?.removed ?? false
-                    if removed {
+                    let entry = await state.env.engine.systemApps.states(serial: serial)[packageId]
+                    switch SystemAppsService.uninstallOutcome(for: entry) {
+                    case .removed:
+                        state.showToast(Toast(message: "\(packageId) uninstalled", ok: true, important: true))
+                    case .removedForUser:
                         state.showToast(Toast(message: "\(packageId) uninstalled for this user", ok: true, important: true))
-                    } else {
+                    case .stillInstalled:
                         onNotRemovable(packageId)
                         state.showToast(Toast(message: "Can't uninstall \(packageId) — it's protected. Disable it instead.", ok: false))
                     }

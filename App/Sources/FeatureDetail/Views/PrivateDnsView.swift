@@ -23,7 +23,7 @@ struct PrivateDnsSection: View {
 
             if mode == .hostname {
                 TextField("dns.google", text: $hostname)
-                    .textFieldStyle(.roundedBorder)
+                    .brandField()
                     .frame(maxWidth: 280)
             }
 
