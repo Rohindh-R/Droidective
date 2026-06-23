@@ -61,7 +61,6 @@ final class MirrorViewModel {
         self.session = session
 
         let stream = await session.start()
-        sendControl = await session.controlSender()
 
         displayTask = Task { @MainActor [weak self] in
             do {
@@ -70,6 +69,10 @@ final class MirrorViewModel {
                     self.renderer.enqueue(sample.sampleBuffer)
                     if self.status == .connecting {
                         self.status = .streaming
+                        // The transport (incl. the control socket) is connected
+                        // once frames flow — fetch the control sender now, not
+                        // right after start() when it isn't wired yet.
+                        self.sendControl = await self.session?.controlSender()
                         if let dimensions = await self.session?.currentDimensions() {
                             self.videoSize = CGSize(width: dimensions.width, height: dimensions.height)
                         }
