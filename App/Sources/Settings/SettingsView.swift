@@ -227,7 +227,7 @@ struct DoctorSettingsView: View {
 
     private static let checks: [Check] = [
         Check(tool: .adb, name: "adb", purpose: "Required — powers every device action", brewInstallable: true),
-        Check(tool: .scrcpy, name: "scrcpy", purpose: "Mirror Screen", brewInstallable: true),
+        Check(tool: .scrcpy, name: "scrcpy", purpose: "Screen Record (Mirror Screen bundles its own)", brewInstallable: true),
         Check(tool: .emulator, name: "emulator", purpose: "Launch & manage Android emulators", brewInstallable: false),
         Check(tool: .ffmpeg, name: "ffmpeg", purpose: "GIF export in Screen Record", brewInstallable: true),
         Check(tool: .brew, name: "Homebrew", purpose: "Installs the tools above", brewInstallable: false),
