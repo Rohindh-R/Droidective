@@ -126,6 +126,12 @@ final class MirrorViewModel {
         sendControl?(.injectKeycode(action: action, keycode: keycode, repeatCount: 0, metaState: 0))
     }
 
+    /// Tap a hardware/navigation key (down then up). BACK=4, HOME=3, APP_SWITCH=187.
+    func tapKey(_ keycode: UInt32) {
+        key(keycode, .down)
+        key(keycode, .up)
+    }
+
     func text(_ string: String) {
         guard !string.isEmpty else { return }
         sendControl?(.injectText(string))

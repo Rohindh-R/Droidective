@@ -59,35 +59,33 @@ private struct MirrorStage: View {
     @Bindable var model: MirrorViewModel
 
     var body: some View {
-        ZStack {
-            Color.black
-            MirrorVideoView(
-                renderer: model.renderer,
-                videoSize: model.videoSize,
-                onTouch: { action, point in model.touch(action, at: point) },
-                onKeycode: { keycode, action in model.key(keycode, action) },
-                onText: { model.text($0) },
-                onPaste: { model.pasteToDevice() },
-                onCopy: { model.copyFromDevice(cut: false) },
-                onCut: { model.copyFromDevice(cut: true) })
+        VStack(spacing: 0) {
+            ZStack {
+                Color.black
+                MirrorVideoView(
+                    renderer: model.renderer,
+                    videoSize: model.videoSize,
+                    onTouch: { action, point in model.touch(action, at: point) },
+                    onKeycode: { keycode, action in model.key(keycode, action) },
+                    onText: { model.text($0) },
+                    onPaste: { model.pasteToDevice() },
+                    onCopy: { model.copyFromDevice(cut: false) },
+                    onCut: { model.copyFromDevice(cut: true) })
 
-            switch model.status {
-            case .connecting:
-                ProgressView("Connecting…").controlSize(.large).tint(.white)
-            case let .failed(message):
-                statusCard(icon: "exclamationmark.triangle", text: message)
-            case .stopped:
-                statusCard(icon: "stop.circle", text: "Mirror stopped.")
-            case .streaming:
-                EmptyView()
-            }
-
-            if model.status == .streaming {
-                VStack {
-                    Spacer()
-                    toolbar
+                switch model.status {
+                case .connecting:
+                    ProgressView("Connecting…").controlSize(.large).tint(.white)
+                case let .failed(message):
+                    statusCard(icon: "exclamationmark.triangle", text: message)
+                case .stopped:
+                    statusCard(icon: "stop.circle", text: "Mirror stopped.")
+                case .streaming:
+                    EmptyView()
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            controlBar
         }
         .sheet(isPresented: screenshotPresented) {
             if let image = model.pendingScreenshot {
@@ -101,26 +99,43 @@ private struct MirrorStage: View {
         }
     }
 
-    private var toolbar: some View {
-        HStack(spacing: 20) {
-            Button { Task { await model.takeScreenshot() } } label: {
-                Image(systemName: "camera").font(.title2)
-            }
-            .help("Screenshot — edit in place")
+    /// Controls below the mirror: device nav keys, then screenshot + record.
+    private var controlBar: some View {
+        HStack(spacing: 16) {
+            navButton("chevron.backward", help: "Back") { model.tapKey(4) }
+            navButton("circle", help: "Home") { model.tapKey(3) }
+            navButton("square", help: "Recent apps") { model.tapKey(187) }
 
+            Divider().frame(height: 22)
+
+            navButton("camera", help: "Screenshot — edit in place") {
+                Task { await model.takeScreenshot() }
+            }
             Button { Task { await model.toggleRecording() } } label: {
                 Image(systemName: model.isRecording ? "stop.circle.fill" : "record.circle")
-                    .font(.title2)
-                    .foregroundStyle(model.isRecording ? .red : .white)
+                    .font(.title3)
+                    .foregroundStyle(model.isRecording ? .red : .primary)
+                    .frame(width: 44, height: 30)
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
             .help(model.isRecording ? "Stop recording — opens the editor" : "Record — keep mirroring")
         }
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity)
+        .background(.bar)
+        .disabled(model.status != .streaming)
+    }
+
+    private func navButton(_ systemImage: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.title3)
+                .frame(width: 44, height: 30)
+                .contentShape(Rectangle())
+        }
         .buttonStyle(.plain)
-        .foregroundStyle(.white)
-        .padding(.horizontal, 24)
-        .padding(.vertical, 12)
-        .background(.ultraThinMaterial, in: Capsule())
-        .padding(.bottom, 18)
+        .help(help)
     }
 
     private func statusCard(icon: String, text: String) -> some View {
