@@ -30,14 +30,20 @@ public actor ToolLocator {
     private var cache: [Tool: String?] = [:]
     private let runner: any ProcessRunning
     private let environment: [String: String]
+    /// Directory holding tool copies shipped inside the app bundle (scrcpy,
+    /// ffmpeg). When set, a bundled copy is preferred over any system install,
+    /// so a self-contained build never depends on Homebrew.
+    private let bundledToolsDirectory: URL?
     private let fileManager = FileManager.default
 
     public init(
         runner: any ProcessRunning = SystemProcessRunner(),
-        environment: [String: String] = ProcessInfo.processInfo.environment
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        bundledToolsDirectory: URL? = nil
     ) {
         self.runner = runner
         self.environment = environment
+        self.bundledToolsDirectory = bundledToolsDirectory
     }
 
     public func resolve(_ tool: Tool) async -> String? {
@@ -82,16 +88,20 @@ public actor ToolLocator {
             "\(home)/Library/Android/sdk",
         ].compactMap(\.self)
 
+        let system: [String]
         switch tool {
         case .adb:
-            return sdkRoots.map { "\($0)/platform-tools/adb" }
+            system = sdkRoots.map { "\($0)/platform-tools/adb" }
                 + brewPrefixes.map { "\($0)/adb" }
         case .emulator:
             // The emulator launcher only ships with the SDK, not Homebrew.
-            return sdkRoots.map { "\($0)/emulator/emulator" }
+            system = sdkRoots.map { "\($0)/emulator/emulator" }
         case .scrcpy, .brew, .ffmpeg:
-            return brewPrefixes.map { "\($0)/\(tool.rawValue)" }
+            system = brewPrefixes.map { "\($0)/\(tool.rawValue)" }
         }
+
+        guard let bundledToolsDirectory else { return system }
+        return [bundledToolsDirectory.appendingPathComponent(tool.rawValue).path] + system
     }
 
     private func resolveViaLoginShell(_ tool: Tool) async -> String? {

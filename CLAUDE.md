@@ -164,6 +164,7 @@ feature for existing users via `knownIds`.
 Feature-complete across all planned milestones plus several UX rounds (latest:
 **v2.2.0** — theme/hub overhaul, screenshot annotation editor, all-features-on
 default, live memory graph); 186 tests green; builds clean with zero warnings.
-Verified live against a physical device and an Android emulator. Open gaps: no
-notarization (ad-hoc signed — see README for the Gatekeeper workaround), the Apps
-list/detail divider isn't drag-resizable.
+Verified live against a physical device and an Android emulator. Release builds
+are Developer ID-signed + notarized and bundle scrcpy/ffmpeg
+(see `RELEASING.md`). Open gaps: the Apps list/detail divider isn't
+drag-resizable.

@@ -85,20 +85,54 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
-      - name: Install XcodeGen
-        run: brew install xcodegen
-      - name: Build and package release DMG
+      - name: Install build tools
+        run: brew install xcodegen dylibbundler
+      - name: Import Developer ID certificate
+        env:
+          DEVELOPER_ID_CERT_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
+          DEVELOPER_ID_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          echo "$DEVELOPER_ID_CERT_P12" | openssl base64 -d -A > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" \
+            -P "$DEVELOPER_ID_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN"
+          rm -f "$RUNNER_TEMP/cert.p12"
+      - name: Build, bundle tools, sign, and package DMG
         env:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           POSTHOG_KEY: ${{ secrets.POSTHOG_KEY }}
+          SIGN_IDENTITY: ${{ secrets.DEVELOPER_ID_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           xcodegen generate
           xcodebuild -project Droidective.xcodeproj -scheme App -configuration Release \
-            -derivedDataPath DerivedData build CODE_SIGNING_ALLOWED=NO \
+            -derivedDataPath DerivedData build \
             MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
-            SENTRY_DSN="$SENTRY_DSN" POSTHOG_KEY="$POSTHOG_KEY"
-          ./scripts/package-dmg.sh "${GITHUB_REF_NAME}"
+            SENTRY_DSN="$SENTRY_DSN" POSTHOG_KEY="$POSTHOG_KEY" \
+            CODE_SIGN_IDENTITY="$SIGN_IDENTITY" DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS="--timestamp"
+          ./scripts/bundle-tools.sh "DerivedData/Build/Products/Release/Droidective.app"
+          SIGN_IDENTITY="$SIGN_IDENTITY" ./scripts/package-dmg.sh "${GITHUB_REF_NAME}"
+      - name: Notarize and staple
+        env:
+          AC_API_KEY_P8: ${{ secrets.AC_API_KEY_P8 }}
+          AC_API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
+          AC_API_ISSUER_ID: ${{ secrets.AC_API_ISSUER_ID }}
+        run: |
+          echo "$AC_API_KEY_P8" | openssl base64 -d -A > "$RUNNER_TEMP/ac_api.p8"
+          AC_API_KEY_PATH="$RUNNER_TEMP/ac_api.p8" \
+          AC_API_KEY_ID="$AC_API_KEY_ID" \
+          AC_API_ISSUER_ID="$AC_API_ISSUER_ID" \
+            ./scripts/notarize.sh "DerivedData/Build/Products/Release/Droidective-${GITHUB_REF_NAME}.dmg"
+          rm -f "$RUNNER_TEMP/ac_api.p8"
       - name: Extract notes for this release
         run: awk '/^## /{c++} c==1{print} c==2{exit}' RELEASE_NOTES.md > release-body.md
       - name: Publish release with build
@@ -118,6 +152,23 @@ jobs:
           mkdir -p _site
           cp -R site/. _site/
           ./scripts/update-appcast.sh "$DMG" "$VERSION" "${{ github.run_number }}" "${GITHUB_REF_NAME}" "$DOWNLOAD_URL" "_site/appcast.xml"
+      - name: Update Homebrew cask
+        continue-on-error: true
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          [[ -n "${HOMEBREW_TAP_TOKEN:-}" ]] || { echo "no HOMEBREW_TAP_TOKEN — skipping cask update"; exit 0; }
+          VERSION="${GITHUB_REF_NAME#v}"
+          DMG="DerivedData/Build/Products/Release/Droidective-${GITHUB_REF_NAME}.dmg"
+          URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/Droidective-${GITHUB_REF_NAME}.dmg"
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/Rohindh-R/homebrew-tap.git" tap
+          ./scripts/update-cask.sh "$VERSION" "$DMG" "$URL" "tap/Casks/droidective.rb"
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/droidective.rb
+          git diff --cached --quiet || git commit -m "droidective ${VERSION}"
+          git push
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0
         with:
           path: _site
