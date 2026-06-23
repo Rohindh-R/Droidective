@@ -86,7 +86,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install build tools
-        run: brew install xcodegen dylibbundler
+        run: brew install xcodegen dylibbundler scrcpy ffmpeg
       - name: Import Developer ID certificate
         env:
           DEVELOPER_ID_CERT_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
