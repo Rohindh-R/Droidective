@@ -20,9 +20,22 @@ final class MirrorViewModel {
     private(set) var isRecording = false
     private(set) var isPaused = false
     private var recordBusy = false
-    /// Whether device audio playback is muted. Audio plays by default once the
-    /// device starts sending it (Android 11+).
-    private(set) var isMuted = false
+    /// Mirror playback volume on this Mac (0...1). Audio plays at full volume by
+    /// default once the device starts sending it (Android 11+).
+    private(set) var volume: Float = 1
+    /// Volume to restore when unmuting (the last non-zero level).
+    private var lastVolume: Float = 1
+    /// Muted == silenced playback on this Mac.
+    var isMuted: Bool { volume == 0 }
+    /// Speaker glyph reflecting the current playback level.
+    var volumeIcon: String {
+        switch volume {
+        case 0: "speaker.slash.fill"
+        case ..<0.34: "speaker.wave.1.fill"
+        case ..<0.67: "speaker.wave.2.fill"
+        default: "speaker.wave.3.fill"
+        }
+    }
     /// Device video dimensions, once known — used to map taps to device coords.
     private(set) var videoSize: CGSize?
     /// Set when a screenshot is captured; the view presents the editor on it.
@@ -109,7 +122,7 @@ final class MirrorViewModel {
                 // audio (Android < 11) never get here, so we don't touch Core Audio.
                 if !started {
                     do { try self.audioPlayer.start() } catch { return }
-                    self.audioPlayer.isMuted = self.isMuted
+                    self.audioPlayer.volume = self.volume
                     started = true
                 }
                 self.audioPlayer.enqueue(pcmS16LE: pcm)
@@ -158,11 +171,17 @@ final class MirrorViewModel {
         renderer.clear()
     }
 
-    /// Toggle device-audio playback. Drops the player gain to zero rather than
-    /// stopping the engine, so unmuting resumes instantly.
+    /// Set the mirror playback volume (0...1) on this Mac.
+    func setVolume(_ value: Float) {
+        let clamped = max(0, min(1, value))
+        volume = clamped
+        if clamped > 0 { lastVolume = clamped }
+        audioPlayer.volume = clamped
+    }
+
+    /// Toggle mute: silence playback, or restore the last non-zero level.
     func toggleMute() {
-        isMuted.toggle()
-        audioPlayer.isMuted = isMuted
+        setVolume(volume > 0 ? 0 : (lastVolume > 0 ? lastVolume : 1))
     }
 
     // MARK: - Input
