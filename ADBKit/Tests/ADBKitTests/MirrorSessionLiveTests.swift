@@ -159,3 +159,58 @@ import Testing
         await session.stop()
     }
 }
+
+@Suite struct MirrorVolumeLiveTests {
+    private static var liveEnabled: Bool {
+        ProcessInfo.processInfo.environment["MIRROR_LIVE_TEST"] == "1"
+    }
+
+    private func mediaVolume(_ adb: AdbClient, _ serial: String) async -> Int? {
+        let out = try? await adb.run(
+            on: serial, ["shell", "cmd", "media_session", "volume", "--stream", "3", "--get"])
+        guard let text = out?.stdout, let range = text.range(of: "volume is ") else { return nil }
+        let rest = text[range.upperBound...].prefix { $0.isNumber }
+        return Int(rest)
+    }
+
+    @Test(.enabled(if: liveEnabled))
+    func volumeDownKeycodeLowersDeviceVolume() async throws {
+        let serial = ProcessInfo.processInfo.environment["MIRROR_SERIAL"] ?? "emulator-5554"
+        let locator = ToolLocator()
+        let adb = AdbClient(locator: locator)
+        guard let server = await ScrcpyServerLocator.resolve(locator: locator) else {
+            Issue.record("scrcpy not installed"); return
+        }
+
+        let params = ScrcpyServerParams(
+            scid: UInt32.random(in: 1 ... 0x7fff_ffff), control: true, maxSize: 800)
+        let config = MirrorTransport.Configuration(
+            serial: serial, params: params, serverVersion: server.version, localJarPath: server.jarPath)
+        let session = MirrorSession(adb: adb, config: config)
+        let stream = await session.start()
+        let drain = Task { do { for try await _ in stream {} } catch {} }
+        for _ in 0 ..< 60 {
+            if await session.currentDimensions() != nil { break }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        let sender = await session.controlSender()
+        #expect(sender != nil)
+
+        // Media volume starts high; press device VOLUME_DOWN (25) several times
+        // over the control channel and confirm the device's own volume drops.
+        let before = await mediaVolume(adb, serial)
+        for _ in 0 ..< 8 {
+            sender?(.injectKeycode(action: .down, keycode: 25, repeatCount: 0, metaState: 0))
+            sender?(.injectKeycode(action: .up, keycode: 25, repeatCount: 0, metaState: 0))
+            try? await Task.sleep(for: .milliseconds(250))
+        }
+        try? await Task.sleep(for: .milliseconds(400))
+        let after = await mediaVolume(adb, serial)
+
+        drain.cancel()
+        await session.stop()
+
+        print("VOLUME DIAGNOSTIC: before=\(before ?? -1) after=\(after ?? -1)")
+        if let before, let after, before > 0 { #expect(after < before) }
+    }
+}

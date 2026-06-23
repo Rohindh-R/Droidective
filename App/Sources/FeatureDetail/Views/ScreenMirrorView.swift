@@ -114,6 +114,13 @@ private struct MirrorStage: View {
 
             Divider().frame(height: 22)
 
+            // Device hardware volume (KEYCODE_VOLUME_DOWN/UP) — changes the
+            // Android device's own volume, one step per tap.
+            navButton("speaker.wave.1.fill", help: "Device volume down") { model.tapKey(25) }
+            navButton("speaker.wave.3.fill", help: "Device volume up") { model.tapKey(24) }
+
+            Divider().frame(height: 22)
+
             navButton("camera", help: "Screenshot — edit in place") {
                 Task { await model.takeScreenshot() }
             }
@@ -137,8 +144,8 @@ private struct MirrorStage: View {
             Divider().frame(height: 22)
 
             navButton(
-                model.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                help: model.isMuted ? "Unmute device audio" : "Mute device audio"
+                model.isMuted ? "speaker.slash.fill" : "headphones",
+                help: model.isMuted ? "Unmute playback on this Mac" : "Mute playback on this Mac"
             ) {
                 model.toggleMute()
             }
