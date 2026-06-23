@@ -2,7 +2,7 @@ import Foundation
 
 /// Parameters for the device-side `scrcpy-server`, started via `app_process`.
 ///
-/// Unlike `ScrcpyOptions` (flags for the *desktop* scrcpy binary), these are the
+/// Unlike the desktop scrcpy binary's CLI flags, these are the
 /// `key=value` arguments the server itself parses. The in-app mirror reuses
 /// scrcpy's server but speaks its protocol directly, so we launch the server
 /// ourselves over `adb shell`. Kept pure/`Equatable` so the argument building is

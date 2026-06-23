@@ -813,26 +813,6 @@ final class AppState {
         }
     }
 
-    /// Launch scrcpy with the chosen options. When `recordToFile`, asks where
-    /// to save the recording first.
-    func launchMirror(options: ScrcpyOptions, recordToFile: Bool) {
-        guard let serial = targetSerials.first else {
-            showToast(Toast(message: "No device connected.", ok: false))
-            return
-        }
-        var recordingPath: String?
-        if recordToFile {
-            guard let url = askSaveLocation(suggestedName: "scrcpy_\(ScreenCaptureService.stamp()).mp4") else { return }
-            recordingPath = url.path
-        }
-        Task {
-            await CommandLog.userInitiated(feature: "scrcpy") {
-                let result = await env.engine.launchScrcpy(serial: serial, options: options, recordingPath: recordingPath)
-                showToast(Toast(message: result.message, ok: result.ok))
-            }
-        }
-    }
-
     /// Quick capture (sidebar ⏎, global hotkey, menu bar): grab and save
     /// straight to the capture folder — no dialog. An optional delay gives you
     /// time to arrange the device screen first. The Screenshot view itself uses

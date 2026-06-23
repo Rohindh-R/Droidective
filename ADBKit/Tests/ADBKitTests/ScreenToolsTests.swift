@@ -1,35 +1,6 @@
 import Testing
 @testable import ADBKit
 
-@Suite struct ScrcpyOptionsTests {
-    @Test func defaultsProduceNoFlags() {
-        #expect(ScrcpyOptions().args().isEmpty)
-    }
-
-    @Test func buildsCommonFlagsInOrder() {
-        let options = ScrcpyOptions(
-            maxSize: 1024, bitRateMbps: 8, maxFps: 60, crop: "1080:1920:0:0",
-            stayAwake: true, turnScreenOff: true, viewOnly: true, alwaysOnTop: true, fullscreen: true
-        )
-        #expect(options.args(recordingPath: "/tmp/out.mp4") == [
-            "--max-size", "1024",
-            "--video-bit-rate", "8M",
-            "--max-fps", "60",
-            "--crop", "1080:1920:0:0",
-            "--stay-awake",
-            "--turn-screen-off",
-            "--no-control",
-            "--always-on-top",
-            "--fullscreen",
-            "--record", "/tmp/out.mp4",
-        ])
-    }
-
-    @Test func skipsRecordWhenPathEmpty() {
-        #expect(!ScrcpyOptions(stayAwake: true).args().contains("--record"))
-    }
-}
-
 @Suite struct ScreenRecordOptionsTests {
     @Test func defaultsAreHeadlessRecord() {
         // Audio on by default → no --no-audio; all caps at 0 → no other flags.
