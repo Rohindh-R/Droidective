@@ -130,7 +130,8 @@ struct MenuBarView: View {
             runByID("screenshot")
         }
         Button("Mirror Screen") {
-            runByID("scrcpy")
+            state.activateMainWindow()
+            state.selectedFeatureID = "scrcpy"
         }
         Divider()
 
