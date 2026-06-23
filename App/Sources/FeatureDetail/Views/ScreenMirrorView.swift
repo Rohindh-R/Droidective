@@ -136,7 +136,10 @@ private struct MirrorStage: View {
 
             Divider().frame(height: 22)
 
-            VolumeControl(model: model)
+            // Device volume (one step per tap) + one-shot mute/unmute.
+            navButton("speaker.wave.1.fill", help: "Volume down") { model.tapKey(25) }
+            navButton("speaker.wave.3.fill", help: "Volume up") { model.tapKey(24) }
+            navButton("speaker.slash.fill", help: "Mute / unmute") { model.tapKey(164) }
         }
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity)
@@ -175,30 +178,3 @@ private struct MirrorStage: View {
     }
 }
 
-/// Device-volume control: a speaker icon that mutes the device on click, and an
-/// always-visible slider that sets the device's media volume (applied on release
-/// by injecting VOLUME_UP/DOWN key presses).
-private struct VolumeControl: View {
-    let model: MirrorViewModel
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Button { model.toggleMute() } label: {
-                Image(systemName: model.volumeIcon)
-                    .font(.title3)
-                    .frame(width: 28, height: 30)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help(model.isMuted ? "Unmute device" : "Mute device")
-
-            Slider(
-                value: Binding(get: { model.volume }, set: { model.previewVolume($0) }),
-                in: 0 ... 1,
-                onEditingChanged: { editing in if !editing { model.commitVolume(model.volume) } })
-                .controlSize(.small)
-                .frame(width: 90)
-                .help("Device volume")
-        }
-    }
-}

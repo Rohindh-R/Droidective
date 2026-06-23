@@ -21,13 +21,6 @@ public final class MirrorAudioPlayer: @unchecked Sendable {
     private let format: AVAudioFormat
     private var running = false
 
-    /// Playback gain (0...1) applied to the live mirror audio on this Mac.
-    /// Setting it adjusts the player node's volume without touching the engine,
-    /// so changes (and muting at 0) take effect instantly mid-stream.
-    public var volume: Float = 1 {
-        didSet { player.volume = max(0, min(1, volume)) }
-    }
-
     public init() {
         guard let format = AVAudioFormat(
             standardFormatWithSampleRate: Self.sampleRate, channels: Self.channelCount) else {
@@ -44,7 +37,6 @@ public final class MirrorAudioPlayer: @unchecked Sendable {
         guard !running else { return }
         engine.prepare()
         try engine.start()
-        player.volume = max(0, min(1, volume))
         player.play()
         running = true
     }
