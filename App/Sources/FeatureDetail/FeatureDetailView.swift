@@ -111,7 +111,7 @@ struct FeatureDetailView: View {
             case "network-speed":
                 NetworkView()
             case "scrcpy":
-                ScrcpyView()
+                ScreenMirrorView()
             default:
                 ComingSoonView(feature: feature)
             }
