@@ -64,10 +64,16 @@ spawn adb/scrcpy/emulator/brew).
   `LayoutState.sidebarOrder`/`categoryOrder`/`collapsedCategories`.
 - `Services/`: one per domain — TextInput, AppControl, AppInspection (perms/
   info/meminfo/sandbox), AppsExplorer, FileExplorer, Overrides, ScreenCapture,
-  ScreenRecorder, Crash, BugReport, Connection (wireless), CustomCommand,
-  ToolDetection, AdbKeyboardInstaller, Emulator, AppIcon, Performance
-  (per-core CPU/RAM/FPS/per-process), NetworkSpeed (`/proc/net/dev` throughput).
-  `ScreenTools` holds the pure `ScrcpyOptions`/`ScreenRecordOptions` arg builders.
+  ScreenRecorder (records through a headless `MirrorSession` on the bundled
+  scrcpy server — no desktop scrcpy), Crash, BugReport, Connection (wireless),
+  CustomCommand, ToolDetection, AdbKeyboardInstaller, Emulator, AppIcon,
+  Performance (per-core CPU/RAM/FPS/per-process), NetworkSpeed (`/proc/net/dev`
+  throughput), VideoEditService (ffmpeg export). `ScreenTools` holds the
+  `ScreenRecordOptions` struct. **Bundled binaries** (scrcpy-server + a static
+  GPLv3 ffmpeg) live in `App/Resources/`, resolved by the App-layer `BundledTools`
+  (single version source); `scripts/update-bundled-tools.sh` refreshes them. The
+  app needs no `brew install scrcpy`/`ffmpeg`; the Doctor only checks adb /
+  emulator / Homebrew.
 - `Persistence/`: `JSONStore<T>` (actor, atomic write, sets aside corrupt
   files as `.corrupt`), `Stores` (Bundles, DeepLinks, CustomCommands,
   LayoutState, Presets, OverridesMap, Prefs) in
