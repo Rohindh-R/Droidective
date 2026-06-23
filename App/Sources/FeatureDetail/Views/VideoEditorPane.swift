@@ -451,13 +451,22 @@ struct VideoEditorPane: View {
     // MARK: loading + export
 
     private func loadAsset() async {
-        if let track = try? await asset.loadTracks(withMediaType: .video).first,
-           let props = try? await track.load(.naturalSize, .preferredTransform) {
-            let oriented = props.0.applying(props.1)
-            videoSize = CGSize(width: abs(oriented.width), height: abs(oriented.height))
+        if let size = await Self.naturalVideoSize(at: source.url) {
+            videoSize = size
         }
         if let loaded = try? await asset.load(.duration) { assetDuration = loaded.seconds }
         player.isMuted = edit.mute
+    }
+
+    /// Resolve the video's oriented size off the main actor so the non-Sendable
+    /// asset and tracks never cross isolation — only the `CGSize` does. (Loading
+    /// tracks on the main actor trips Swift 6 strict concurrency under Xcode 16.)
+    private nonisolated static func naturalVideoSize(at url: URL) async -> CGSize? {
+        let asset = AVURLAsset(url: url)
+        guard let track = try? await asset.loadTracks(withMediaType: .video).first,
+              let props = try? await track.load(.naturalSize, .preferredTransform) else { return nil }
+        let oriented = props.0.applying(props.1)
+        return CGSize(width: abs(oriented.width), height: abs(oriented.height))
     }
 
     private var exportOptions: VideoExportOptions {
