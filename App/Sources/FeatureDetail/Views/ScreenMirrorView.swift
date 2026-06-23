@@ -114,13 +114,6 @@ private struct MirrorStage: View {
 
             Divider().frame(height: 22)
 
-            // Device hardware volume (KEYCODE_VOLUME_DOWN/UP) — changes the
-            // Android device's own volume, one step per tap.
-            navButton("speaker.wave.1.fill", help: "Device volume down") { model.tapKey(25) }
-            navButton("speaker.wave.3.fill", help: "Device volume up") { model.tapKey(24) }
-
-            Divider().frame(height: 22)
-
             navButton("camera", help: "Screenshot — edit in place") {
                 Task { await model.takeScreenshot() }
             }
@@ -208,6 +201,10 @@ private struct VolumeControl: View {
                     .transition(.opacity.combined(with: .move(edge: .leading)))
             }
         }
+        .padding(.horizontal, 6)
+        // Make the whole strip (incl. transparent gaps) hoverable, otherwise
+        // hover only registers over the icon glyph and the slider never reveals.
+        .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .animation(.easeInOut(duration: 0.15), value: hovering)
     }
