@@ -20,14 +20,17 @@ final class MirrorViewModel {
     private(set) var isRecording = false
     private(set) var isPaused = false
     private var recordBusy = false
-    /// Mirror playback volume on this Mac (0...1). Audio plays at full volume by
-    /// default once the device starts sending it (Android 11+).
-    private(set) var volume: Float = 1
-    /// Volume to restore when unmuting (the last non-zero level).
-    private var lastVolume: Float = 1
-    /// Muted == silenced playback on this Mac.
-    var isMuted: Bool { volume == 0 }
-    /// Speaker glyph reflecting the current playback level.
+    /// The device's media volume as a 0...1 fraction for the slider. Synced from
+    /// the device on connect and after each change.
+    private(set) var volume: Double = 0
+    /// Current/last device volume steps and the stream's max (e.g. 0...15).
+    private var volumeStep = 0
+    private var maxVolumeStep = 15
+    private var lastVolumeStep = 0
+    private var volumeBusy = false
+    /// Muted == device volume at zero.
+    var isMuted: Bool { volumeStep == 0 }
+    /// Speaker glyph reflecting the current device volume level.
     var volumeIcon: String {
         switch volume {
         case 0: "speaker.slash.fill"
@@ -122,7 +125,6 @@ final class MirrorViewModel {
                 // audio (Android < 11) never get here, so we don't touch Core Audio.
                 if !started {
                     do { try self.audioPlayer.start() } catch { return }
-                    self.audioPlayer.volume = self.volume
                     started = true
                 }
                 self.audioPlayer.enqueue(pcmS16LE: pcm)
@@ -143,6 +145,7 @@ final class MirrorViewModel {
                         if let dimensions = await self.session?.currentDimensions() {
                             self.videoSize = CGSize(width: dimensions.width, height: dimensions.height)
                         }
+                        await self.refreshDeviceVolume()
                     }
                 }
                 self?.status = .stopped
@@ -171,17 +174,57 @@ final class MirrorViewModel {
         renderer.clear()
     }
 
-    /// Set the mirror playback volume (0...1) on this Mac.
-    func setVolume(_ value: Float) {
-        let clamped = max(0, min(1, value))
-        volume = clamped
-        if clamped > 0 { lastVolume = clamped }
-        audioPlayer.volume = clamped
+    /// Move the slider locally while dragging (no device traffic until release).
+    func previewVolume(_ value: Double) {
+        volume = max(0, min(1, value))
     }
 
-    /// Toggle mute: silence playback, or restore the last non-zero level.
+    /// Apply the slider's value to the device once the drag ends.
+    func commitVolume(_ value: Double) {
+        let target = Int((max(0, min(1, value)) * Double(maxVolumeStep)).rounded())
+        Task { await applyVolumeStep(target) }
+    }
+
+    /// Toggle mute: drop the device volume to zero, or restore the last level.
     func toggleMute() {
-        setVolume(volume > 0 ? 0 : (lastVolume > 0 ? lastVolume : 1))
+        let target = volumeStep > 0 ? 0 : (lastVolumeStep > 0 ? lastVolumeStep : maxVolumeStep)
+        Task { await applyVolumeStep(target) }
+    }
+
+    /// Drive the device volume to `target` by injecting VOLUME_UP/DOWN presses,
+    /// then re-reading the device to correct for any presses it dropped or spent
+    /// showing the volume HUD (up to two rounds). The slider always ends on the
+    /// device's true level.
+    private func applyVolumeStep(_ target: Int) async {
+        guard !volumeBusy else { return }
+        volumeBusy = true
+        defer { volumeBusy = false }
+        let clamped = max(0, min(maxVolumeStep, target))
+        for _ in 0 ..< 2 {
+            let delta = clamped - volumeStep
+            guard delta != 0 else { break }
+            let keycode: UInt32 = delta > 0 ? 24 : 25  // VOLUME_UP / VOLUME_DOWN
+            for _ in 0 ..< abs(delta) {
+                tapKey(keycode)
+                try? await Task.sleep(for: .milliseconds(90))
+            }
+            await refreshDeviceVolume()
+        }
+        if volumeStep > 0 { lastVolumeStep = volumeStep }
+    }
+
+    /// Read the device's current media volume + range to position the slider.
+    private func refreshDeviceVolume() async {
+        guard let output = try? await adb.run(
+            on: serial, ["shell", "cmd", "media_session", "volume", "--stream", "3", "--get"]),
+            let valueRange = output.stdout.range(of: "volume is ") else { return }
+        let level = Int(output.stdout[valueRange.upperBound...].prefix { $0.isNumber }) ?? 0
+        if let dotRange = output.stdout.range(of: "..") {
+            maxVolumeStep = max(1, Int(output.stdout[dotRange.upperBound...].prefix { $0.isNumber }) ?? 15)
+        }
+        volumeStep = min(level, maxVolumeStep)
+        if volumeStep > 0 { lastVolumeStep = volumeStep }
+        volume = Double(volumeStep) / Double(maxVolumeStep)
     }
 
     // MARK: - Input

@@ -175,37 +175,30 @@ private struct MirrorStage: View {
     }
 }
 
-/// Playback-volume control for the mirror's Mac-side audio: a speaker icon that
-/// mutes on click and reveals a volume slider while hovered.
+/// Device-volume control: a speaker icon that mutes the device on click, and an
+/// always-visible slider that sets the device's media volume (applied on release
+/// by injecting VOLUME_UP/DOWN key presses).
 private struct VolumeControl: View {
     let model: MirrorViewModel
-    @State private var hovering = false
 
     var body: some View {
         HStack(spacing: 8) {
             Button { model.toggleMute() } label: {
                 Image(systemName: model.volumeIcon)
                     .font(.title3)
-                    .frame(width: 30, height: 30)
+                    .frame(width: 28, height: 30)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(model.isMuted ? "Unmute playback (this Mac)" : "Mute playback (this Mac)")
+            .help(model.isMuted ? "Unmute device" : "Mute device")
 
-            if hovering {
-                Slider(
-                    value: Binding(get: { Double(model.volume) }, set: { model.setVolume(Float($0)) }),
-                    in: 0 ... 1)
-                    .controlSize(.small)
-                    .frame(width: 90)
-                    .transition(.opacity.combined(with: .move(edge: .leading)))
-            }
+            Slider(
+                value: Binding(get: { model.volume }, set: { model.previewVolume($0) }),
+                in: 0 ... 1,
+                onEditingChanged: { editing in if !editing { model.commitVolume(model.volume) } })
+                .controlSize(.small)
+                .frame(width: 90)
+                .help("Device volume")
         }
-        .padding(.horizontal, 6)
-        // Make the whole strip (incl. transparent gaps) hoverable, otherwise
-        // hover only registers over the icon glyph and the slider never reveals.
-        .contentShape(Rectangle())
-        .onHover { hovering = $0 }
-        .animation(.easeInOut(duration: 0.15), value: hovering)
     }
 }
