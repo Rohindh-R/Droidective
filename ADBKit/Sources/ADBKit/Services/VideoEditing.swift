@@ -121,6 +121,13 @@ public enum VideoEditing {
         return args
     }
 
+    /// Extract a single still frame as a scaled PNG, for a recording's preview
+    /// thumbnail. ffmpeg decodes scrcpy's H.264 reliably where AVAssetImageGenerator
+    /// refuses the remuxed stream.
+    public static func thumbnailArguments(input: String, output: String) -> [String] {
+        ["-i", input, "-frames:v", "1", "-vf", "scale=640:-2", "-y", output]
+    }
+
     /// Losslessly concatenate same-codec segments (the concat demuxer) — used to
     /// stitch a paused/resumed recording's segments back into one file. `listFile`
     /// is an ffmpeg concat list (`file '<path>'` per line); `-safe 0` allows the

@@ -1,6 +1,5 @@
 import ADBKit
 import AppKit
-import AVFoundation
 import SwiftUI
 
 /// After a recording or screenshot is captured, ask what to do with it — shown
@@ -53,20 +52,35 @@ private struct RecordingDecisionModifier: ViewModifier {
     @Binding var url: URL?
     let onEdit: (URL) -> Void
     @State private var thumbnail: NSImage?
+    @State private var loadingThumbnail = true
 
     func body(content: Content) -> some View {
-        content.sheet(isPresented: presented, onDismiss: { thumbnail = nil }) {
+        content.sheet(isPresented: presented, onDismiss: resetPreview) {
             if let url {
                 MediaDecisionView(
                     title: "Recording finished",
                     preview: thumbnail,
-                    loadingPreview: thumbnail == nil,
+                    loadingPreview: loadingThumbnail,
                     onEdit: { act(onEdit) },
                     onSave: { act(save) },
                     onDiscard: { act { try? FileManager.default.removeItem(at: $0) } })
-                    .task(id: url) { thumbnail = await Self.thumbnail(for: url) }
+                    .task(id: url) { await loadThumbnail(url) }
             }
         }
+    }
+
+    private func resetPreview() {
+        thumbnail = nil
+        loadingThumbnail = true
+    }
+
+    private func loadThumbnail(_ url: URL) async {
+        loadingThumbnail = true
+        let data = await VideoEditService(
+            locator: state.env.client.locator, bundledPath: BundledTools.ffmpegPath()
+        ).thumbnail(of: url)
+        thumbnail = data.flatMap(NSImage.init(data:))
+        loadingThumbnail = false
     }
 
     private var presented: Binding<Bool> {
@@ -90,22 +104,6 @@ private struct RecordingDecisionModifier: ViewModifier {
         } catch {
             state.showToast(Toast(message: "Couldn’t save recording: \(error.localizedDescription)", ok: false))
         }
-    }
-
-    /// First-frame thumbnail. Returns PNG `Data` from a nonisolated context so no
-    /// non-Sendable CGImage/NSImage crosses back to the main actor.
-    private static func thumbnail(for url: URL) async -> NSImage? {
-        guard let data = await thumbnailPNG(url) else { return nil }
-        return NSImage(data: data)
-    }
-
-    private nonisolated static func thumbnailPNG(_ url: URL) async -> Data? {
-        let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
-        generator.appliesPreferredTrackTransform = true
-        generator.maximumSize = CGSize(width: 800, height: 800)
-        guard let cgImage = try? await generator.image(
-            at: CMTime(seconds: 0.1, preferredTimescale: 600)).image else { return nil }
-        return NSBitmapImageRep(cgImage: cgImage).representation(using: .png, properties: [:])
     }
 }
 

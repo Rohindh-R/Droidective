@@ -82,3 +82,39 @@ import Testing
         #expect(duration > 2.5)
     }
 }
+
+@Suite struct RecordingThumbnailLiveTests {
+    private static var liveEnabled: Bool {
+        ProcessInfo.processInfo.environment["MIRROR_LIVE_TEST"] == "1"
+    }
+
+    @Test(.enabled(if: liveEnabled))
+    func recordingProducesAThumbnail() async throws {
+        let serial = ProcessInfo.processInfo.environment["MIRROR_SERIAL"] ?? "emulator-5554"
+        let locator = ToolLocator()
+        let adb = AdbClient(locator: locator)
+        guard let server = await ScrcpyServerLocator.resolve(locator: locator) else {
+            Issue.record("scrcpy not installed"); return
+        }
+        let recorder = ScreenRecorder(client: adb, server: server)
+        try await recorder.start(serial: serial, options: ScreenRecordOptions(maxSize: 800))
+        try await Task.sleep(for: .seconds(3))
+        let url = try await recorder.stop()
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        guard let ffmpeg = await locator.resolve(.ffmpeg) else {
+            Issue.record("ffmpeg not installed"); return
+        }
+        let out = FileManager.default.temporaryDirectory
+            .appendingPathComponent("thumb-test-\(UInt32.random(in: 0 ... 0xffff)).png")
+        defer { try? FileManager.default.removeItem(at: out) }
+        let result = await SystemProcessRunner().run(
+            executable: ffmpeg,
+            arguments: VideoEditing.thumbnailArguments(input: url.path, output: out.path),
+            timeout: .seconds(20), maxOutputBytes: 1_000_000)
+        let size = (try? FileManager.default.attributesOfItem(atPath: out.path)[.size] as? Int) ?? 0
+        print("THUMB FFMPEG: exit=\(result.exitCode) size=\(size ?? 0)")
+        #expect(result.exitCode == 0)
+        #expect((size ?? 0) > 0)
+    }
+}

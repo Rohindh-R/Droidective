@@ -37,6 +37,22 @@ public actor VideoEditService {
         return await locator.resolve(.ffmpeg)
     }
 
+    /// A still-frame PNG preview of `source`, or nil if it can't be produced.
+    /// Uses ffmpeg because AVAssetImageGenerator refuses the recorder's remuxed
+    /// H.264 (error -11821), even though the file plays and re-encodes fine.
+    public func thumbnail(of source: URL) async -> Data? {
+        guard let ffmpeg = await ffmpegPath() else { return nil }
+        let out = FileManager.default.temporaryDirectory
+            .appendingPathComponent("droidective-thumb-\(UInt32.random(in: 0 ... 0xffff_ffff)).png")
+        defer { try? FileManager.default.removeItem(at: out) }
+        let result = await SystemProcessRunner().run(
+            executable: ffmpeg,
+            arguments: VideoEditing.thumbnailArguments(input: source.path, output: out.path),
+            timeout: .seconds(30), maxOutputBytes: 1024 * 1024)
+        guard result.exitCode == 0 else { return nil }
+        return try? Data(contentsOf: out)
+    }
+
     /// Apply `options` to `source` and write `destination`. A no-edit export to
     /// the same container is a lossless file copy; everything else re-encodes.
     public func export(
