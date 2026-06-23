@@ -37,7 +37,10 @@ public actor MirrorSession {
     private var latest: Snapshot?
 
     private var consumeTask: Task<Void, Never>?
+    private var controlConsumeTask: Task<Void, Never>?
     private var displayContinuation: AsyncThrowingStream<DisplaySample, Error>.Continuation?
+    private var clipboardStream: AsyncStream<String>?
+    private var clipboardContinuation: AsyncStream<String>.Continuation?
 
     private var recorder: MirrorRecorder?
     private var recorderStarted = false
@@ -55,6 +58,9 @@ public actor MirrorSession {
     public func start() -> AsyncThrowingStream<DisplaySample, Error> {
         let (stream, continuation) = AsyncThrowingStream.makeStream(of: DisplaySample.self)
         displayContinuation = continuation
+        let (clipboard, clipboardSink) = AsyncStream.makeStream(of: String.self)
+        clipboardStream = clipboard
+        clipboardContinuation = clipboardSink
         decoder.onImage = { [weak self] box, _ in
             guard let self else { return }
             Task { await self.storeLatest(box) }
@@ -66,6 +72,8 @@ public actor MirrorSession {
     public func stop() async {
         consumeTask?.cancel()
         consumeTask = nil
+        controlConsumeTask?.cancel()
+        controlConsumeTask = nil
         decoder.invalidate()
         await transport.stop()
         if recorder != nil {
@@ -75,6 +83,8 @@ public actor MirrorSession {
         }
         displayContinuation?.finish()
         displayContinuation = nil
+        clipboardContinuation?.finish()
+        clipboardContinuation = nil
     }
 
     /// The latest decoded frame, for a screenshot.
@@ -89,6 +99,10 @@ public actor MirrorSession {
         guard let sink = await transport.controlSender() else { return nil }
         return { message in sink(message.serialized()) }
     }
+
+    /// Clipboard text the device pushed back (a device-side copy, or a reply to
+    /// GET_CLIPBOARD). Subscribe and mirror it onto the Mac pasteboard.
+    public func incomingClipboards() -> AsyncStream<String>? { clipboardStream }
 
     public func isRecording() -> Bool { recorder != nil }
 
@@ -114,6 +128,14 @@ public actor MirrorSession {
     private func run(_ continuation: AsyncThrowingStream<DisplaySample, Error>.Continuation) async {
         do {
             let bytes = try await transport.start()
+            if let control = await transport.controlIncoming() {
+                controlConsumeTask = Task { [weak self] in
+                    var deviceDecoder = ScrcpyDeviceMessageDecoder()
+                    for await chunk in control {
+                        await self?.handleDeviceMessages(deviceDecoder.consume(chunk))
+                    }
+                }
+            }
             var streamDecoder = ScrcpyStreamDecoder(tunnelForward: true)
             for try await chunk in bytes {
                 if Task.isCancelled { break }
@@ -159,6 +181,14 @@ public actor MirrorSession {
                     recorderStarted = true
                     recorder.append(sampleBuffer)
                 }
+            }
+        }
+    }
+
+    private func handleDeviceMessages(_ messages: [ScrcpyDeviceMessage]) {
+        for message in messages {
+            if case let .clipboard(text) = message {
+                clipboardContinuation?.yield(text)
             }
         }
     }

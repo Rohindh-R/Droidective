@@ -66,7 +66,10 @@ private struct MirrorStage: View {
                 videoSize: model.videoSize,
                 onTouch: { action, point in model.touch(action, at: point) },
                 onKeycode: { keycode, action in model.key(keycode, action) },
-                onText: { model.text($0) })
+                onText: { model.text($0) },
+                onPaste: { model.pasteToDevice() },
+                onCopy: { model.copyFromDevice(cut: false) },
+                onCut: { model.copyFromDevice(cut: true) })
 
             switch model.status {
             case .connecting:
