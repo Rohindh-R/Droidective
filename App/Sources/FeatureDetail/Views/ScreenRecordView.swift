@@ -2,9 +2,10 @@ import ADBKit
 import Foundation
 import SwiftUI
 
-/// Record the device screen via scrcpy (no time limit, audio by default). The
-/// Record button and status sit up top; tuning lives in a collapsed Advanced
-/// drop-down. Stopping opens the clip in the video editor.
+/// Record the device screen via the in-app scrcpy client (bundled server, no
+/// separate install, audio on Android 11+). The Record button and status sit up
+/// top; tuning lives in a collapsed Advanced drop-down. Stopping opens the clip
+/// in the video editor.
 struct ScreenRecordView: View {
     @Environment(AppState.self) private var state
     @State private var recorder: ScreenRecorder?
@@ -14,6 +15,7 @@ struct ScreenRecordView: View {
     @State private var startedAt: Date?
     @State private var recordedURL: URL?
     @State private var showAdvanced = false
+    @State private var limitTask: Task<Void, Never>?
 
     @AppStorage("recMaxSize") private var maxSize = 0
     @AppStorage("recBitRate") private var bitRateMbps = 0
@@ -28,8 +30,6 @@ struct ScreenRecordView: View {
         )
     }
 
-    private var scrcpyMissing: Bool { state.scrcpyStatus?.installed == false }
-
     var body: some View {
         Group {
             if let url = recordedURL {
@@ -43,6 +43,7 @@ struct ScreenRecordView: View {
             }
         }
         .onDisappear {
+            limitTask?.cancel()
             if isRecording, let recorder { Task { await recorder.abort() } }
             if let url = recordedURL { try? FileManager.default.removeItem(at: url) }
         }
@@ -98,7 +99,7 @@ struct ScreenRecordView: View {
         .buttonStyle(.borderedProminent)
         .tint(isRecording ? .red : .brandAccent)
         .controlSize(.large)
-        .disabled(isStarting || isStopping || state.targetSerials.isEmpty || (scrcpyMissing && !isRecording))
+        .disabled(isStarting || isStopping || state.targetSerials.isEmpty)
     }
 
     private var buttonTitle: String {
@@ -110,19 +111,6 @@ struct ScreenRecordView: View {
     @ViewBuilder private var hints: some View {
         if state.targetSerials.isEmpty {
             Text("Connect a device to record.").font(.footnote).foregroundStyle(.textMuted)
-        } else if scrcpyMissing {
-            scrcpyHint
-        }
-    }
-
-    @ViewBuilder private var scrcpyHint: some View {
-        if state.installingTool == .scrcpy {
-            Text("Installing scrcpy…").font(.footnote).foregroundStyle(.textMuted)
-        } else {
-            VStack(spacing: 6) {
-                Text("Recording needs scrcpy.").font(.footnote).foregroundStyle(.textMuted)
-                Button("Install scrcpy") { state.installTool(.scrcpy) }.controlSize(.small)
-            }
         }
     }
 
@@ -203,8 +191,12 @@ struct ScreenRecordView: View {
 
     private func start() {
         guard let serial = state.targetSerials.first, !isStarting else { return }
+        guard let server = BundledTools.scrcpyServer() else {
+            state.showToast(Toast(message: "Bundled scrcpy server is missing from the app.", ok: false))
+            return
+        }
         isStarting = true
-        let recorder = ScreenRecorder(client: state.env.client)
+        let recorder = ScreenRecorder(client: state.env.client, server: server)
         self.recorder = recorder
         let options = recordOptions
         Task {
@@ -212,6 +204,7 @@ struct ScreenRecordView: View {
                 try await recorder.start(serial: serial, options: options)
                 isRecording = true
                 startedAt = Date()
+                scheduleTimeLimit(options.timeLimitSeconds)
             } catch {
                 state.showToast(Toast(message: error.localizedDescription, ok: false))
                 self.recorder = nil
@@ -220,8 +213,21 @@ struct ScreenRecordView: View {
         }
     }
 
+    /// The server has no time-limit knob, so the UI stops the recording after the
+    /// chosen duration (0 = unlimited).
+    private func scheduleTimeLimit(_ seconds: Int) {
+        limitTask?.cancel()
+        guard seconds > 0 else { return }
+        limitTask = Task {
+            try? await Task.sleep(for: .seconds(seconds))
+            if !Task.isCancelled, isRecording { stop() }
+        }
+    }
+
     private func stop() {
         guard let recorder, !isStopping else { return }
+        limitTask?.cancel()
+        limitTask = nil
         isStopping = true
         Task {
             do {

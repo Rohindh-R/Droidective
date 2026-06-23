@@ -35,11 +35,10 @@ public struct ToolDetectionService: Sendable {
         self.runner = runner
     }
 
-    public func detect() async -> (adb: ToolStatus, scrcpy: ToolStatus, ffmpeg: ToolStatus) {
-        async let adb = detectOne(.adb, versionArgs: ["version"])
-        async let scrcpy = detectOne(.scrcpy, versionArgs: ["--version"])
-        async let ffmpeg = detectOne(.ffmpeg, versionArgs: ["-version"])
-        return await (adb, scrcpy, ffmpeg)
+    /// Detect adb — the only external tool the app gates on (scrcpy and ffmpeg
+    /// are bundled). The Doctor uses `detectAll` for the full report.
+    public func detectAdb() async -> ToolStatus {
+        await detectOne(.adb, versionArgs: ["version"])
     }
 
     /// Detect every external tool the app can use, for the setup Doctor.

@@ -55,7 +55,7 @@ final class MirrorViewModel {
         // Prefer the bundled server (self-contained); fall back to an installed
         // scrcpy only if the bundled resource is somehow missing.
         let server: ScrcpyServerInfo?
-        if let bundled = BundledScrcpyServer.info() {
+        if let bundled = BundledTools.scrcpyServer() {
             server = bundled
         } else {
             server = await ScrcpyServerLocator.resolve(locator: locator)

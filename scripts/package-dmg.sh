@@ -13,9 +13,16 @@ if [[ ! -d "$APP" ]]; then
   exit 1
 fi
 
-# Re-sign the whole bundle ad-hoc so the signature is internally valid. This
-# does not bypass Gatekeeper (no Developer ID) but prevents a broken/missing
-# signature from compounding the quarantine "damaged" message.
+# Sign the bundled command-line binaries first (codesign --deep doesn't reliably
+# sign loose Mach-O executables sitting in Resources), then re-sign the whole
+# bundle ad-hoc so the signature is internally valid. This does not bypass
+# Gatekeeper (no Developer ID) but prevents a broken/missing signature from
+# compounding the quarantine "damaged" message.
+for binary in ffmpeg; do
+  if [[ -f "$APP/Contents/Resources/$binary" ]]; then
+    codesign --force --sign - "$APP/Contents/Resources/$binary"
+  fi
+done
 codesign --force --deep --sign - "$APP"
 codesign --verify --deep --strict "$APP"
 

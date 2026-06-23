@@ -105,7 +105,6 @@ struct VideoEditorPane: View {
         _player = State(initialValue: AVPlayer(playerItem: AVPlayerItem(asset: asset)))
     }
 
-    private var ffmpegMissing: Bool { state.ffmpegStatus?.installed == false }
     /// View transforms apply only while not trimming/cropping, so those UIs stay
     /// upright and map to the unrotated frame.
     private var transformActive: Bool { !cropMode && !isTrimming }
@@ -329,22 +328,13 @@ struct VideoEditorPane: View {
 
             Spacer()
 
-            if ffmpegMissing { ffmpegHint }
             Button { export() } label: {
                 Label(isExporting ? "Exporting…" : "Export", systemImage: "square.and.arrow.down")
                     .frame(minWidth: 110)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(isExporting || ffmpegMissing || cropMode)
-        }
-    }
-
-    @ViewBuilder private var ffmpegHint: some View {
-        if state.installingTool == .ffmpeg {
-            Text("Installing ffmpeg…").font(.footnote).foregroundStyle(.textMuted)
-        } else {
-            Button("Install ffmpeg") { state.installTool(.ffmpeg) }.controlSize(.large)
+            .disabled(isExporting || cropMode)
         }
     }
 
@@ -489,7 +479,8 @@ struct VideoEditorPane: View {
         Task {
             do {
                 let saved = try await state.withOperation("Exporting video…") {
-                    try await VideoEditService(locator: state.env.client.locator)
+                    try await VideoEditService(
+                        locator: state.env.client.locator, bundledPath: BundledTools.ffmpegPath())
                         .export(source: url, options: options, to: dest)
                 }
                 state.showToast(Toast(message: "Video exported", ok: true, revealPath: saved.path))

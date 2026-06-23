@@ -1,100 +1,101 @@
 import Foundation
 
-/// Screen recording via scrcpy. scrcpy records the video (and audio) stream on
-/// the Mac side, so it has none of `adb shell screenrecord`'s limits: no ~3-min
-/// cap, audio by default (Android 11+), and it survives device rotation. We
-/// spawn scrcpy headless (`--no-playback`, no mirror window) writing to a temp
-/// MP4, then SIGTERM it to stop — scrcpy finalizes the container (writes the
-/// moov atom) on SIGTERM. It ignores SIGINT when run headless, so `terminate()`
-/// is required, not `interrupt()`; SIGKILL would leave the file unfinalized. The
-/// finished temp file is handed to the editor; nothing lands in the capture
-/// folder until the user exports.
+/// Screen recording built on the in-app scrcpy client (the bundled server), so
+/// it needs no separate scrcpy install. A headless `MirrorSession` brings up the
+/// device stream and records it straight to an `.mp4` (H.264 passthrough video +
+/// AAC audio on Android 11+) — none of `adb shell screenrecord`'s limits (no
+/// ~3-min cap, audio, survives rotation). The finished temp file is handed to the
+/// editor; nothing lands in the capture folder until the user exports.
 public actor ScreenRecorder {
     public enum RecordingError: Error, LocalizedError {
         case alreadyRecording
         case notRecording
-        case scrcpyNotFound
-        case adbNotFound
         case startFailed(String)
 
         public var errorDescription: String? {
             switch self {
             case .alreadyRecording: return "A recording is already in progress."
             case .notRecording: return "No active recording."
-            case .scrcpyNotFound:
-                return "scrcpy isn't installed. Run `brew install scrcpy`, then try again."
-            case .adbNotFound: return "adb not found — scrcpy needs it to connect."
             case .startFailed(let reason): return reason
             }
         }
     }
 
     private let client: AdbClient
-    private var child: Process?
+    private let server: ScrcpyServerInfo
+    private var session: MirrorSession?
     private var localPath: URL?
 
-    public init(client: AdbClient) {
+    /// - Parameter server: the bundled `scrcpy-server` info (jar path + version),
+    ///   resolved by the App layer from `Bundle.main`.
+    public init(client: AdbClient, server: ScrcpyServerInfo) {
         self.client = client
+        self.server = server
     }
 
-    public var isRecording: Bool { child != nil }
+    public var isRecording: Bool { session != nil }
 
     public func start(serial: String, options: ScreenRecordOptions = ScreenRecordOptions()) async throws {
-        guard child == nil else { throw RecordingError.alreadyRecording }
-        guard let scrcpyPath = await client.locator.resolve(.scrcpy) else {
-            throw RecordingError.scrcpyNotFound
-        }
-        guard let adbPath = await client.locator.resolve(.adb) else {
-            throw RecordingError.adbNotFound
-        }
+        guard session == nil else { throw RecordingError.alreadyRecording }
+        let params = ScrcpyServerParams(
+            scid: UInt32.random(in: 1 ... 0x7fff_ffff),
+            audio: options.captureAudio,
+            control: false,
+            maxSize: options.maxSize,
+            videoBitRate: options.bitRateMbps > 0 ? options.bitRateMbps * 1_000_000 : 0,
+            maxFps: options.maxFps)
+        let config = MirrorTransport.Configuration(
+            serial: serial, params: params,
+            serverVersion: server.version, localJarPath: server.jarPath)
+        let session = MirrorSession(adb: client, config: config)
+        // start() drives decode + recording from the session's own task; the
+        // returned display stream is bounded and left undrained (we only record).
+        _ = await session.start()
+
         let temp = FileManager.default.temporaryDirectory
             .appendingPathComponent("droidective-recording-\(ScreenCaptureService.stamp()).mp4")
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: scrcpyPath)
-        process.arguments = ["-s", serial] + options.args(recordingPath: temp.path)
-        process.environment = ScreenTools.scrcpyEnvironment(
-            base: ProcessInfo.processInfo.environment,
-            scrcpyPath: scrcpyPath,
-            adbPath: adbPath
-        )
-        process.standardInput = FileHandle.nullDevice
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        do {
-            try process.run()
-        } catch {
-            throw RecordingError.startFailed("Couldn't launch scrcpy: \(error.localizedDescription)")
+        // Arm recording up front; the session creates the recorder when the config
+        // packet lands so the first key frame is captured. Then confirm the stream
+        // actually came up (app_process boot + first frame) within ~15s.
+        try await session.startRecording(to: temp)
+        guard await Self.waitUntilStreaming(session: session) else {
+            await session.stop()
+            throw RecordingError.startFailed("Couldn't get video from the device.")
         }
-        child = process
-        localPath = temp
+        self.session = session
+        self.localPath = temp
     }
 
-    /// Stop recording: SIGTERM scrcpy so it finalizes the MP4, wait for it to
-    /// exit, and return the finished file. scrcpy shuts down on the next frame
-    /// it receives, so a static screen (no frames) can delay the flush by tens
-    /// of seconds; we wait up to ~40s before SIGKILL as a last resort (which
-    /// would leave the file unfinalized).
-    public func stop() async throws -> URL {
-        guard let child, let localPath else { throw RecordingError.notRecording }
-        self.child = nil
-        self.localPath = nil
-
-        child.terminate()
-        for _ in 0..<400 where child.isRunning {
-            try? await Task.sleep(for: .milliseconds(100))
+    private static func waitUntilStreaming(session: MirrorSession) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(15))
+        while clock.now < deadline {
+            // Known dimensions mean the video header arrived — video is flowing,
+            // and the recorder is armed to catch the first key frame.
+            if await session.currentDimensions() != nil { return true }
+            try? await Task.sleep(for: .milliseconds(150))
         }
-        if child.isRunning { kill(child.processIdentifier, SIGKILL) }
+        return false
+    }
+
+    /// Stop recording, finalize the MP4, and return the finished file.
+    public func stop() async throws -> URL {
+        guard let session, let localPath else { throw RecordingError.notRecording }
+        self.session = nil
+        self.localPath = nil
+        _ = try? await session.stopRecording(url: localPath)
+        await session.stop()
         return localPath
     }
 
-    /// Abort and discard (view dismissed / app quit). SIGTERM stops scrcpy, then
-    /// removes the temp file.
-    public func abort() {
-        child?.terminate()
+    /// Abort and discard (view dismissed / app quit): tear down the session and
+    /// remove the temp file.
+    public func abort() async {
+        guard let session else { return }
         let temp = localPath
-        child = nil
-        localPath = nil
+        self.session = nil
+        self.localPath = nil
+        await session.stop()
         if let temp { try? FileManager.default.removeItem(at: temp) }
     }
 }
