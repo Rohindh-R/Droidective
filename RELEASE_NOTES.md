@@ -1,3 +1,23 @@
+## Droidective v2.4.0
+
+Droidective is now signed with a Developer ID and notarized by Apple, so it
+opens with no Gatekeeper warning — and it ships with scrcpy and ffmpeg bundled,
+so screen mirroring and GIF export work without installing anything extra.
+
+### New features
+
+- **Notarized build** — signed with a Developer ID and notarized by Apple. No
+  more "Droidective is damaged" warning and no `xattr` workaround; just open it.
+- **Self-contained** — scrcpy and ffmpeg now ship inside the app, so Mirror
+  Screen and GIF export work out of the box, with no Homebrew install needed.
+
+### Install
+
+Download the `.dmg` below and drag **Droidective** into **Applications**. It
+opens normally — no quarantine workaround needed.
+
+Installed copies from v2.1.0+ update in place via Sparkle.
+
 ## Droidective v2.3.0
 
 A big screenshot-editor update — annotations you can move, resize, and rotate
