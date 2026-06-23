@@ -213,4 +213,49 @@ import Testing
         print("VOLUME DIAGNOSTIC: before=\(before ?? -1) after=\(after ?? -1)")
         if let before, let after, before > 0 { #expect(after < before) }
     }
+
+    @Test(.enabled(if: liveEnabled))
+    func convergesToTargetVolumeViaKeycodes() async throws {
+        let serial = ProcessInfo.processInfo.environment["MIRROR_SERIAL"] ?? "emulator-5554"
+        let locator = ToolLocator()
+        let adb = AdbClient(locator: locator)
+        guard let server = await ScrcpyServerLocator.resolve(locator: locator) else {
+            Issue.record("scrcpy not installed"); return
+        }
+        let params = ScrcpyServerParams(
+            scid: UInt32.random(in: 1 ... 0x7fff_ffff), control: true, maxSize: 800)
+        let config = MirrorTransport.Configuration(
+            serial: serial, params: params, serverVersion: server.version, localJarPath: server.jarPath)
+        let session = MirrorSession(adb: adb, config: config)
+        let stream = await session.start()
+        let drain = Task { do { for try await _ in stream {} } catch {} }
+        for _ in 0 ..< 60 {
+            if await session.currentDimensions() != nil { break }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        let sender = await session.controlSender()
+        #expect(sender != nil)
+
+        // Mimic MirrorViewModel.applyVolumeStep: converge to a target step.
+        let target = 5
+        for _ in 0 ..< 2 {
+            let current = await mediaVolume(adb, serial) ?? 0
+            let delta = target - current
+            if delta == 0 { break }
+            let keycode: UInt32 = delta > 0 ? 24 : 25
+            for _ in 0 ..< abs(delta) {
+                sender?(.injectKeycode(action: .down, keycode: keycode, repeatCount: 0, metaState: 0))
+                sender?(.injectKeycode(action: .up, keycode: keycode, repeatCount: 0, metaState: 0))
+                try? await Task.sleep(for: .milliseconds(90))
+            }
+            try? await Task.sleep(for: .milliseconds(300))
+        }
+        let final = await mediaVolume(adb, serial)
+        drain.cancel()
+        await session.stop()
+
+        print("CONVERGE DIAGNOSTIC: target=\(target) final=\(final ?? -1)")
+        if let final { #expect(abs(final - target) <= 1) }
+    }
 }
+
