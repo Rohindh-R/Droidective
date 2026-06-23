@@ -347,6 +347,16 @@ public struct FeatureEngine: Sendable {
         process.arguments = ["-s", serial] + options.args(recordingPath: recordingPath)
         var environment = ProcessInfo.processInfo.environment
         environment["ADB"] = adbPath
+        // A bundled scrcpy (Contents/Helpers/scrcpy) ships its server alongside
+        // it under Contents/Resources; point scrcpy at it. A Homebrew scrcpy
+        // finds its own server, so this is skipped when the file isn't present.
+        let bundledServer = URL(fileURLWithPath: scrcpyPath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Resources/scrcpy-server")
+        if FileManager.default.fileExists(atPath: bundledServer.path) {
+            environment["SCRCPY_SERVER_PATH"] = bundledServer.path
+        }
         let extraPaths = [
             (adbPath as NSString).deletingLastPathComponent,
             (scrcpyPath as NSString).deletingLastPathComponent,
