@@ -87,10 +87,32 @@ jobs:
           persist-credentials: false
       - name: Install XcodeGen
         run: brew install xcodegen
-      - name: Build and package release DMG
+      - name: Import Developer ID certificate
+        env:
+          DEVELOPER_ID_P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/app-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          echo "$DEVELOPER_ID_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -P "$DEVELOPER_ID_P12_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN"
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security find-identity -v -p codesigning "$KEYCHAIN"
+      - name: Build, sign, and notarize release DMG
         env:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           POSTHOG_KEY: ${{ secrets.POSTHOG_KEY }}
+          SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+          NOTARY_KEY_BASE64: ${{ secrets.NOTARY_KEY_P8_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           xcodegen generate
@@ -98,7 +120,11 @@ jobs:
             -derivedDataPath DerivedData build CODE_SIGNING_ALLOWED=NO \
             MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             SENTRY_DSN="$SENTRY_DSN" POSTHOG_KEY="$POSTHOG_KEY"
+          echo "$NOTARY_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+          export NOTARY_KEY_PATH="$RUNNER_TEMP/notary.p8"
           ./scripts/package-dmg.sh "${GITHUB_REF_NAME}"
+          ./scripts/notarize-dmg.sh "DerivedData/Build/Products/Release/Droidective-${GITHUB_REF_NAME}.dmg"
+          rm -f "$RUNNER_TEMP/notary.p8"
       - name: Extract notes for this release
         run: awk '/^## /{c++} c==1{print} c==2{exit}' RELEASE_NOTES.md > release-body.md
       - name: Publish release with build

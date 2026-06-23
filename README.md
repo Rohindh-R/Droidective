@@ -15,8 +15,9 @@ Built in Swift 6 + SwiftUI, with all logic in a platform-agnostic Swift package
 (`ADBKit`) so the engine stays testable and a future cross-platform port only
 needs a new UI layer.
 
-> Requires macOS 14+ and the Android `adb` tool. Ad-hoc signed (not notarized);
-> see [Building](#building) and [Install a release build](#install-a-release-build).
+> Requires macOS 14+ and the Android `adb` tool. Release builds are signed with a
+> Developer ID and notarized; see [Building](#building) and
+> [Install a release build](#install-a-release-build).
 
 ## Features
 
@@ -68,8 +69,8 @@ font zoom. Files pulled from the device always ask where to save (default
 - [Android platform-tools](https://developer.android.com/tools/releases/platform-tools)
   (`adb`) — found automatically via `ANDROID_HOME`, `~/Library/Android/sdk`, or
   Homebrew; the app offers a one-click install if it's missing.
-- Optional: `scrcpy` (screen mirroring), `ffmpeg` (GIF export), the Android SDK
-  `emulator` (AVD management).
+- Optional: the Android SDK `emulator` (AVD management). `scrcpy` (the server
+  payload) and `ffmpeg` ship inside the app — no `brew install` needed.
 
 ## Building
 
@@ -84,23 +85,17 @@ make run                  # build and launch
 `project.yml` and is gitignored — run `make generate` (or `xcodegen generate`)
 after a fresh clone if you want to open it in Xcode.
 
-The app runs **without the App Sandbox** (it must spawn `adb`, `scrcpy`,
-`emulator`, and `brew`) and is **ad-hoc signed** for local development.
+The app runs **without the App Sandbox** (it must spawn `adb`, the bundled
+`ffmpeg`, the `emulator`, and `brew`). Local builds are ad-hoc signed; release
+builds are signed with a Developer ID and notarized.
 
 ## Install a release build
 
 Each [GitHub release](../../releases) ships a `Droidective-<version>.dmg` built
-by CI. Open it and drag **Droidective** into **Applications**.
+by CI, signed with a Developer ID and notarized by Apple. Open it and drag
+**Droidective** into **Applications** — no quarantine workaround needed.
 
-The build is ad-hoc signed but not notarized (no paid Apple Developer account),
-so on first launch macOS quarantine shows *"Droidective is damaged and can't be
-opened."* Clear the quarantine once:
-
-```sh
-xattr -dr com.apple.quarantine "/Applications/Droidective.app"
-```
-
-Then open it normally. Building from source avoids the quarantine entirely.
+Installed copies update in place via Sparkle.
 
 ## Architecture
 
@@ -131,4 +126,6 @@ Issues and PRs welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 [MIT](LICENSE) © 2026 Rohindh R.
 
 scrcpy, ffmpeg, adb, and the Android emulator are separate tools with their own
-licenses; Droidective shells out to them and does not bundle them.
+licenses. The app bundles the scrcpy server payload and a static ffmpeg (GPLv3);
+adb and the emulator are used from your Android SDK. See
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

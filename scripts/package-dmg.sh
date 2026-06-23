@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
-# Ad-hoc sign the built Release app and package it into a drag-to-Applications DMG.
+# Sign the built Release app and package it into a drag-to-Applications DMG.
 # Assumes the Release configuration has already been built into DerivedData.
+#
+# Signing identity comes from $SIGN_IDENTITY:
+#   "-" (default)               ad-hoc — local dev, not notarizable.
+#   "Developer ID Application…"  Developer ID — hardened runtime + secure
+#                               timestamp, ready for notarization (see
+#                               scripts/notarize-dmg.sh).
 set -euo pipefail
 
 VERSION="${1:-dev}"
+SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 APP_DIR="DerivedData/Build/Products/Release"
 APP="$APP_DIR/Droidective.app"
 DMG="$APP_DIR/Droidective-${VERSION}.dmg"
@@ -14,16 +21,22 @@ if [[ ! -d "$APP" ]]; then
 fi
 
 # Sign the bundled command-line binaries first (codesign --deep doesn't reliably
-# sign loose Mach-O executables sitting in Resources), then re-sign the whole
-# bundle ad-hoc so the signature is internally valid. This does not bypass
-# Gatekeeper (no Developer ID) but prevents a broken/missing signature from
-# compounding the quarantine "damaged" message.
-for binary in ffmpeg; do
-  if [[ -f "$APP/Contents/Resources/$binary" ]]; then
-    codesign --force --sign - "$APP/Contents/Resources/$binary"
+# sign loose Mach-O executables sitting in Resources), then sign the whole
+# bundle. ffmpeg is the only macOS Mach-O — scrcpy-server is a device-side
+# payload covered by the bundle seal. Ad-hoc keeps the signature internally
+# valid; Developer ID adds the hardened runtime and a secure timestamp so the
+# bundle can be notarized.
+sign() {
+  if [[ "$SIGN_IDENTITY" == "-" ]]; then
+    codesign --force --sign - "$@"
+  else
+    codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$@"
   fi
-done
-codesign --force --deep --sign - "$APP"
+}
+
+ffmpeg="$APP/Contents/Resources/ffmpeg"
+[[ -f "$ffmpeg" ]] && sign "$ffmpeg"
+sign --deep "$APP"
 codesign --verify --deep --strict "$APP"
 
 # Stage the app next to an /Applications symlink so the DMG offers drag-install.
