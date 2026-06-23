@@ -143,12 +143,7 @@ private struct MirrorStage: View {
 
             Divider().frame(height: 22)
 
-            navButton(
-                model.isMuted ? "speaker.slash.fill" : "headphones",
-                help: model.isMuted ? "Unmute playback on this Mac" : "Mute playback on this Mac"
-            ) {
-                model.toggleMute()
-            }
+            VolumeControl(model: model)
         }
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity)
@@ -184,5 +179,36 @@ private struct MirrorStage: View {
         Binding(
             get: { model.pendingScreenshot != nil },
             set: { if !$0 { model.pendingScreenshot = nil } })
+    }
+}
+
+/// Playback-volume control for the mirror's Mac-side audio: a speaker icon that
+/// mutes on click and reveals a volume slider while hovered.
+private struct VolumeControl: View {
+    let model: MirrorViewModel
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button { model.toggleMute() } label: {
+                Image(systemName: model.volumeIcon)
+                    .font(.title3)
+                    .frame(width: 30, height: 30)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(model.isMuted ? "Unmute playback (this Mac)" : "Mute playback (this Mac)")
+
+            if hovering {
+                Slider(
+                    value: Binding(get: { Double(model.volume) }, set: { model.setVolume(Float($0)) }),
+                    in: 0 ... 1)
+                    .controlSize(.small)
+                    .frame(width: 90)
+                    .transition(.opacity.combined(with: .move(edge: .leading)))
+            }
+        }
+        .onHover { hovering = $0 }
+        .animation(.easeInOut(duration: 0.15), value: hovering)
     }
 }
