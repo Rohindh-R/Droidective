@@ -11,3 +11,7 @@ regexes = [
   # UserDefaults migration key, not a credential.
   '''didMigrateDefaultsV2''',
 ]
+
+[[allowlists]]
+description = "Bundled scrcpy-server binary (Apache-2.0 payload, not a secret)"
+paths = ['''App/Resources/scrcpy-server''']

@@ -47,8 +47,16 @@ final class MirrorViewModel {
 
     func start() async {
         status = .connecting
-        guard let server = await ScrcpyServerLocator.resolve(locator: locator) else {
-            status = .failed("scrcpy isn’t installed. Run `brew install scrcpy`, then reopen.")
+        // Prefer the bundled server (self-contained); fall back to an installed
+        // scrcpy only if the bundled resource is somehow missing.
+        let server: ScrcpyServerInfo?
+        if let bundled = BundledScrcpyServer.info() {
+            server = bundled
+        } else {
+            server = await ScrcpyServerLocator.resolve(locator: locator)
+        }
+        guard let server else {
+            status = .failed("Couldn’t find the scrcpy server.")
             return
         }
         // Control on (interactive mirror); audio off until phase 4. Cap the size

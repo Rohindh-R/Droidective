@@ -28,7 +28,13 @@ targets:
     platform: macOS
     sources:
       - App/Sources
-      - App/Resources
+      - path: App/Resources
+        excludes:
+          - scrcpy-server
+      # Extension-less binary: force it into the resources phase so it lands in
+      # the .app bundle (XcodeGen otherwise can't infer the build phase).
+      - path: App/Resources/scrcpy-server
+        buildPhase: resources
     dependencies:
       - package: ADBKit
         product: ADBKit
