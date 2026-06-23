@@ -25,12 +25,14 @@ public actor MirrorSession {
     }
 
     public enum SessionError: Error, Sendable {
-        case notStreaming
         case notRecording
     }
 
     private let transport: MirrorTransport
     private let decoder = H264Decoder()
+    /// Whether the session requested device audio — gates adding an audio track
+    /// to recordings.
+    private let recordsAudio: Bool
 
     private var formatDescription: CMVideoFormatDescription?
     private var dimensions: (width: Int, height: Int)?
@@ -38,29 +40,44 @@ public actor MirrorSession {
 
     private var consumeTask: Task<Void, Never>?
     private var controlConsumeTask: Task<Void, Never>?
+    private var audioConsumeTask: Task<Void, Never>?
     private var displayContinuation: AsyncThrowingStream<DisplaySample, Error>.Continuation?
     private var clipboardStream: AsyncStream<String>?
     private var clipboardContinuation: AsyncStream<String>.Continuation?
+    private var audioPCMStream: AsyncStream<Data>?
+    private var audioPCMContinuation: AsyncStream<Data>.Continuation?
 
     private var recorder: MirrorRecorder?
     private var recorderStarted = false
+    /// Set by `startRecording` before the format is known; consumed when the
+    /// config packet arrives to create the recorder in time for the first frame.
+    private var pendingRecordURL: URL?
 
     public init(adb: AdbClient, config: MirrorTransport.Configuration) {
         transport = MirrorTransport(adb: adb, config: config)
+        recordsAudio = config.params.audio
     }
 
-    public init(transport: MirrorTransport) {
+    public init(transport: MirrorTransport, recordsAudio: Bool = false) {
         self.transport = transport
+        self.recordsAudio = recordsAudio
     }
 
     /// Begin the session; the returned stream yields compressed sample buffers
     /// for the display layer until `stop()` or an error.
     public func start() -> AsyncThrowingStream<DisplaySample, Error> {
-        let (stream, continuation) = AsyncThrowingStream.makeStream(of: DisplaySample.self)
+        // Bounded so a headless recording session (which never drains the display
+        // stream) doesn't buffer frames without limit; under load the renderer
+        // just drops stale frames rather than lagging.
+        let (stream, continuation) = AsyncThrowingStream.makeStream(
+            of: DisplaySample.self, bufferingPolicy: .bufferingNewest(3))
         displayContinuation = continuation
         let (clipboard, clipboardSink) = AsyncStream.makeStream(of: String.self)
         clipboardStream = clipboard
         clipboardContinuation = clipboardSink
+        let (audio, audioSink) = AsyncStream.makeStream(of: Data.self)
+        audioPCMStream = audio
+        audioPCMContinuation = audioSink
         decoder.onImage = { [weak self] box, _ in
             guard let self else { return }
             Task { await self.storeLatest(box) }
@@ -74,8 +91,11 @@ public actor MirrorSession {
         consumeTask = nil
         controlConsumeTask?.cancel()
         controlConsumeTask = nil
+        audioConsumeTask?.cancel()
+        audioConsumeTask = nil
         decoder.invalidate()
         await transport.stop()
+        pendingRecordURL = nil
         if recorder != nil {
             _ = await recorder?.finish()
             recorder = nil
@@ -85,6 +105,8 @@ public actor MirrorSession {
         displayContinuation = nil
         clipboardContinuation?.finish()
         clipboardContinuation = nil
+        audioPCMContinuation?.finish()
+        audioPCMContinuation = nil
     }
 
     /// The latest decoded frame, for a screenshot.
@@ -104,18 +126,37 @@ public actor MirrorSession {
     /// GET_CLIPBOARD). Subscribe and mirror it onto the Mac pasteboard.
     public func incomingClipboards() -> AsyncStream<String>? { clipboardStream }
 
-    public func isRecording() -> Bool { recorder != nil }
+    /// Raw device audio as interleaved s16le PCM (48 kHz, stereo) when the device
+    /// supplies it, or nil if audio wasn't requested. The stream yields nothing
+    /// and finishes if the device disabled audio (Android < 11) — the mirror then
+    /// stays silent but otherwise unaffected. Feed chunks to a `MirrorAudioPlayer`.
+    public func audioPCM() -> AsyncStream<Data>? { audioPCMStream }
 
-    /// Start passthrough recording to `url`. Appending begins at the next key
-    /// frame so the file opens on a sync sample.
+    public func isRecording() -> Bool { recorder != nil || pendingRecordURL != nil }
+
+    /// Arm passthrough recording to `url`. If the video format is already known
+    /// the recorder is created now; otherwise it's created the instant the config
+    /// packet arrives — which immediately precedes the stream's first key frame,
+    /// so a fresh session captures from that first frame rather than waiting for
+    /// the next periodic key frame (seconds away). Appending always opens on a
+    /// key frame so the file starts on a sync sample.
     public func startRecording(to url: URL) throws {
-        guard let formatDescription else { throw SessionError.notStreaming }
-        recorder = try MirrorRecorder(url: url, formatDescription: formatDescription)
+        pendingRecordURL = url
+        if let formatDescription, recorder == nil {
+            try activateRecorder(formatDescription: formatDescription, url: url)
+        }
+    }
+
+    private func activateRecorder(formatDescription: CMVideoFormatDescription, url: URL) throws {
+        recorder = try MirrorRecorder(
+            url: url, formatDescription: formatDescription, includeAudio: recordsAudio)
         recorderStarted = false
+        pendingRecordURL = nil
     }
 
     /// Finalize the recording and return the file URL it was written to.
     public func stopRecording(url: URL) async throws -> URL {
+        pendingRecordURL = nil
         guard let recorder else { throw SessionError.notRecording }
         _ = await recorder.finish()
         self.recorder = nil
@@ -134,6 +175,11 @@ public actor MirrorSession {
                     for await chunk in control {
                         await self?.handleDeviceMessages(deviceDecoder.consume(chunk))
                     }
+                }
+            }
+            if let audio = await transport.audioByteStream() {
+                audioConsumeTask = Task { [weak self] in
+                    await self?.consumeAudio(audio)
                 }
             }
             var streamDecoder = ScrcpyStreamDecoder(tunnelForward: true)
@@ -164,6 +210,11 @@ public actor MirrorSession {
                    let format = H264Format.formatDescription(sps: sets.sps, pps: sets.pps) {
                     formatDescription = format
                     decoder.setFormat(format)
+                    // Arm a pending recording now so the key frame that follows
+                    // this config packet is the recording's first sample.
+                    if let url = pendingRecordURL, recorder == nil {
+                        try? activateRecorder(formatDescription: format, url: url)
+                    }
                 }
                 return
             }
@@ -183,6 +234,38 @@ public actor MirrorSession {
                 }
             }
         }
+    }
+
+    /// Decode the audio socket and forward raw PCM. Only `raw` is forwarded; a
+    /// disabled/errored or unsupported codec just leaves the mirror silent.
+    private func consumeAudio(_ bytes: AsyncThrowingStream<Data, Error>) async {
+        var audioDecoder = ScrcpyAudioStreamDecoder()
+        var isRaw = false
+        do {
+            for try await chunk in bytes {
+                if Task.isCancelled { break }
+                for event in audioDecoder.consume(chunk) {
+                    switch event {
+                    case let .codec(codec, _):
+                        isRaw = codec == .raw
+                        if !isRaw { audioPCMContinuation?.finish() }
+                    case let .packet(header, payload):
+                        guard isRaw, !header.isConfig else { continue }
+                        audioPCMContinuation?.yield(payload)
+                        // Tee into the recording on the device's clock. recorderStarted
+                        // flips on the first video key frame, so audio lands on the same
+                        // timeline the writer session opened with.
+                        if let recorder, recorderStarted {
+                            let pts = CMTime(value: CMTimeValue(header.pts), timescale: 1_000_000)
+                            recorder.appendAudio(payload, pts: pts)
+                        }
+                    }
+                }
+            }
+        } catch {
+            // Audio socket ended; the video mirror continues unaffected.
+        }
+        audioPCMContinuation?.finish()
     }
 
     private func handleDeviceMessages(_ messages: [ScrcpyDeviceMessage]) {

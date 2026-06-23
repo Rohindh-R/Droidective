@@ -17,6 +17,10 @@ public struct ScrcpyServerParams: Sendable, Equatable {
     public var logLevel: String
     public var video: Bool
     public var audio: Bool
+    /// Audio codec the server should encode with. Defaults to `raw` (PCM
+    /// s16le, 48 kHz, stereo) so the client can play it without an Opus/AAC
+    /// decoder; only consulted when `audio` is on.
+    public var audioCodec: String
     public var control: Bool
     /// Longest side in px (0 = device size).
     public var maxSize: Int
@@ -32,6 +36,7 @@ public struct ScrcpyServerParams: Sendable, Equatable {
         logLevel: String = "info",
         video: Bool = true,
         audio: Bool = false,
+        audioCodec: String = "raw",
         control: Bool = false,
         maxSize: Int = 0,
         videoBitRate: Int = 0,
@@ -42,6 +47,7 @@ public struct ScrcpyServerParams: Sendable, Equatable {
         self.logLevel = logLevel
         self.video = video
         self.audio = audio
+        self.audioCodec = audioCodec
         self.control = control
         self.maxSize = maxSize
         self.videoBitRate = videoBitRate
@@ -62,7 +68,13 @@ public struct ScrcpyServerParams: Sendable, Equatable {
         ]
         if !video { params.append("video=false") }
         if videoBitRate > 0 { params.append("video_bit_rate=\(videoBitRate)") }
-        if !audio { params.append("audio=false") }
+        if audio {
+            // The server's default audio codec is Opus; request the configured
+            // one (raw PCM) so the client plays it without bundling a decoder.
+            if audioCodec != "opus" { params.append("audio_codec=\(audioCodec)") }
+        } else {
+            params.append("audio=false")
+        }
         if maxSize > 0 { params.append("max_size=\(maxSize)") }
         if maxFps > 0 { params.append("max_fps=\(maxFps)") }
         if tunnelForward { params.append("tunnel_forward=true") }

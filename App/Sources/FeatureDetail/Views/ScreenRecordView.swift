@@ -2,18 +2,24 @@ import ADBKit
 import Foundation
 import SwiftUI
 
-/// Record the device screen via scrcpy (no time limit, audio by default). The
-/// Record button and status sit up top; tuning lives in a collapsed Advanced
-/// drop-down. Stopping opens the clip in the video editor.
+/// Record the device screen via the in-app scrcpy client (bundled server, no
+/// separate install, audio on Android 11+). The Record button and status sit up
+/// top; tuning lives in a collapsed Advanced drop-down. Stopping opens the clip
+/// in the video editor.
 struct ScreenRecordView: View {
     @Environment(AppState.self) private var state
     @State private var recorder: ScreenRecorder?
     @State private var isRecording = false
+    @State private var isPaused = false
     @State private var isStarting = false
     @State private var isStopping = false
+    @State private var isBusy = false
     @State private var startedAt: Date?
     @State private var recordedURL: URL?
+    /// A finished recording awaiting the Discard/Save/Edit choice.
+    @State private var decisionURL: URL?
     @State private var showAdvanced = false
+    @State private var limitTask: Task<Void, Never>?
 
     @AppStorage("recMaxSize") private var maxSize = 0
     @AppStorage("recBitRate") private var bitRateMbps = 0
@@ -28,8 +34,6 @@ struct ScreenRecordView: View {
         )
     }
 
-    private var scrcpyMissing: Bool { state.scrcpyStatus?.installed == false }
-
     var body: some View {
         Group {
             if let url = recordedURL {
@@ -42,7 +46,9 @@ struct ScreenRecordView: View {
                 recordControls
             }
         }
+        .recordingDecision(url: $decisionURL) { recordedURL = $0 }
         .onDisappear {
+            limitTask?.cancel()
             if isRecording, let recorder { Task { await recorder.abort() } }
             if let url = recordedURL { try? FileManager.default.removeItem(at: url) }
         }
@@ -76,53 +82,52 @@ struct ScreenRecordView: View {
                     Text(startedAt, style: .timer)
                         .font(.system(size: 30, weight: .semibold, design: .monospaced))
                         .monospacedDigit()
-                    Text("Recording…").font(.subheadline).foregroundStyle(.red)
+                    Text(isPaused ? "Paused" : "Recording…")
+                        .font(.subheadline)
+                        .foregroundStyle(isPaused ? Color.secondary : Color.red)
                 } else {
                     Text("Ready to record").font(.title2.weight(.semibold))
                 }
             }
 
-            recordButton
+            recordControlButtons
             hints
         }
         .frame(maxWidth: 420)
     }
 
-    private var recordButton: some View {
-        Button {
-            isRecording ? stop() : start()
-        } label: {
-            Label(buttonTitle, systemImage: isRecording ? "stop.fill" : "record.circle")
-                .frame(width: 220)
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(isRecording ? .red : .brandAccent)
-        .controlSize(.large)
-        .disabled(isStarting || isStopping || state.targetSerials.isEmpty || (scrcpyMissing && !isRecording))
-    }
+    @ViewBuilder private var recordControlButtons: some View {
+        if isRecording {
+            HStack(spacing: 12) {
+                Button {
+                    Task { isPaused ? await resume() : await pause() }
+                } label: {
+                    Label(isPaused ? "Resume" : "Pause",
+                          systemImage: isPaused ? "play.fill" : "pause.fill")
+                        .frame(width: 104)
+                }
+                .controlSize(.large)
+                .disabled(isBusy)
 
-    private var buttonTitle: String {
-        if isStopping { return "Finishing…" }
-        if isStarting { return "Starting…" }
-        return isRecording ? "Stop & Edit" : "Record"
+                Button { Task { await stop() } } label: {
+                    Label("Stop", systemImage: "stop.fill").frame(width: 104)
+                }
+                .buttonStyle(.borderedProminent).tint(.red).controlSize(.large)
+                .disabled(isStopping)
+            }
+        } else {
+            Button { Task { await start() } } label: {
+                Label(isStarting ? "Starting…" : "Record", systemImage: "record.circle")
+                    .frame(width: 220)
+            }
+            .buttonStyle(.borderedProminent).tint(.brandAccent).controlSize(.large)
+            .disabled(isStarting || state.targetSerials.isEmpty)
+        }
     }
 
     @ViewBuilder private var hints: some View {
         if state.targetSerials.isEmpty {
             Text("Connect a device to record.").font(.footnote).foregroundStyle(.textMuted)
-        } else if scrcpyMissing {
-            scrcpyHint
-        }
-    }
-
-    @ViewBuilder private var scrcpyHint: some View {
-        if state.installingTool == .scrcpy {
-            Text("Installing scrcpy…").font(.footnote).foregroundStyle(.textMuted)
-        } else {
-            VStack(spacing: 6) {
-                Text("Recording needs scrcpy.").font(.footnote).foregroundStyle(.textMuted)
-                Button("Install scrcpy") { state.installTool(.scrcpy) }.controlSize(.small)
-            }
         }
     }
 
@@ -201,41 +206,77 @@ struct ScreenRecordView: View {
         .labelsHidden().pickerStyle(.menu).fixedSize()
     }
 
-    private func start() {
+    private func start() async {
         guard let serial = state.targetSerials.first, !isStarting else { return }
+        guard let server = BundledTools.scrcpyServer() else {
+            state.showToast(Toast(message: "Bundled scrcpy server is missing from the app.", ok: false))
+            return
+        }
         isStarting = true
-        let recorder = ScreenRecorder(client: state.env.client)
-        self.recorder = recorder
+        let recorder = ScreenRecorder(
+            client: state.env.client, server: server, ffmpegPath: BundledTools.ffmpegPath())
         let options = recordOptions
-        Task {
-            do {
-                try await recorder.start(serial: serial, options: options)
-                isRecording = true
-                startedAt = Date()
-            } catch {
-                state.showToast(Toast(message: error.localizedDescription, ok: false))
-                self.recorder = nil
-            }
-            isStarting = false
+        do {
+            try await recorder.start(serial: serial, options: options)
+            self.recorder = recorder
+            isRecording = true
+            isPaused = false
+            startedAt = Date()
+            scheduleTimeLimit(options.timeLimitSeconds)
+        } catch {
+            state.showToast(Toast(message: error.localizedDescription, ok: false))
+        }
+        isStarting = false
+    }
+
+    private func pause() async {
+        guard let recorder, !isBusy, !isPaused else { return }
+        isBusy = true
+        await recorder.pause()
+        isPaused = true
+        isBusy = false
+    }
+
+    private func resume() async {
+        guard let recorder, !isBusy, isPaused else { return }
+        isBusy = true
+        do {
+            try await recorder.resume()
+            isPaused = false
+        } catch {
+            state.showToast(Toast(message: error.localizedDescription, ok: false))
+        }
+        isBusy = false
+    }
+
+    /// The server has no time-limit knob, so the UI stops the recording after the
+    /// chosen duration (0 = unlimited). Paused time still counts toward the limit.
+    private func scheduleTimeLimit(_ seconds: Int) {
+        limitTask?.cancel()
+        guard seconds > 0 else { return }
+        limitTask = Task {
+            try? await Task.sleep(for: .seconds(seconds))
+            if !Task.isCancelled, isRecording { await stop() }
         }
     }
 
-    private func stop() {
+    private func stop() async {
         guard let recorder, !isStopping else { return }
+        limitTask?.cancel()
+        limitTask = nil
         isStopping = true
-        Task {
-            do {
-                let url = try await state.withOperation("Finishing recording…") {
-                    try await recorder.stop()
-                }
-                recordedURL = url
-            } catch {
-                state.showToast(Toast(message: error.localizedDescription, ok: false))
+        do {
+            let url = try await state.withOperation("Finishing recording…") {
+                try await recorder.stop()
             }
-            isRecording = false
-            isStopping = false
-            startedAt = nil
-            self.recorder = nil
+            decisionURL = url
+        } catch {
+            state.showToast(Toast(message: error.localizedDescription, ok: false))
         }
+        isRecording = false
+        isPaused = false
+        isStopping = false
+        startedAt = nil
+        self.recorder = nil
     }
 }

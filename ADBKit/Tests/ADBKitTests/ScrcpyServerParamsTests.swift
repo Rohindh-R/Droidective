@@ -37,6 +37,28 @@ import Testing
         #expect(!params.parameters().contains("control=false"))
     }
 
+    @Test func audioEnabledRequestsRawPcm() {
+        // audio on => no audio=false, and the non-default raw codec is requested.
+        let params = ScrcpyServerParams(
+            scid: 0x0000_0001, audio: true, control: true, maxSize: 1280)
+        let args = params.parameters()
+        #expect(args == [
+            "scid=00000001",
+            "log_level=info",
+            "audio_codec=raw",
+            "max_size=1280",
+            "tunnel_forward=true",
+        ])
+        #expect(!args.contains("audio=false"))
+    }
+
+    @Test func opusAudioOmitsCodecArg() {
+        // Opus is the server default, so requesting it emits no audio_codec.
+        let params = ScrcpyServerParams(scid: 0x1, audio: true, audioCodec: "opus")
+        #expect(!params.parameters().contains { $0.hasPrefix("audio_codec=") })
+        #expect(!params.parameters().contains("audio=false"))
+    }
+
     @Test func shellArgumentsRunTheServerJar() {
         #expect(ScrcpyServerParams(scid: 0x1a2b_3c4d)
             .shellArguments(serverVersion: "4.0", remoteJarPath: "/data/local/tmp/scrcpy-server.jar") == [

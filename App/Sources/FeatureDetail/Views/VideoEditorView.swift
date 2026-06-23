@@ -33,10 +33,6 @@ struct VideoEditorView: View {
                 Label("Open video…", systemImage: "folder").frame(minWidth: 150)
             }
             .buttonStyle(.borderedProminent).controlSize(.large)
-            if state.ffmpegStatus?.installed == false {
-                Text("Editing needs ffmpeg — install it from Settings ▸ Tools.")
-                    .font(.footnote).foregroundStyle(.textMuted)
-            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(20)

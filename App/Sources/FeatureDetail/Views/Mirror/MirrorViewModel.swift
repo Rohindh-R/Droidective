@@ -18,31 +18,47 @@ final class MirrorViewModel {
 
     private(set) var status: Status = .connecting
     private(set) var isRecording = false
+    private(set) var isPaused = false
+    private var recordBusy = false
     /// Device video dimensions, once known — used to map taps to device coords.
     private(set) var videoSize: CGSize?
-    /// Set when a screenshot is captured; the view presents the editor on it.
+    /// Set when a screenshot is captured; the view shows the Discard/Save/Edit prompt.
     var pendingScreenshot: NSImage?
-    /// Set when a recording finishes; the view opens the video editor on it.
+    /// Set when "Edit" is chosen for a screenshot; the view opens the editor on it.
+    var editingScreenshot: NSImage?
+    /// Set when the user picks "Edit" from the post-recording prompt; the view
+    /// opens the video editor on it.
     var finishedRecording: URL?
+    /// Set when a recording stops; the view shows the Discard/Save/Edit prompt.
+    var pendingRecording: URL?
+    /// Set when recording fails to start; the view surfaces it as a toast.
+    var recordingError: String?
 
     let renderer = MirrorRenderer()
 
     private let adb: AdbClient
     private let locator: ToolLocator
     private let serial: String
-    private let captureFolder: URL
 
     private var session: MirrorSession?
     private var displayTask: Task<Void, Never>?
     private var clipboardTask: Task<Void, Never>?
-    private var recordingURL: URL?
+    private var audioTask: Task<Void, Never>?
+    private let audioPlayer = MirrorAudioPlayer()
+    /// The bundled scrcpy server, resolved at start — reused to spin up a
+    /// recording session.
+    private var server: ScrcpyServerInfo?
+    /// Recording uses its OWN scrcpy session so it captures from a fresh key
+    /// frame; the display session keeps mirroring/controlling meanwhile. (Starting
+    /// to record on the live session can't get a key frame mid-stream — the
+    /// encoder emits them rarely.)
+    private var screenRecorder: ScreenRecorder?
     private var sendControl: (@Sendable (ScrcpyControlMessage) -> Void)?
 
-    init(adb: AdbClient, locator: ToolLocator, serial: String, captureFolder: URL) {
+    init(adb: AdbClient, locator: ToolLocator, serial: String) {
         self.adb = adb
         self.locator = locator
         self.serial = serial
-        self.captureFolder = captureFolder
     }
 
     func start() async {
@@ -50,7 +66,7 @@ final class MirrorViewModel {
         // Prefer the bundled server (self-contained); fall back to an installed
         // scrcpy only if the bundled resource is somehow missing.
         let server: ScrcpyServerInfo?
-        if let bundled = BundledScrcpyServer.info() {
+        if let bundled = BundledTools.scrcpyServer() {
             server = bundled
         } else {
             server = await ScrcpyServerLocator.resolve(locator: locator)
@@ -59,10 +75,13 @@ final class MirrorViewModel {
             status = .failed("Couldn’t find the scrcpy server.")
             return
         }
-        // Control on (interactive mirror); audio off until phase 4. Cap the size
-        // for smooth, low-latency display.
+        self.server = server
+        // Interactive mirror: control + audio on. Cap the size for smooth,
+        // low-latency display. Recording started mid-stream forces a fresh key
+        // frame via RESET_VIDEO (see MirrorSession.startRecording).
         let params = ScrcpyServerParams(
-            scid: UInt32.random(in: 1 ... 0x7fff_ffff), control: true, maxSize: 1280)
+            scid: UInt32.random(in: 1 ... 0x7fff_ffff),
+            audio: true, control: true, maxSize: 1280)
         let config = MirrorTransport.Configuration(
             serial: serial, params: params,
             serverVersion: server.version, localJarPath: server.jarPath)
@@ -77,6 +96,21 @@ final class MirrorViewModel {
             for await text in clipboards {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(text, forType: .string)
+            }
+        }
+
+        let audio = await session.audioPCM()
+        audioTask = Task { @MainActor [weak self] in
+            guard let self, let audio else { return }
+            var started = false
+            for await pcm in audio {
+                // Start the engine lazily on the first packet — devices without
+                // audio (Android < 11) never get here, so we don't touch Core Audio.
+                if !started {
+                    do { try self.audioPlayer.start() } catch { return }
+                    started = true
+                }
+                self.audioPlayer.enqueue(pcmS16LE: pcm)
             }
         }
 
@@ -110,6 +144,11 @@ final class MirrorViewModel {
         displayTask = nil
         clipboardTask?.cancel()
         clipboardTask = nil
+        audioTask?.cancel()
+        audioTask = nil
+        audioPlayer.stop()
+        if let recorder = screenRecorder { await recorder.abort() }
+        screenRecorder = nil
         await session?.stop()
         session = nil
         sendControl = nil
@@ -163,26 +202,47 @@ final class MirrorViewModel {
         pendingScreenshot = MirrorImage.nsImage(from: snapshot.imageBuffer)
     }
 
-    func toggleRecording() async {
-        guard let session else { return }
-        if isRecording {
-            guard let url = recordingURL else { return }
-            _ = try? await session.stopRecording(url: url)
-            recordingURL = nil
-            isRecording = false
-            finishedRecording = url
-        } else {
-            let name = "mirror_\(Int(Date().timeIntervalSince1970)).mp4"
-            let url = captureFolder.appendingPathComponent(name)
-            do {
-                try? FileManager.default.createDirectory(
-                    at: captureFolder, withIntermediateDirectories: true)
-                try await session.startRecording(to: url)
-                recordingURL = url
-                isRecording = true
-            } catch {
-                status = .failed("Couldn’t start recording: \(error.localizedDescription)")
-            }
+    func startRecording() async {
+        guard !isRecording, let server else { return }
+        let recorder = ScreenRecorder(
+            client: adb, server: server, ffmpegPath: BundledTools.ffmpegPath())
+        do {
+            try await recorder.start(
+                serial: serial, options: ScreenRecordOptions(maxSize: 1280, captureAudio: true))
+            screenRecorder = recorder
+            isRecording = true
+            isPaused = false
+        } catch {
+            recordingError = error.localizedDescription
         }
+    }
+
+    func stopRecording() async {
+        guard let recorder = screenRecorder else { return }
+        screenRecorder = nil
+        isRecording = false
+        isPaused = false
+        // Stopping returns the finished temp file; the view prompts discard/save/edit.
+        if let url = try? await recorder.stop() { pendingRecording = url }
+    }
+
+    func pauseRecording() async {
+        guard let recorder = screenRecorder, !recordBusy, !isPaused else { return }
+        recordBusy = true
+        await recorder.pause()
+        isPaused = true
+        recordBusy = false
+    }
+
+    func resumeRecording() async {
+        guard let recorder = screenRecorder, !recordBusy, isPaused else { return }
+        recordBusy = true
+        do {
+            try await recorder.resume()
+            isPaused = false
+        } catch {
+            recordingError = error.localizedDescription
+        }
+        recordBusy = false
     }
 }

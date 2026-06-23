@@ -68,6 +68,8 @@ public actor MirrorTransport {
 
     private var serverProcess: Process?
     private var connectionBox: ConnectionBox?
+    private var audioBox: ConnectionBox?
+    private var audioStream: AsyncThrowingStream<Data, Error>?
     private var controlBox: ConnectionBox?
     private var controlIncomingStream: AsyncStream<Data>?
     private var controlIncomingContinuation: AsyncStream<Data>.Continuation?
@@ -88,10 +90,16 @@ public actor MirrorTransport {
         try startServer(adbPath: adbPath)
         let (box, firstChunk) = try await connect(port: port)
         connectionBox = box
-        // With control enabled the server expects a second connection on the same
-        // socket (1st = video, 2nd = control). Open it before streaming.
+        // The server accepts sockets in a fixed order on the same port:
+        // 1 = video, 2 = audio (if enabled), 3 = control (if enabled). Connect
+        // them in that order before streaming so they map correctly.
+        if config.params.audio {
+            let audioConnection = try await connectSecondary(port: port, label: "audio")
+            audioBox = audioConnection
+            audioStream = makeAudioStream(audioConnection)
+        }
         if config.params.control {
-            let controlConnection = try await connectControl(port: port)
+            let controlConnection = try await connectSecondary(port: port, label: "control")
             controlBox = controlConnection
             startControlReceive(controlConnection)
         }
@@ -103,6 +111,9 @@ public actor MirrorTransport {
     public func stop() async {
         connectionBox?.connection.cancel()
         connectionBox = nil
+        audioBox?.connection.cancel()
+        audioBox = nil
+        audioStream = nil
         controlBox?.connection.cancel()
         controlBox = nil
         controlIncomingContinuation?.finish()
@@ -257,9 +268,10 @@ public actor MirrorTransport {
         }
     }
 
-    /// Connect the control socket (the server's 2nd accepted connection). No
-    /// dummy byte here — the control channel goes straight to the protocol.
-    private func connectControl(port: UInt16) async throws -> ConnectionBox {
+    /// Connect a secondary socket (audio or control — the server's 2nd/3rd
+    /// accepted connection). No dummy byte here; only the first (video) socket
+    /// carries one. `label` names the socket in any failure message.
+    private func connectSecondary(port: UInt16, label: String) async throws -> ConnectionBox {
         guard let nwPort = NWEndpoint.Port(rawValue: port) else {
             throw TransportError.connectFailed("invalid port \(port)")
         }
@@ -278,7 +290,19 @@ public actor MirrorTransport {
                 try? await Task.sleep(for: .milliseconds(150))
             }
         }
-        throw TransportError.connectFailed("control socket: \(lastError)")
+        throw TransportError.connectFailed("\(label) socket: \(lastError)")
+    }
+
+    /// Raw bytes from the audio socket (codec id then framed PCM packets), or nil
+    /// if audio isn't enabled. Parse with `ScrcpyAudioStreamDecoder`.
+    public func audioByteStream() -> AsyncThrowingStream<Data, Error>? { audioStream }
+
+    /// The audio socket dropping must not tear down the whole session — only the
+    /// video stream's termination calls `stop()`. So this stream just finishes.
+    private func makeAudioStream(_ box: ConnectionBox) -> AsyncThrowingStream<Data, Error> {
+        AsyncThrowingStream { continuation in
+            Self.receiveLoop(box, continuation)
+        }
     }
 
     /// A Sendable sink for control bytes, or nil if control isn't enabled.

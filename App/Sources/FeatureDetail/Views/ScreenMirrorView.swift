@@ -11,7 +11,20 @@ struct ScreenMirrorView: View {
     var body: some View {
         ZStack {
             if let model {
-                MirrorStage(model: model)
+                // After Edit, take over the whole pane with the editor (full
+                // screen, not a sheet) so its tools are fully usable; closing it
+                // returns to the live mirror.
+                if let url = model.finishedRecording {
+                    VideoEditorPane(source: .recording(url)) {
+                        try? FileManager.default.removeItem(at: url)
+                        model.finishedRecording = nil
+                    }
+                    .id(url)
+                } else if let image = model.editingScreenshot {
+                    ScreenshotEditorView(image: image) { model.editingScreenshot = nil }
+                } else {
+                    MirrorStage(model: model)
+                }
             } else {
                 ContentUnavailableView(
                     "Connect a device to mirror",
@@ -20,8 +33,15 @@ struct ScreenMirrorView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .recordingDecision(url: pendingRecording) { url in model?.finishedRecording = url }
+        .imageDecision(image: pendingScreenshot) { image in model?.editingScreenshot = image }
         .task(id: state.targetSerials.first) {
             await reconnect(to: state.targetSerials.first)
+        }
+        .onChange(of: model?.recordingError) { _, message in
+            guard let message else { return }
+            state.showToast(Toast(message: message, ok: false))
+            model?.recordingError = nil
         }
         .onDisappear {
             let leaving = model
@@ -39,19 +59,17 @@ struct ScreenMirrorView: View {
         let viewModel = MirrorViewModel(
             adb: state.env.engine.client,
             locator: state.env.engine.locator,
-            serial: serial,
-            captureFolder: Self.captureFolder())
+            serial: serial)
         model = viewModel
         await viewModel.start()
     }
 
-    private static func captureFolder() -> URL {
-        if let path = UserDefaults.standard.string(forKey: ScreenCaptureService.captureFolderDefaultsKey),
-           !path.isEmpty {
-            return URL(fileURLWithPath: path)
-        }
-        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
-        return downloads.appendingPathComponent("Droidective", isDirectory: true)
+    private var pendingRecording: Binding<URL?> {
+        Binding(get: { model?.pendingRecording }, set: { model?.pendingRecording = $0 })
+    }
+
+    private var pendingScreenshot: Binding<NSImage?> {
+        Binding(get: { model?.pendingScreenshot }, set: { model?.pendingScreenshot = $0 })
     }
 }
 
@@ -87,16 +105,6 @@ private struct MirrorStage: View {
 
             controlBar
         }
-        .sheet(isPresented: screenshotPresented) {
-            if let image = model.pendingScreenshot {
-                ScreenshotEditorView(image: image) { model.pendingScreenshot = nil }
-            }
-        }
-        .sheet(isPresented: recordingPresented) {
-            if let url = model.finishedRecording {
-                VideoEditorPane(source: .recording(url)) { model.finishedRecording = nil }
-            }
-        }
     }
 
     /// Controls below the mirror: device nav keys, then screenshot + record.
@@ -111,15 +119,29 @@ private struct MirrorStage: View {
             navButton("camera", help: "Screenshot — edit in place") {
                 Task { await model.takeScreenshot() }
             }
-            Button { Task { await model.toggleRecording() } } label: {
-                Image(systemName: model.isRecording ? "stop.circle.fill" : "record.circle")
-                    .font(.title3)
-                    .foregroundStyle(model.isRecording ? .red : .primary)
-                    .frame(width: 44, height: 30)
-                    .contentShape(Rectangle())
+
+            if model.isRecording {
+                navButton(
+                    model.isPaused ? "play.fill" : "pause.fill",
+                    help: model.isPaused ? "Resume recording" : "Pause recording"
+                ) {
+                    Task { model.isPaused ? await model.resumeRecording() : await model.pauseRecording() }
+                }
+                navButton("stop.circle.fill", tint: .red, help: "Stop recording") {
+                    Task { await model.stopRecording() }
+                }
+            } else {
+                navButton("record.circle", help: "Record — keep mirroring") {
+                    Task { await model.startRecording() }
+                }
             }
-            .buttonStyle(.plain)
-            .help(model.isRecording ? "Stop recording — opens the editor" : "Record — keep mirroring")
+
+            Divider().frame(height: 22)
+
+            // Device volume (one step per tap) + one-shot mute/unmute.
+            navButton("speaker.wave.1.fill", help: "Volume down") { model.tapKey(25) }
+            navButton("speaker.wave.3.fill", help: "Volume up") { model.tapKey(24) }
+            navButton("speaker.slash.fill", help: "Mute / unmute") { model.tapKey(164) }
         }
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity)
@@ -127,10 +149,13 @@ private struct MirrorStage: View {
         .disabled(model.status != .streaming)
     }
 
-    private func navButton(_ systemImage: String, help: String, action: @escaping () -> Void) -> some View {
+    private func navButton(
+        _ systemImage: String, tint: Color? = nil, help: String, action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.title3)
+                .foregroundStyle(tint ?? .primary)
                 .frame(width: 44, height: 30)
                 .contentShape(Rectangle())
         }
@@ -147,16 +172,5 @@ private struct MirrorStage: View {
         .padding(24)
         .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 12))
     }
-
-    private var screenshotPresented: Binding<Bool> {
-        Binding(
-            get: { model.pendingScreenshot != nil },
-            set: { if !$0 { model.pendingScreenshot = nil } })
-    }
-
-    private var recordingPresented: Binding<Bool> {
-        Binding(
-            get: { model.finishedRecording != nil },
-            set: { if !$0 { model.finishedRecording = nil } })
-    }
 }
+

@@ -13,5 +13,8 @@ regexes = [
 ]
 
 [[allowlists]]
-description = "Bundled scrcpy-server binary (Apache-2.0 payload, not a secret)"
-paths = ['''App/Resources/scrcpy-server''']
+description = "Bundled third-party binaries (not secrets): scrcpy-server (Apache-2.0), ffmpeg (GPLv3)"
+paths = [
+  '''App/Resources/scrcpy-server''',
+  '''App/Resources/ffmpeg''',
+]

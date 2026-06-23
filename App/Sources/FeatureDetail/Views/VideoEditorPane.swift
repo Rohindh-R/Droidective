@@ -14,13 +14,6 @@ enum VideoSource: Equatable {
         case .recording(let url), .file(let url): return url
         }
     }
-
-    var isTemporary: Bool {
-        if case .recording = self { return true }
-        return false
-    }
-
-    var dismissLabel: String { isTemporary ? "Discard" : "Close" }
 }
 
 /// All reversible edits, snapshotted for undo/redo. Crop mode is a UI state, not
@@ -105,13 +98,14 @@ struct VideoEditorPane: View {
         _player = State(initialValue: AVPlayer(playerItem: AVPlayerItem(asset: asset)))
     }
 
-    private var ffmpegMissing: Bool { state.ffmpegStatus?.installed == false }
     /// View transforms apply only while not trimming/cropping, so those UIs stay
     /// upright and map to the unrotated frame.
     private var transformActive: Bool { !cropMode && !isTrimming }
 
     var body: some View {
         VStack(spacing: 0) {
+            editorHeader
+            Divider()
             playerSection
             Divider()
             ScrollView { controls.padding(16) }
@@ -312,14 +306,25 @@ struct VideoEditorPane: View {
         }
     }
 
-    private var bottomBar: some View {
-        HStack(spacing: 12) {
-            Button(role: source.isTemporary ? .destructive : nil) {
+    /// Top bar with a back button that closes the editor (returns to the mirror /
+    /// recorder / file picker that opened it).
+    private var editorHeader: some View {
+        HStack {
+            Button {
                 player.pause()
                 onClose()
-            } label: { Text(source.dismissLabel) }
-                .controlSize(.large)
+            } label: {
+                Label("Back", systemImage: "chevron.backward")
+            }
+            .buttonStyle(.plain)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
 
+    private var bottomBar: some View {
+        HStack(spacing: 12) {
             Button { undo() } label: { Image(systemName: "arrow.uturn.backward") }
                 .keyboardShortcut("z", modifiers: .command)
                 .disabled(undoStack.isEmpty)
@@ -329,22 +334,13 @@ struct VideoEditorPane: View {
 
             Spacer()
 
-            if ffmpegMissing { ffmpegHint }
             Button { export() } label: {
                 Label(isExporting ? "Exporting…" : "Export", systemImage: "square.and.arrow.down")
                     .frame(minWidth: 110)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(isExporting || ffmpegMissing || cropMode)
-        }
-    }
-
-    @ViewBuilder private var ffmpegHint: some View {
-        if state.installingTool == .ffmpeg {
-            Text("Installing ffmpeg…").font(.footnote).foregroundStyle(.textMuted)
-        } else {
-            Button("Install ffmpeg") { state.installTool(.ffmpeg) }.controlSize(.large)
+            .disabled(isExporting || cropMode)
         }
     }
 
@@ -489,7 +485,8 @@ struct VideoEditorPane: View {
         Task {
             do {
                 let saved = try await state.withOperation("Exporting video…") {
-                    try await VideoEditService(locator: state.env.client.locator)
+                    try await VideoEditService(
+                        locator: state.env.client.locator, bundledPath: BundledTools.ffmpegPath())
                         .export(source: url, options: options, to: dest)
                 }
                 state.showToast(Toast(message: "Video exported", ok: true, revealPath: saved.path))

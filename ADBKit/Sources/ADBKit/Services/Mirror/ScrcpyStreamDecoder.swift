@@ -21,6 +21,27 @@ public struct ScrcpyPacketHeader: Sendable, Equatable {
     /// Presentation timestamp in microseconds (low 61 bits); 0 for config packets.
     public var pts: UInt64
     public var payloadSize: Int
+
+    private static let configFlag: UInt64 = 1 << 62
+    private static let keyFrameFlag: UInt64 = 1 << 61
+    private static let ptsMask: UInt64 = (1 << 61) - 1
+
+    /// Decode the 8-byte PTS/flags word and 4-byte size that every media socket
+    /// (video and audio alike) prefixes each packet with — the protocol's one
+    /// error-prone bit of bit math, kept in a single place.
+    public init(ptsFlags: UInt64, payloadSize: Int) {
+        self.isConfig = (ptsFlags & Self.configFlag) != 0
+        self.isKeyFrame = (ptsFlags & Self.keyFrameFlag) != 0
+        self.pts = ptsFlags & Self.ptsMask
+        self.payloadSize = payloadSize
+    }
+
+    public init(isConfig: Bool, isKeyFrame: Bool, pts: UInt64, payloadSize: Int) {
+        self.isConfig = isConfig
+        self.isKeyFrame = isKeyFrame
+        self.pts = pts
+        self.payloadSize = payloadSize
+    }
 }
 
 /// Incremental, I/O-free decoder for a scrcpy video socket. Feed it raw bytes as
@@ -48,10 +69,6 @@ public struct ScrcpyStreamDecoder: Sendable {
         case packetHeader
         case packetPayload(ScrcpyPacketHeader)
     }
-
-    private static let configFlag: UInt64 = 1 << 62
-    private static let keyFrameFlag: UInt64 = 1 << 61
-    private static let ptsMask: UInt64 = (1 << 61) - 1
 
     private let sendsDeviceName: Bool
     private var phase: Phase
@@ -110,11 +127,7 @@ public struct ScrcpyStreamDecoder: Sendable {
                 guard available >= ScrcpyPacketHeader.byteCount else { break parse }
                 let ptsFlags = readU64BE()
                 let size = Int(readU32BE())
-                phase = .packetPayload(ScrcpyPacketHeader(
-                    isConfig: (ptsFlags & Self.configFlag) != 0,
-                    isKeyFrame: (ptsFlags & Self.keyFrameFlag) != 0,
-                    pts: ptsFlags & Self.ptsMask,
-                    payloadSize: size))
+                phase = .packetPayload(ScrcpyPacketHeader(ptsFlags: ptsFlags, payloadSize: size))
             case let .packetPayload(header):
                 guard available >= header.payloadSize else { break parse }
                 let payload = Data(buffer[cursor ..< cursor + header.payloadSize])
