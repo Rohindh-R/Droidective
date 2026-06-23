@@ -11,7 +11,18 @@ struct ScreenMirrorView: View {
     var body: some View {
         ZStack {
             if let model {
-                MirrorStage(model: model)
+                // After Stop, take over the whole pane with the video editor
+                // (full screen, not a sheet) so its tools are fully usable; closing
+                // it returns to the live mirror.
+                if let url = model.finishedRecording {
+                    VideoEditorPane(source: .recording(url)) {
+                        try? FileManager.default.removeItem(at: url)
+                        model.finishedRecording = nil
+                    }
+                    .id(url)
+                } else {
+                    MirrorStage(model: model)
+                }
             } else {
                 ContentUnavailableView(
                     "Connect a device to mirror",
@@ -22,6 +33,11 @@ struct ScreenMirrorView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: state.targetSerials.first) {
             await reconnect(to: state.targetSerials.first)
+        }
+        .onChange(of: model?.recordingError) { _, message in
+            guard let message else { return }
+            state.showToast(Toast(message: message, ok: false))
+            model?.recordingError = nil
         }
         .onDisappear {
             let leaving = model
@@ -39,19 +55,9 @@ struct ScreenMirrorView: View {
         let viewModel = MirrorViewModel(
             adb: state.env.engine.client,
             locator: state.env.engine.locator,
-            serial: serial,
-            captureFolder: Self.captureFolder())
+            serial: serial)
         model = viewModel
         await viewModel.start()
-    }
-
-    private static func captureFolder() -> URL {
-        if let path = UserDefaults.standard.string(forKey: ScreenCaptureService.captureFolderDefaultsKey),
-           !path.isEmpty {
-            return URL(fileURLWithPath: path)
-        }
-        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
-        return downloads.appendingPathComponent("Droidective", isDirectory: true)
     }
 }
 
@@ -90,11 +96,6 @@ private struct MirrorStage: View {
         .sheet(isPresented: screenshotPresented) {
             if let image = model.pendingScreenshot {
                 ScreenshotEditorView(image: image) { model.pendingScreenshot = nil }
-            }
-        }
-        .sheet(isPresented: recordingPresented) {
-            if let url = model.finishedRecording {
-                VideoEditorPane(source: .recording(url)) { model.finishedRecording = nil }
             }
         }
     }
@@ -161,11 +162,5 @@ private struct MirrorStage: View {
         Binding(
             get: { model.pendingScreenshot != nil },
             set: { if !$0 { model.pendingScreenshot = nil } })
-    }
-
-    private var recordingPresented: Binding<Bool> {
-        Binding(
-            get: { model.finishedRecording != nil },
-            set: { if !$0 { model.finishedRecording = nil } })
     }
 }
