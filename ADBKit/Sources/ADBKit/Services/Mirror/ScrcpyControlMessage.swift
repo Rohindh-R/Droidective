@@ -15,11 +15,18 @@ public enum ScrcpyControlMessage: Sendable, Equatable {
         x: Int32, y: Int32, screenWidth: UInt16, screenHeight: UInt16,
         hscroll: Float, vscroll: Float, buttons: UInt32)
     case backOrScreenOn(action: KeyAction)
+    /// Ask the device to copy/cut its current selection (it replies with its
+    /// clipboard as a device message).
+    case getClipboard(copyKey: CopyKey)
+    /// Set the device clipboard; when `paste`, the device also pastes it.
+    case setClipboard(sequence: UInt64, paste: Bool, text: String)
 
     /// Android `KeyEvent` action.
     public enum KeyAction: UInt8, Sendable { case down = 0, up = 1 }
     /// Android `MotionEvent` action.
     public enum TouchAction: UInt8, Sendable { case down = 0, up = 1, move = 2 }
+    /// `sc_copy_key`.
+    public enum CopyKey: UInt8, Sendable { case none = 0, copy = 1, cut = 2 }
 
     private enum MessageType: UInt8 {
         case injectKeycode = 0
@@ -27,6 +34,8 @@ public enum ScrcpyControlMessage: Sendable, Equatable {
         case injectTouch = 2
         case injectScroll = 3
         case backOrScreenOn = 4
+        case getClipboard = 8
+        case setClipboard = 9
     }
 
     public func serialized() -> Data {
@@ -64,6 +73,18 @@ public enum ScrcpyControlMessage: Sendable, Equatable {
         case let .backOrScreenOn(action):
             data.append(MessageType.backOrScreenOn.rawValue)
             data.append(action.rawValue)
+
+        case let .getClipboard(copyKey):
+            data.append(MessageType.getClipboard.rawValue)
+            data.append(copyKey.rawValue)
+
+        case let .setClipboard(sequence, paste, text):
+            data.append(MessageType.setClipboard.rawValue)
+            data.appendBigEndian(sequence)
+            data.append(paste ? 1 : 0)
+            let bytes = Array(text.utf8)
+            data.appendBigEndian(UInt32(bytes.count))
+            data.append(contentsOf: bytes)
         }
         return data
     }

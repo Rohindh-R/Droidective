@@ -34,6 +34,7 @@ final class MirrorViewModel {
 
     private var session: MirrorSession?
     private var displayTask: Task<Void, Never>?
+    private var clipboardTask: Task<Void, Never>?
     private var recordingURL: URL?
     private var sendControl: (@Sendable (ScrcpyControlMessage) -> Void)?
 
@@ -61,6 +62,15 @@ final class MirrorViewModel {
         self.session = session
 
         let stream = await session.start()
+
+        let clipboards = await session.incomingClipboards()
+        clipboardTask = Task { @MainActor in
+            guard let clipboards else { return }
+            for await text in clipboards {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+            }
+        }
 
         displayTask = Task { @MainActor [weak self] in
             do {
@@ -90,6 +100,8 @@ final class MirrorViewModel {
     func stop() async {
         displayTask?.cancel()
         displayTask = nil
+        clipboardTask?.cancel()
+        clipboardTask = nil
         await session?.stop()
         session = nil
         sendControl = nil
@@ -117,6 +129,17 @@ final class MirrorViewModel {
     func text(_ string: String) {
         guard !string.isEmpty else { return }
         sendControl?(.injectText(string))
+    }
+
+    /// ⌘V — push the Mac clipboard to the device and paste it.
+    func pasteToDevice() {
+        guard let text = NSPasteboard.general.string(forType: .string), !text.isEmpty else { return }
+        sendControl?(.setClipboard(sequence: 0, paste: true, text: text))
+    }
+
+    /// ⌘C / ⌘X — ask the device to copy/cut its selection; it syncs back to the Mac.
+    func copyFromDevice(cut: Bool) {
+        sendControl?(.getClipboard(copyKey: cut ? .cut : .copy))
     }
 
     // MARK: - Capture

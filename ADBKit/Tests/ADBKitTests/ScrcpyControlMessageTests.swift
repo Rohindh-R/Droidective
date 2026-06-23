@@ -54,4 +54,21 @@ import Testing
         #expect(ScrcpyControlMessage.floatToI16FixedPoint(-1.0) == -0x8000)
         #expect(ScrcpyControlMessage.floatToI16FixedPoint(0.0) == 0)
     }
+
+    @Test func getClipboardSerializesTo2Bytes() {
+        #expect([UInt8](ScrcpyControlMessage.getClipboard(copyKey: .copy).serialized()) == [0x08, 0x01])
+        #expect([UInt8](ScrcpyControlMessage.getClipboard(copyKey: .cut).serialized()) == [0x08, 0x02])
+    }
+
+    @Test func setClipboardSerializesWithSequencePasteAndText() {
+        let bytes = [UInt8](ScrcpyControlMessage
+            .setClipboard(sequence: 0, paste: true, text: "hi").serialized())
+        #expect(bytes == [
+            0x09,                          // type
+            0, 0, 0, 0, 0, 0, 0, 0,        // sequence = 0
+            0x01,                          // paste = true
+            0, 0, 0, 2,                    // length = 2
+            0x68, 0x69,                    // "hi"
+        ])
+    }
 }

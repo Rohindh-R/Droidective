@@ -31,6 +31,9 @@ final class MirrorLayerNSView: NSView {
     var onTouch: ((ScrcpyControlMessage.TouchAction, CGPoint) -> Void)?
     var onKeycode: ((UInt32, ScrcpyControlMessage.KeyAction) -> Void)?
     var onText: ((String) -> Void)?
+    var onPaste: (() -> Void)?
+    var onCopy: (() -> Void)?
+    var onCut: (() -> Void)?
     var videoSize: CGSize?
 
     private let displayLayer: AVSampleBufferDisplayLayer
@@ -94,11 +97,19 @@ final class MirrorLayerNSView: NSView {
     // MARK: - Keyboard
 
     override func keyDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.command) {
+            switch event.charactersIgnoringModifiers?.lowercased() {
+            case "v": onPaste?()
+            case "c": onCopy?()
+            case "x": onCut?()
+            default: break  // other ⌘ shortcuts pass to the Mac
+            }
+            return
+        }
         if let keycode = Self.androidKeycode(for: event.keyCode) {
             onKeycode?(keycode, .down)
             return
         }
-        guard !event.modifierFlags.contains(.command) else { return }  // let ⌘ shortcuts pass
         if let text = event.characters, !text.isEmpty { onText?(text) }
     }
 
@@ -130,6 +141,9 @@ struct MirrorVideoView: NSViewRepresentable {
     var onTouch: ((ScrcpyControlMessage.TouchAction, CGPoint) -> Void)?
     var onKeycode: ((UInt32, ScrcpyControlMessage.KeyAction) -> Void)?
     var onText: ((String) -> Void)?
+    var onPaste: (() -> Void)?
+    var onCopy: (() -> Void)?
+    var onCut: (() -> Void)?
 
     func makeNSView(context: Context) -> NSView {
         let view = MirrorLayerNSView(displayLayer: renderer.displayLayer)
@@ -147,5 +161,8 @@ struct MirrorVideoView: NSViewRepresentable {
         view.onTouch = onTouch
         view.onKeycode = onKeycode
         view.onText = onText
+        view.onPaste = onPaste
+        view.onCopy = onCopy
+        view.onCut = onCut
     }
 }

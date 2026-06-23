@@ -69,6 +69,8 @@ public actor MirrorTransport {
     private var serverProcess: Process?
     private var connectionBox: ConnectionBox?
     private var controlBox: ConnectionBox?
+    private var controlIncomingStream: AsyncStream<Data>?
+    private var controlIncomingContinuation: AsyncStream<Data>.Continuation?
     private var forwardedPort: UInt16?
     private var serverLog = ""
 
@@ -89,7 +91,9 @@ public actor MirrorTransport {
         // With control enabled the server expects a second connection on the same
         // socket (1st = video, 2nd = control). Open it before streaming.
         if config.params.control {
-            controlBox = try await connectControl(port: port)
+            let controlConnection = try await connectControl(port: port)
+            controlBox = controlConnection
+            startControlReceive(controlConnection)
         }
         return makeByteStream(box, firstChunk: firstChunk)
     }
@@ -101,6 +105,9 @@ public actor MirrorTransport {
         connectionBox = nil
         controlBox?.connection.cancel()
         controlBox = nil
+        controlIncomingContinuation?.finish()
+        controlIncomingContinuation = nil
+        controlIncomingStream = nil
         if let process = serverProcess, process.isRunning { process.terminate() }
         serverProcess = nil
         if let port = forwardedPort {
@@ -281,6 +288,31 @@ public actor MirrorTransport {
         guard let box = controlBox else { return nil }
         return { data in
             box.connection.send(content: data, completion: .contentProcessed { _ in })
+        }
+    }
+
+    /// Bytes the device sends back over the control socket (clipboard, acks), or
+    /// nil if control isn't enabled. Parse with `ScrcpyDeviceMessageDecoder`.
+    public func controlIncoming() -> AsyncStream<Data>? { controlIncomingStream }
+
+    private func startControlReceive(_ box: ConnectionBox) {
+        let (stream, continuation) = AsyncStream.makeStream(of: Data.self)
+        controlIncomingStream = stream
+        controlIncomingContinuation = continuation
+        Self.controlReceiveLoop(box, continuation)
+    }
+
+    private nonisolated static func controlReceiveLoop(
+        _ box: ConnectionBox, _ continuation: AsyncStream<Data>.Continuation
+    ) {
+        box.connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) {
+            data, _, isComplete, error in
+            if let data, !data.isEmpty { continuation.yield(data) }
+            if error != nil || isComplete {
+                continuation.finish()
+                return
+            }
+            controlReceiveLoop(box, continuation)
         }
     }
 
