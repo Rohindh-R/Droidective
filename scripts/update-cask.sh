@@ -26,7 +26,7 @@ cask "droidective" do
   url "${URL}"
   name "Droidective"
   desc "Native macOS app for Android and React Native debugging over adb"
-  homepage "https://rohindh-r.github.io/Droidective/"
+  homepage "https://droidective.github.io/Droidective/"
 
   # Sparkle updates the app in place, so Homebrew should not fight it.
   auto_updates true

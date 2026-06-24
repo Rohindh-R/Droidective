@@ -4,7 +4,7 @@ Droidective ships as a Developer ID-signed, notarized DMG via GitHub Releases
 and a Homebrew cask, and updates itself with
 [Sparkle](https://sparkle-project.org). The marketing site and the Sparkle
 appcast are both served from GitHub Pages at
-`https://rohindh-r.github.io/Droidective/`.
+`https://droidective.github.io/Droidective/`.
 
 ## One-time setup
 
@@ -118,7 +118,7 @@ On-page SEO is already in `site/index.html` (title, meta description, Open
 Graph, Twitter card, JSON-LD `SoftwareApplication`, `sitemap.xml`, `robots.txt`).
 Ranking for competitive terms still needs links and time:
 
-- Set the repo's **About → Website** to `https://rohindh-r.github.io/Droidective/`.
+- Set the repo's **About → Website** to `https://droidective.github.io/Droidective/`.
 - Add the URL to the README and link it from anywhere you can.
 - Verify the site in **Google Search Console** (URL-prefix property; use the
   meta-tag method — add the `google-site-verification` tag to `index.html`), then
@@ -226,8 +226,8 @@ Copy this into the release PR and tick each item.
 - [ ] GitHub release page shows the right version, the notes, and a downloadable DMG.
 - [ ] Fresh download launches cleanly: mount the DMG, drag to `/Applications`, open — no Gatekeeper warning. `spctl -a -vvv -t install Droidective-vX.Y.Z.dmg` reports *accepted, source=Notarized Developer ID*.
 - [ ] `brew install --cask rohindh-r/tap/droidective` installs the new version.
-- [ ] `https://rohindh-r.github.io/Droidective/` shows the new screenshots and copy.
-- [ ] `https://rohindh-r.github.io/Droidective/appcast.xml` lists the new version with a valid `sparkle:edSignature`.
+- [ ] `https://droidective.github.io/Droidective/` shows the new screenshots and copy.
+- [ ] `https://droidective.github.io/Droidective/appcast.xml` lists the new version with a valid `sparkle:edSignature`.
 - [ ] A prior install (v2.1.0+) offers the update via Sparkle and applies it in place.
 - [ ] Repo **About → Website** still points at the Pages URL.
 
