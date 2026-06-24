@@ -9,7 +9,9 @@ struct RootView: View {
     @AppStorage("hasSeenTour") private var hasSeenTour = false
     @AppStorage("telemetryConsentAsked") private var consentAsked = false
     @AppStorage("launchCount") private var launchCount = 0
+    @AppStorage("starPromptShown") private var starPromptShown = false
     @State private var presentConsent = false
+    @State private var presentStar = false
     @Environment(\.colorScheme) private var colorScheme
 
     /// Launches to allow before the first-run privacy disclosure appears.
@@ -17,8 +19,15 @@ struct RootView: View {
     /// Settings → Privacy); the modal then lets the user confirm or opt out.
     private let consentPromptAfterLaunches = 5
 
+    /// Launches before the one-time GitHub-star nudge (shown after consent).
+    private let starPromptAfterLaunches = 10
+
     private var shouldPromptConsent: Bool {
         !consentAsked && launchCount >= consentPromptAfterLaunches
+    }
+
+    private var shouldPromptStar: Bool {
+        !starPromptShown && launchCount >= starPromptAfterLaunches
     }
 
     var body: some View {
@@ -34,6 +43,12 @@ struct RootView: View {
                     TelemetryConsentView()
                 }
             }
+            .background {
+                // Its own host view for the same reason as the consent sheet.
+                Color.clear.sheet(isPresented: $presentStar) {
+                    StarPromptView(onStar: { state.openRepository() })
+                }
+            }
             .onAppear {
                 state.openMainWindow = { openWindow(id: "main") }
                 state.openPalette = { openWindow(id: "palette") }
@@ -45,6 +60,8 @@ struct RootView: View {
                     state.presentTour = true
                 } else if shouldPromptConsent {
                     presentConsent = true
+                } else if shouldPromptStar {
+                    presentStar = true
                 }
             }
             .onChange(of: state.presentTour) { _, showing in
