@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Commit the regenerated appcast to a branch via the GitHub contents API.
 #
-# Uses the API (not `git push`) on purpose: it produces a GitHub-signed,
-# "verified" commit, which the protected default branch requires. $GH_TOKEN
-# must be allowed to bypass that branch's protection (an admin / bypass PAT).
+# Uses the API (not `git push`) so the job needs no git checkout-with-write or
+# credential setup — just a token. The commit it makes is unsigned; it lands on
+# the protected default branch only because $GH_TOKEN is an admin/bypass PAT and
+# "Include administrators" (enforce_admins) is off, so it bypasses the branch's
+# lock, required reviews, and required-signatures rules. Turning enforce_admins
+# on would start rejecting this commit.
 #
 # Usage: commit-appcast.sh <local-appcast> <owner/repo> <branch> <tag>
 set -euo pipefail
