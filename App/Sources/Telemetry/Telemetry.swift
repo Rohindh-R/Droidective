@@ -2,13 +2,13 @@ import Foundation
 import PostHog
 import Sentry
 
-/// Crash reporting (Sentry) and opt-in product analytics (PostHog). Lives in the
-/// App layer so ADBKit stays dependency-free and `swift test` stays clean.
+/// Crash reporting (Sentry) and product analytics (PostHog). Lives in the App
+/// layer so ADBKit stays dependency-free and `swift test` stays clean.
 ///
 /// Everything is anonymous: no device serials, package ids, file paths, IPs, or
-/// command contents are ever sent — only which tool was used. Crash reporting is
-/// on by default (disclosed on first launch, opt-out in Settings → Privacy);
-/// product analytics is opt-in.
+/// command contents are ever sent — only which tool was used. Both are on by
+/// default and opt-out in Settings → Privacy; the first-run consent disclosure
+/// is deferred for the first few launches (gated in RootView).
 @MainActor
 final class Telemetry {
     static let shared = Telemetry()
@@ -17,14 +17,14 @@ final class Telemetry {
     static let crashReportingKey = "crashReportingEnabled"
     static let analyticsKey = "analyticsEnabled"
 
-    /// Defaults ON. Disclosed at first launch; opt-out in Settings → Privacy.
+    /// Defaults ON. Opt-out in Settings → Privacy.
     var crashReportingEnabled: Bool {
         UserDefaults.standard.object(forKey: Self.crashReportingKey) as? Bool ?? true
     }
 
-    /// Defaults OFF — opt-in only.
+    /// Defaults ON. Opt-out in Settings → Privacy.
     var analyticsEnabled: Bool {
-        UserDefaults.standard.bool(forKey: Self.analyticsKey)
+        UserDefaults.standard.object(forKey: Self.analyticsKey) as? Bool ?? true
     }
 
     private var sentryRunning = false

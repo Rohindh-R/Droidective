@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// One-time privacy disclosure shown on first launch (after the welcome tour).
-/// Both crash reporting and analytics start ON here and are recommended; nothing
-/// is sent until Continue is pressed. Toggleable later in Settings → Privacy.
+/// Privacy disclosure shown once, after the app has been launched a few times
+/// (RootView gates it). Telemetry is anonymous and already on by default; this
+/// lets the user confirm or opt out. Toggleable later in Settings → Privacy.
 struct TelemetryConsentView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("telemetryConsentAsked") private var consentAsked = false
@@ -41,7 +41,10 @@ struct TelemetryConsentView: View {
         .padding(28)
         .frame(width: 480)
         .background(Color.bgRoot)
-        .onAppear { crashReports = Telemetry.shared.crashReportingEnabled }
+        .onAppear {
+            crashReports = Telemetry.shared.crashReportingEnabled
+            analytics = Telemetry.shared.analyticsEnabled
+        }
     }
 
     private var header: some View {

@@ -8,8 +8,18 @@ struct RootView: View {
     @AppStorage("sidebarWidth") private var sidebarWidth = 280.0
     @AppStorage("hasSeenTour") private var hasSeenTour = false
     @AppStorage("telemetryConsentAsked") private var consentAsked = false
+    @AppStorage("launchCount") private var launchCount = 0
     @State private var presentConsent = false
     @Environment(\.colorScheme) private var colorScheme
+
+    /// Launches to allow before the first-run privacy disclosure appears.
+    /// Telemetry is anonymous and on by default in the meantime (opt-out in
+    /// Settings → Privacy); the modal then lets the user confirm or opt out.
+    private let consentPromptAfterLaunches = 5
+
+    private var shouldPromptConsent: Bool {
+        !consentAsked && launchCount >= consentPromptAfterLaunches
+    }
 
     var body: some View {
         @Bindable var state = state
@@ -19,7 +29,7 @@ struct RootView: View {
             }
             .background {
                 // Separate host view: two .sheet modifiers on one view can drop
-                // one, and first-run privacy consent must always show.
+                // one, and the deferred privacy consent must still reliably show.
                 Color.clear.sheet(isPresented: $presentConsent) {
                     TelemetryConsentView()
                 }
@@ -33,12 +43,12 @@ struct RootView: View {
                 HotkeyManager.install(state: state)
                 if !hasSeenTour {
                     state.presentTour = true
-                } else if !consentAsked {
+                } else if shouldPromptConsent {
                     presentConsent = true
                 }
             }
             .onChange(of: state.presentTour) { _, showing in
-                if !showing && !consentAsked { presentConsent = true }
+                if !showing && shouldPromptConsent { presentConsent = true }
             }
             .onChange(of: colorScheme) { _, _ in updateDockIcon() }
     }
