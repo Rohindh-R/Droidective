@@ -136,7 +136,9 @@ jobs:
           DMG="DerivedData/Build/Products/Release/Droidective-${GITHUB_REF_NAME}.dmg"
           DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/Droidective-${GITHUB_REF_NAME}.dmg"
           ./scripts/fetch-sparkle-tools.sh
-          ./scripts/update-appcast.sh "$DMG" "$VERSION" "${{ github.run_number }}" "${GITHUB_REF_NAME}" "$DOWNLOAD_URL" "site/appcast.xml"
+          # release-body.md (the GitHub release notes, extracted above) is
+          # rendered to HTML and embedded in the appcast's <description>.
+          ./scripts/update-appcast.sh "$DMG" "$VERSION" "${{ github.run_number }}" "$DOWNLOAD_URL" release-body.md "site/appcast.xml"
           # Commit the regenerated appcast back to main; the resulting push runs
           # the pages job, which deploys it. (GitHub Pages only serves deploys
           # from the source branch, so a tag-ref deploy here would never go live.)

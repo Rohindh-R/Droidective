@@ -202,7 +202,9 @@ CI (the `release` job) then:
 - notarizes the DMG with Apple and staples the ticket;
 - publishes the GitHub release with that DMG and the latest release notes;
 - signs the stapled DMG with the EdDSA key and commits the regenerated
-  `site/appcast.xml` to `main`;
+  `site/appcast.xml` to `main` — with those notes rendered to HTML and embedded
+  in the item's `<description>`, so Sparkle shows them in its update window
+  rather than loading the GitHub release page;
 - updates the Homebrew cask.
 
 That commit to `main` re-runs the `pages` job, which deploys the site and the
@@ -246,8 +248,8 @@ Copy this into the release PR and tick each item.
 - [ ] Fresh download launches cleanly: mount the DMG, drag to `/Applications`, open — no Gatekeeper warning. `spctl -a -vvv -t install Droidective-vX.Y.Z.dmg` reports *accepted, source=Notarized Developer ID*.
 - [ ] `brew install --cask rohindh-r/tap/droidective` installs the new version.
 - [ ] `https://droidective.github.io/Droidective/` shows the new screenshots and copy.
-- [ ] `https://droidective.github.io/Droidective/appcast.xml` lists the new version with a valid `sparkle:edSignature`.
-- [ ] A prior install (v2.1.0+) offers the update via Sparkle and applies it in place.
+- [ ] `https://droidective.github.io/Droidective/appcast.xml` lists the new version with a valid `sparkle:edSignature` and the release notes inline in `<description>`.
+- [ ] A prior install (v2.1.0+) offers the update via Sparkle, shows the release notes in the update window (not the GitHub web page), and applies it in place.
 - [ ] Repo **About → Website** still points at the Pages URL.
 
 ## Mac App Store builds

@@ -10,7 +10,28 @@
       <sparkle:version>80</sparkle:version>
       <sparkle:shortVersionString>2.4.1</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/Droidective/Droidective/releases/tag/v2.4.1</sparkle:releaseNotesLink>
+      <description><![CDATA[
+<style>
+:root { color-scheme: light dark; }
+body { font: 13px/1.55 -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; }
+h2 { font-size: 1.3em; margin: .2em 0 .4em; }
+h3 { font-size: 1.05em; margin: 1.1em 0 .3em; }
+p { margin: .5em 0; }
+ul { margin: .4em 0; padding-left: 1.4em; }
+li { margin: .3em 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; background: color-mix(in srgb, currentColor 12%, transparent); padding: .1em .35em; border-radius: 4px; }
+pre { background: color-mix(in srgb, currentColor 8%, transparent); padding: .6em .8em; border-radius: 6px; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+a { color: #2f9e44; }
+</style>
+<h3>Improvements</h3>
+<ul>
+<li>
+<strong>Sidebar footer</strong> — the "Manage features" button stays on one line, and the
+sidebar has a higher minimum width so the footer no longer wraps when narrowed.</li>
+</ul>
+<p>Installed copies update in place via Sparkle.</p>
+]]></description>
       <pubDate>Wed, 24 Jun 2026 13:59:33 +0000</pubDate>
       <enclosure url="https://github.com/Droidective/Droidective/releases/download/v2.4.1/Droidective-v2.4.1.dmg" sparkle:edSignature="hWcQo0n9m0rt/KHop2aY821NrZKRKWxXgpaQ/DjSRhTJeT5SJ8CwKvJ5hsjOqtbbGE1c8jdadjLOztYY7504Bg==" length="44365721" type="application/octet-stream" />
     </item>
