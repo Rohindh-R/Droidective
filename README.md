@@ -69,8 +69,8 @@ font zoom. Files pulled from the device always ask where to save (default
 - [Android platform-tools](https://developer.android.com/tools/releases/platform-tools)
   (`adb`) — found automatically via `ANDROID_HOME`, `~/Library/Android/sdk`, or
   Homebrew; the app offers a one-click install if it's missing.
-- Optional: the Android SDK `emulator` (AVD management). `scrcpy` (the server
-  payload) and `ffmpeg` ship inside the app — no `brew install` needed.
+- Optional: the Android SDK `emulator` (AVD management). The `scrcpy` server
+  payload and a static `ffmpeg` ship **inside the app** — no `brew install` needed.
 
 ## Building
 
@@ -87,15 +87,23 @@ after a fresh clone if you want to open it in Xcode.
 
 The app runs **without the App Sandbox** (it must spawn `adb`, the bundled
 `ffmpeg`, the `emulator`, and `brew`). Local builds are ad-hoc signed; release
-builds are signed with a Developer ID and notarized.
+builds are signed with a Developer ID and notarized (see [`RELEASING.md`](RELEASING.md)).
 
 ## Install a release build
 
-Each [GitHub release](../../releases) ships a `Droidective-<version>.dmg` built
-by CI, signed with a Developer ID and notarized by Apple. Open it and drag
-**Droidective** into **Applications** — no quarantine workaround needed.
+**Homebrew (recommended):**
 
-Installed copies update in place via Sparkle.
+```sh
+brew install --cask rohindh-r/tap/droidective
+```
+
+**Direct download:** each [GitHub release](../../releases) ships a
+`Droidective-<version>.dmg`. Open it and drag **Droidective** into
+**Applications**.
+
+The app is signed with a Developer ID and notarized by Apple, so it opens
+normally — no Gatekeeper warning, no `xattr` workaround. It keeps itself current
+through Sparkle (and `brew upgrade` defers to that).
 
 ## Architecture
 

@@ -8,4 +8,7 @@ App/Info.plist
 .sparkle/
 sparkle-private-key.txt
 .env.telemetry
+.env.signing
+*.p12
+AuthKey_*.p8
 .claude/
