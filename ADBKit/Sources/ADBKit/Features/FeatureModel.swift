@@ -168,6 +168,8 @@ public struct FeatureDef: Sendable, Identifiable {
     public let needsDevice: Bool
     /// Disabled unless scrcpy is installed.
     public let needsScrcpy: Bool
+    /// Disabled unless ffmpeg is installed.
+    public let needsFfmpeg: Bool
     public let isStateOverride: Bool
     public let overrideKind: OverrideKind?
     public let isDestructive: Bool
@@ -189,6 +191,7 @@ public struct FeatureDef: Sendable, Identifiable {
         needsBundle: Bool = false,
         needsDevice: Bool = true,
         needsScrcpy: Bool = false,
+        needsFfmpeg: Bool = false,
         isStateOverride: Bool = false,
         overrideKind: OverrideKind? = nil,
         isDestructive: Bool = false,
@@ -208,6 +211,7 @@ public struct FeatureDef: Sendable, Identifiable {
         self.needsBundle = needsBundle
         self.needsDevice = needsDevice
         self.needsScrcpy = needsScrcpy
+        self.needsFfmpeg = needsFfmpeg
         self.isStateOverride = isStateOverride
         self.overrideKind = overrideKind
         self.isDestructive = isDestructive

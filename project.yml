@@ -28,7 +28,18 @@ targets:
     platform: macOS
     sources:
       - App/Sources
-      - App/Resources
+      - path: App/Resources
+        excludes:
+          - scrcpy-server
+          - ffmpeg
+      # Extension-less binaries: force them into the resources phase so they land
+      # in the .app bundle (XcodeGen otherwise can't infer the build phase).
+      # scrcpy-server is pushed to the device; ffmpeg runs on the Mac for the
+      # video editor. See BundledTools + scripts/update-bundled-tools.sh.
+      - path: App/Resources/scrcpy-server
+        buildPhase: resources
+      - path: App/Resources/ffmpeg
+        buildPhase: resources
     dependencies:
       - package: ADBKit
         product: ADBKit

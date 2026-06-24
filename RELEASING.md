@@ -94,8 +94,9 @@ SIGN_IDENTITY=Developer ID Application: Your Name (TEAMID)
 DEVELOPMENT_TEAM=TEAMID
 ```
 
-`make dmg` then signs and bundles scrcpy/ffmpeg; notarize the result with
-`AC_API_KEY_PATH=… AC_API_KEY_ID=… AC_API_ISSUER_ID=… ./scripts/notarize.sh <dmg>`.
+`make dmg` then signs the app — the scrcpy-server and a static ffmpeg already
+ship inside it (in `App/Resources/`) — and packages the DMG; notarize the result
+with `AC_API_KEY_PATH=… AC_API_KEY_ID=… AC_API_ISSUER_ID=… ./scripts/notarize.sh <dmg>`.
 Without `.env.signing`, `make dmg` produces an ad-hoc DMG — fine for testing,
 but Gatekeeper still warns.
 
@@ -180,8 +181,8 @@ CI (the `release` job) then:
 - builds Release with `MARKETING_VERSION=X.Y.Z` and `CURRENT_PROJECT_VERSION=`
   the GitHub Actions run number (Sparkle compares this monotonically increasing
   `CFBundleVersion`);
-- bundles scrcpy + ffmpeg into the app, signs it with the Developer ID, and
-  packages `Droidective-vX.Y.Z.dmg`;
+- signs the app — with the scrcpy-server and ffmpeg bundled inside it — with the
+  Developer ID, and packages `Droidective-vX.Y.Z.dmg`;
 - notarizes the DMG with Apple and staples the ticket;
 - publishes the GitHub release with that DMG and the latest release notes;
 - signs the stapled DMG with the EdDSA key and writes `appcast.xml`;
@@ -218,7 +219,7 @@ Copy this into the release PR and tick each item.
 ### Release (CI does the build — triggered by the tag)
 
 - [ ] Tag from `main` and push: `git tag vX.Y.Z && git push origin vX.Y.Z`.
-- [ ] The Actions `release` job succeeds: builds Release with `MARKETING_VERSION=X.Y.Z`, bundles scrcpy + ffmpeg, signs with the Developer ID, packages `Droidective-vX.Y.Z.dmg`, notarizes + staples it, signs it with the Sparkle EdDSA key, updates the Homebrew cask, publishes the GitHub release with the DMG + latest notes, writes `appcast.xml`, and deploys the site to GitHub Pages.
+- [ ] The Actions `release` job succeeds: builds Release with `MARKETING_VERSION=X.Y.Z` (scrcpy-server + ffmpeg ship inside the app), signs with the Developer ID, packages `Droidective-vX.Y.Z.dmg`, notarizes + staples it, signs it with the Sparkle EdDSA key, updates the Homebrew cask, publishes the GitHub release with the DMG + latest notes, writes `appcast.xml`, and deploys the site to GitHub Pages.
 
 ### Verify (post-release)
 
@@ -234,7 +235,8 @@ Copy this into the release PR and tick each item.
 
 Not a supported target. The Mac App Store mandates the App Sandbox, which forbids
 spawning external executables — and Droidective's whole job is driving `adb`,
-`scrcpy`, the Android `emulator`, and `brew`. The emulator additionally needs a
+the bundled `ffmpeg`, the Android `emulator`, and `brew` (and pushing the
+scrcpy-server to the device). The emulator additionally needs a
 hypervisor entitlement the App Store doesn't grant. So Droidective is distributed
 only as a Developer ID-signed, notarized build.
 

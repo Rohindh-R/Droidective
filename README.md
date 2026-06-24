@@ -15,8 +15,9 @@ Built in Swift 6 + SwiftUI, with all logic in a platform-agnostic Swift package
 (`ADBKit`) so the engine stays testable and a future cross-platform port only
 needs a new UI layer.
 
-> Requires macOS 14+ and the Android `adb` tool. Signed with a Developer ID and
-> notarized by Apple; see [Install a release build](#install-a-release-build).
+> Requires macOS 14+ and the Android `adb` tool. Release builds are signed with a
+> Developer ID and notarized; see [Building](#building) and
+> [Install a release build](#install-a-release-build).
 
 ## Features
 
@@ -68,8 +69,8 @@ font zoom. Files pulled from the device always ask where to save (default
 - [Android platform-tools](https://developer.android.com/tools/releases/platform-tools)
   (`adb`) — found automatically via `ANDROID_HOME`, `~/Library/Android/sdk`, or
   Homebrew; the app offers a one-click install if it's missing.
-- `scrcpy` (screen mirroring) and `ffmpeg` (GIF export) ship **inside the app** —
-  no install needed. Optional: the Android SDK `emulator` for AVD management.
+- Optional: the Android SDK `emulator` (AVD management). The `scrcpy` server
+  payload and a static `ffmpeg` ship **inside the app** — no `brew install` needed.
 
 ## Building
 
@@ -84,9 +85,9 @@ make run                  # build and launch
 `project.yml` and is gitignored — run `make generate` (or `xcodegen generate`)
 after a fresh clone if you want to open it in Xcode.
 
-The app runs **without the App Sandbox** (it must spawn `adb`, `scrcpy`,
-`emulator`, and `brew`). Local builds are ad-hoc signed; release builds are
-signed with a Developer ID and notarized (see [`RELEASING.md`](RELEASING.md)).
+The app runs **without the App Sandbox** (it must spawn `adb`, the bundled
+`ffmpeg`, the `emulator`, and `brew`). Local builds are ad-hoc signed; release
+builds are signed with a Developer ID and notarized (see [`RELEASING.md`](RELEASING.md)).
 
 ## Install a release build
 
@@ -132,6 +133,7 @@ Issues and PRs welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 [MIT](LICENSE) © 2026 Rohindh R.
 
-adb and the Android emulator are separate tools with their own licenses and are
-not bundled — Droidective resolves your SDK install. scrcpy (Apache-2.0) and
-ffmpeg (LGPL) are bundled inside the app and shelled out to.
+scrcpy, ffmpeg, adb, and the Android emulator are separate tools with their own
+licenses. The app bundles the scrcpy server payload and a static ffmpeg (GPLv3);
+adb and the emulator are used from your Android SDK. See
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

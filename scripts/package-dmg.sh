@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # Sign the built Release app and package it into a drag-to-Applications DMG.
-# Assumes the Release app is already built and scripts/bundle-tools.sh has
-# injected scrcpy/ffmpeg.
+# Assumes the Release configuration has already been built into DerivedData.
 #
-# Signing identity comes from $SIGN_IDENTITY (default "-" = ad-hoc, for local
-# dev). A real "Developer ID Application: …" identity additionally enables the
-# hardened runtime + secure timestamp, which notarization requires.
+# Signing identity comes from $SIGN_IDENTITY:
+#   "-" (default)                ad-hoc — local dev, not notarizable.
+#   "Developer ID Application…"  Developer ID — hardened runtime + secure
+#                                timestamp, ready for notarization (see
+#                                scripts/notarize.sh).
 set -euo pipefail
 
 VERSION="${1:-dev}"
+SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 APP_DIR="DerivedData/Build/Products/Release"
 APP="$APP_DIR/Droidective.app"
 DMG="$APP_DIR/Droidective-${VERSION}.dmg"
@@ -43,18 +45,12 @@ if [[ -d "$sparkle" ]]; then
   codesign "${opts[@]}" "$sparkle"
 fi
 
-# bundle-tools added loose dylibs and helper executables after xcodebuild signed
-# the app, so re-sign those too, then re-seal the whole bundle.
-if [[ -d "$APP/Contents/Frameworks" ]]; then
-  for lib in "$APP/Contents/Frameworks"/*.dylib; do
-    [[ -f "$lib" ]] && codesign "${opts[@]}" "$lib"
-  done
-fi
-if [[ -d "$APP/Contents/Helpers" ]]; then
-  for helper in "$APP/Contents/Helpers"/*; do
-    [[ -f "$helper" ]] && codesign "${opts[@]}" "$helper"
-  done
-fi
+# The bundled ffmpeg is a loose Mach-O in Resources — codesign --deep doesn't
+# reliably sign those, so sign it explicitly before sealing the bundle. The
+# scrcpy-server is a device-side payload, covered by the bundle seal.
+ffmpeg="$APP/Contents/Resources/ffmpeg"
+[[ -f "$ffmpeg" ]] && codesign "${opts[@]}" "$ffmpeg"
+
 codesign "${opts[@]}" "$APP"
 codesign --verify --deep --strict "$APP"
 

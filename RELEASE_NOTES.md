@@ -1,20 +1,40 @@
 ## Droidective v2.4.0
 
-Droidective is now signed with a Developer ID and notarized by Apple, so it
-opens with no Gatekeeper warning — and it ships with scrcpy and ffmpeg bundled,
-so screen mirroring and GIF export work without installing anything extra.
+A live in-app screen mirror, a video editor, and self-contained tools — scrcpy
+and ffmpeg now ship inside the app, so there's nothing to `brew install`. The
+build is also signed with a Developer ID and notarized by Apple.
 
 ### New features
 
-- **Notarized build** — signed with a Developer ID and notarized by Apple. No
-  more "Droidective is damaged" warning and no `xattr` workaround; just open it.
-- **Self-contained** — scrcpy and ffmpeg now ship inside the app, so Mirror
-  Screen and GIF export work out of the box, with no Homebrew install needed.
+- **In-app screen mirror** — mirror and control the device live in the app
+  window, built on a native scrcpy engine (no `scrcpy` install). Take a
+  screenshot, record the screen, hear device audio, sync the clipboard both
+  ways, adjust volume, and drive Back / Home / Recents.
+- **Video Editor** — trim, rotate, flip, crop, change speed, mute, convert the
+  format (MP4 / MOV / MKV / WebM / GIF), and compress — with undo/redo
+  (`⌘Z` / `⇧⌘Z`). A finished recording opens straight in the editor, and you can
+  open any existing video to edit.
+- **Self-contained tools** — scrcpy-server and a static ffmpeg are bundled in the
+  app, so mirroring, recording, and video export work with no `brew install`.
+
+### Improvements
+
+- **Screen recording** runs through the mirror — no ~3-minute cap, device audio,
+  and it survives rotation — with pause/resume and a discard / save / edit prompt
+  when you stop.
+- **Live edit preview** — rotate, flip, crop, speed, and mute reflect in the
+  preview as you change them. Crop is a focused mode with the player controls
+  hidden and Apply / Cancel / Reset (Esc) actions.
+- **Privacy consent redesigned** — the first-launch telemetry screen is clearer,
+  with iconned rows, a recommendation, and both anonymous crash reports and usage
+  analytics on by default (still nothing is sent until you continue, and it's
+  changeable anytime in Settings → Privacy).
 
 ### Install
 
-Download the `.dmg` below and drag **Droidective** into **Applications**. It
-opens normally — no quarantine workaround needed.
+Download the `.dmg` below and drag **Droidective** into **Applications**. This
+build is signed with a Developer ID and notarized by Apple, so it opens without
+any quarantine workaround.
 
 Installed copies from v2.1.0+ update in place via Sparkle.
 

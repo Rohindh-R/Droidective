@@ -148,9 +148,6 @@ public struct FeatureEngine: Sendable {
             let file = try await screenCapture.captureScreenshot(serial: serial)
             return FeatureResult(ok: true, message: "Screenshot saved", revealPath: file.path)
 
-        case "scrcpy":
-            return await launchScrcpy(serial: serial)
-
         case "demo-mode":
             let on = params["on"]?.boolValue == true
             try await overrides.applyDemo(serial: serial, on: on)
@@ -325,53 +322,6 @@ public struct FeatureEngine: Sendable {
         let port = Int(raw)
         let result = try await client.run(on: serial, ["reverse", "tcp:\(port)", "tcp:\(port)"])
         return fromResult(result, success: "Reversed port \(port)", fallback: "Failed to reverse port")
-    }
-
-    /// Launch scrcpy detached: null stdio, no wait, never killed on app quit.
-    ///
-    /// scrcpy resolves `adb` itself via $ADB or PATH — a Finder-launched app
-    /// has neither, so both must be injected or scrcpy dies instantly.
-    public func launchScrcpy(
-        serial: String,
-        options: ScrcpyOptions = ScrcpyOptions(),
-        recordingPath: String? = nil
-    ) async -> FeatureResult {
-        guard let scrcpyPath = await locator.resolve(.scrcpy) else {
-            return FeatureResult(ok: false, message: "scrcpy isn't installed. Run `brew install scrcpy`, then try again.")
-        }
-        guard let adbPath = await locator.resolve(.adb) else {
-            return FeatureResult(ok: false, message: "adb not found — scrcpy needs it to connect.")
-        }
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: scrcpyPath)
-        process.arguments = ["-s", serial] + options.args(recordingPath: recordingPath)
-        var environment = ProcessInfo.processInfo.environment
-        environment["ADB"] = adbPath
-        // A bundled scrcpy (Contents/Helpers/scrcpy) ships its server alongside
-        // it under Contents/Resources; point scrcpy at it. A Homebrew scrcpy
-        // finds its own server, so this is skipped when the file isn't present.
-        let bundledServer = URL(fileURLWithPath: scrcpyPath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("Resources/scrcpy-server")
-        if FileManager.default.fileExists(atPath: bundledServer.path) {
-            environment["SCRCPY_SERVER_PATH"] = bundledServer.path
-        }
-        let extraPaths = [
-            (adbPath as NSString).deletingLastPathComponent,
-            (scrcpyPath as NSString).deletingLastPathComponent,
-        ]
-        environment["PATH"] = (extraPaths + [environment["PATH"] ?? "/usr/bin:/bin"]).joined(separator: ":")
-        process.environment = environment
-        process.standardInput = FileHandle.nullDevice
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        do {
-            try process.run()
-            return FeatureResult(ok: true, message: "Launched scrcpy")
-        } catch {
-            return FeatureResult(ok: false, message: "Couldn't launch scrcpy: \(error.localizedDescription)")
-        }
     }
 
 }

@@ -125,13 +125,26 @@ extension FeatureRegistry {
         ],
         "screen-record": [
             FeatureCommand(
-                "adb shell screenrecord --bit-rate 8000000 [--size WxH] [--time-limit N] [--rotate] [--bugreport] /sdcard/<file>.mp4",
-                note: "options are set in the form"
+                "scrcpy -s <serial> --no-playback --record <file>.mp4",
+                note: "records headless on the Mac — no time limit, audio by default"
             ),
-            FeatureCommand("adb pull /sdcard/<file>.mp4", note: "pull when you stop"),
             FeatureCommand(
-                "ffmpeg -i <file>.mp4 -vf fps=12,scale=480:-1:flags=lanczos <file>.gif",
-                note: "optional GIF conversion"
+                "scrcpy -s <serial> --no-playback --no-audio --max-size 1280 --max-fps 60 --record <file>.mp4",
+                note: "options are set under Advanced; Stop sends SIGTERM so the MP4 finalizes"
+            ),
+        ],
+        "video-editor": [
+            FeatureCommand(
+                "ffmpeg -ss <start> -t <dur> -i in.mp4 -c:v libx264 -crf 18 out.mp4",
+                note: "trim + re-encode"
+            ),
+            FeatureCommand(
+                "ffmpeg -i in.mp4 -vf transpose=1,crop=iw*<w>:ih*<h>:iw*<x>:ih*<y> out.mov",
+                note: "rotate + crop, convert container"
+            ),
+            FeatureCommand(
+                "ffmpeg -i in.mp4 -filter_complex \"fps=15,scale=480:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse\" out.gif",
+                note: "export as GIF"
             ),
         ],
         "demo-mode": [

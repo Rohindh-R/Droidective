@@ -113,7 +113,6 @@ final class AppState {
     var bundles: [AppBundle] = []
     var selectedBundleId: String?
     var adbStatus: ToolStatus?
-    var scrcpyStatus: ToolStatus?
     var installingTool: Tool?
     /// Set by RootView so hotkeys/menu bar can reopen a closed main window.
     var openMainWindow: (() -> Void)?
@@ -251,9 +250,7 @@ final class AppState {
     }
 
     func refreshToolStatus() async {
-        let status = await env.engine.toolDetection.detect()
-        adbStatus = status.adb
-        scrcpyStatus = status.scrcpy
+        adbStatus = await env.engine.toolDetection.detectAdb()
     }
 
     func installTool(_ tool: Tool) {
@@ -808,26 +805,6 @@ final class AppState {
         let snapshot = bundles
         Task {
             try? await env.stores.bundles.save(snapshot)
-        }
-    }
-
-    /// Launch scrcpy with the chosen options. When `recordToFile`, asks where
-    /// to save the recording first.
-    func launchMirror(options: ScrcpyOptions, recordToFile: Bool) {
-        guard let serial = targetSerials.first else {
-            showToast(Toast(message: "No device connected.", ok: false))
-            return
-        }
-        var recordingPath: String?
-        if recordToFile {
-            guard let url = askSaveLocation(suggestedName: "scrcpy_\(ScreenCaptureService.stamp()).mp4") else { return }
-            recordingPath = url.path
-        }
-        Task {
-            await CommandLog.userInitiated(feature: "scrcpy") {
-                let result = await env.engine.launchScrcpy(serial: serial, options: options, recordingPath: recordingPath)
-                showToast(Toast(message: result.message, ok: result.ok))
-            }
         }
     }
 

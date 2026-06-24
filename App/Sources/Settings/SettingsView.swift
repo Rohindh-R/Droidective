@@ -208,9 +208,9 @@ struct GeneralSettingsView: View {
     }
 }
 
-/// Setup Doctor: verifies the external toolchain (adb / scrcpy / emulator /
-/// ffmpeg / Homebrew), shows each tool's version and path, and offers a
-/// Homebrew install for the brew-installable ones.
+/// Setup Doctor: verifies the external toolchain (adb / emulator / Homebrew),
+/// shows each tool's version and path, and offers a Homebrew install for the
+/// brew-installable ones. scrcpy and ffmpeg aren't listed — the app bundles them.
 struct DoctorSettingsView: View {
     @Environment(AppState.self) private var state
     @State private var report: [Tool: ToolStatus] = [:]
@@ -227,9 +227,7 @@ struct DoctorSettingsView: View {
 
     private static let checks: [Check] = [
         Check(tool: .adb, name: "adb", purpose: "Required — powers every device action", brewInstallable: true),
-        Check(tool: .scrcpy, name: "scrcpy", purpose: "Mirror Screen", brewInstallable: true),
         Check(tool: .emulator, name: "emulator", purpose: "Launch & manage Android emulators", brewInstallable: false),
-        Check(tool: .ffmpeg, name: "ffmpeg", purpose: "GIF export in Screen Record", brewInstallable: true),
         Check(tool: .brew, name: "Homebrew", purpose: "Installs the tools above", brewInstallable: false),
     ]
 

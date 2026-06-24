@@ -157,9 +157,16 @@ public enum FeatureRegistry {
         ),
         FeatureDef(
             id: "screen-record", num: 15, title: "Screen Record",
-            subtitle: "Record the screen, auto-pull, optional GIF",
-            keywords: ["record", "video", "screenrecord", "gif", "capture"],
-            category: .screen, icon: "video", kind: .view
+            subtitle: "Record via scrcpy — no time limit, with audio",
+            keywords: ["record", "video", "screen", "scrcpy", "audio", "screenrecord", "capture"],
+            category: .screen, icon: "video", kind: .view, needsScrcpy: true
+        ),
+        FeatureDef(
+            id: "video-editor", num: 50, title: "Video Editor",
+            subtitle: "Trim, rotate, crop, convert & compress video",
+            keywords: ["video", "edit", "editor", "trim", "rotate", "crop", "convert",
+                       "compress", "gif", "mp4", "mov", "speed"],
+            category: .screen, icon: "film", kind: .view, needsDevice: false, needsFfmpeg: true
         ),
         FeatureDef(
             id: "demo-mode", num: 16, title: "Demo Mode",

@@ -11,3 +11,10 @@ regexes = [
   # UserDefaults migration key, not a credential.
   '''didMigrateDefaultsV2''',
 ]
+
+[[allowlists]]
+description = "Bundled third-party binaries (not secrets): scrcpy-server (Apache-2.0), ffmpeg (GPLv3)"
+paths = [
+  '''App/Resources/scrcpy-server''',
+  '''App/Resources/ffmpeg''',
+]

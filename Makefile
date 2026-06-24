@@ -34,7 +34,6 @@ run: build
 
 dmg: generate
 	xcodebuild -project Droidective.xcodeproj -scheme App -configuration Release -derivedDataPath DerivedData build $(TELEMETRY) $(SIGNING)
-	./scripts/bundle-tools.sh "DerivedData/Build/Products/Release/Droidective.app"
 	SIGN_IDENTITY="$(SIGN_IDENTITY)" ./scripts/package-dmg.sh $(VERSION)
 
 clean:

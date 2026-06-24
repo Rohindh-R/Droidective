@@ -158,6 +158,13 @@ struct ScreenshotEditorView: View {
 
     private var toolbar: some View {
         HStack(spacing: 12) {
+            Button { onClose() } label: {
+                Image(systemName: "chevron.backward").frame(width: 26, height: 24).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Back")
+            Divider().frame(height: 22)
+
             HStack(spacing: 2) {
                 Button {
                     selecting = true
