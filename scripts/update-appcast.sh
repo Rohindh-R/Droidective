@@ -49,7 +49,7 @@ cat >"$APPCAST" <<XML
       <sparkle:version>${BUILD_VERSION}</sparkle:version>
       <sparkle:shortVersionString>${SHORT_VERSION}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/Rohindh-R/Droidective/releases/tag/${TAG}</sparkle:releaseNotesLink>
+      <sparkle:releaseNotesLink>https://github.com/Droidective/Droidective/releases/tag/${TAG}</sparkle:releaseNotesLink>
       <pubDate>${pub_date}</pubDate>
       <enclosure url="${DOWNLOAD_URL}" ${enclosure_attrs} type="application/octet-stream" />
     </item>

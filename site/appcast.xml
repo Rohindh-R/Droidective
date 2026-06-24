@@ -6,13 +6,13 @@
     <description>Most recent Droidective updates.</description>
     <language>en</language>
     <item>
-      <title>Droidective 2.1.0</title>
-      <sparkle:version>22</sparkle:version>
-      <sparkle:shortVersionString>2.1.0</sparkle:shortVersionString>
+      <title>Droidective 2.4.0</title>
+      <sparkle:version>69</sparkle:version>
+      <sparkle:shortVersionString>2.4.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/Rohindh-R/Droidective/releases/tag/v2.1.0</sparkle:releaseNotesLink>
-      <pubDate>Sat, 20 Jun 2026 16:36:53 +0000</pubDate>
-      <enclosure url="https://github.com/Rohindh-R/Droidective/releases/download/v2.1.0/Droidective-v2.1.0.dmg" sparkle:edSignature="PktlZJSxnwZ8VufMueUnpUyTHiIxGG3aiKPNSRDWj2Q9b7EPKvgo/aRcGQxwM1dzhWVahKynAVHh/2ad2Kp/DQ==" length="7117209" type="application/octet-stream" />
+      <sparkle:releaseNotesLink>https://github.com/Droidective/Droidective/releases/tag/v2.4.0</sparkle:releaseNotesLink>
+      <pubDate>Wed, 24 Jun 2026 09:11:44 +0000</pubDate>
+      <enclosure url="https://github.com/Droidective/Droidective/releases/download/v2.4.0/Droidective-v2.4.0.dmg" sparkle:edSignature="H+IwWl3NkKrdp2Wue5bJ+gTsfWGLxOmBI62+QEqjh9DnlK1mjRFaJWja8qFnzbATnY9ca6wwokUZ5O+fPoDNDA==" length="44317257" type="application/octet-stream" />
     </item>
   </channel>
 </rss>

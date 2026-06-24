@@ -31,9 +31,10 @@ jobs:
           xcodegen generate
           xcodebuild -project Droidective.xcodeproj -scheme App -configuration Debug -derivedDataPath DerivedData build CODE_SIGNING_ALLOWED=NO
 
-  # Publish the marketing site to GitHub Pages on every push to main, preserving
-  # the appcast the release job last published (so site edits don't wipe the
-  # Sparkle update feed).
+  # Publish the marketing site (and the committed Sparkle appcast) to GitHub
+  # Pages on every push to main. The appcast in site/ is the single source of
+  # truth — the release job commits each new version's entry back to main, which
+  # re-triggers this job to deploy it.
   pages:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -51,16 +52,10 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
-      - name: Assemble site (refresh appcast from the live feed when present)
+      - name: Assemble site
         run: |
           mkdir -p _site
           cp -R site/. _site/
-          # Prefer the live feed (kept fresh by releases); fall back to the
-          # committed site/appcast.xml. Fetch to a temp file so a 404 never
-          # truncates the committed copy.
-          if curl -fsSL https://droidective.github.io/Droidective/appcast.xml -o /tmp/appcast.xml; then
-            cp /tmp/appcast.xml _site/appcast.xml
-          fi
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0
         with:
           path: _site
@@ -73,14 +68,6 @@ jobs:
     runs-on: macos-15
     permissions:
       contents: write
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    concurrency:
-      group: pages
-      cancel-in-progress: false
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
@@ -140,17 +127,20 @@ jobs:
           files: DerivedData/Build/Products/Release/Droidective-*.dmg
           body_path: release-body.md
           fail_on_unmatched_files: true
-      - name: Sign update and assemble site + appcast
+      - name: Sign update and publish appcast to main
         env:
           SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          GH_TOKEN: ${{ secrets.RELEASE_PUSH_TOKEN }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           DMG="DerivedData/Build/Products/Release/Droidective-${GITHUB_REF_NAME}.dmg"
           DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/Droidective-${GITHUB_REF_NAME}.dmg"
           ./scripts/fetch-sparkle-tools.sh
-          mkdir -p _site
-          cp -R site/. _site/
-          ./scripts/update-appcast.sh "$DMG" "$VERSION" "${{ github.run_number }}" "${GITHUB_REF_NAME}" "$DOWNLOAD_URL" "_site/appcast.xml"
+          ./scripts/update-appcast.sh "$DMG" "$VERSION" "${{ github.run_number }}" "${GITHUB_REF_NAME}" "$DOWNLOAD_URL" "site/appcast.xml"
+          # Commit the regenerated appcast back to main; the resulting push runs
+          # the pages job, which deploys it. (GitHub Pages only serves deploys
+          # from the source branch, so a tag-ref deploy here would never go live.)
+          ./scripts/commit-appcast.sh "site/appcast.xml" "${{ github.repository }}" main "${GITHUB_REF_NAME}"
       - name: Update Homebrew cask
         continue-on-error: true
         env:
@@ -168,8 +158,3 @@ jobs:
           git add Casks/droidective.rb
           git diff --cached --quiet || git commit -m "droidective ${VERSION}"
           git push
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0
-        with:
-          path: _site
-      - id: deploy
-        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128  # v5.0.0

@@ -58,9 +58,13 @@ delete the file (`trash sparkle-private-key.txt`).
 
 **Settings → Pages → Build and deployment → Source = GitHub Actions.**
 
-After this, every push to `main` deploys the marketing site, and each release
-deploys the site plus a freshly signed appcast. (Until Pages is enabled, the
-`pages` job and the release's deploy step will fail — that's expected.)
+After this, every push to `main` deploys the marketing site and the committed
+`site/appcast.xml`. The appcast in `site/` is the single source of truth: the
+release job signs a new version's entry and commits it back to `main` (see the
+`RELEASE_PUSH_TOKEN` secret below), which re-runs the `pages` job to deploy it.
+GitHub Pages only serves deployments from the source branch, so the release must
+publish through `main` rather than deploying from its tag ref directly. (Until
+Pages is enabled, the `pages` job will fail — that's expected.)
 
 ### 4. Developer ID signing and notarization
 
@@ -86,6 +90,17 @@ notarized by Apple, so users get no Gatekeeper warning. Set this up once:
    | `AC_API_KEY_ID` | the key id |
    | `AC_API_ISSUER_ID` | the issuer id |
    | `APPLE_TEAM_ID` | your 10-character team id |
+
+### 4b. Appcast publish token
+
+The release job commits the freshly signed `site/appcast.xml` back to `main` via
+the GitHub contents API (a verified, signed commit — which the protected branch
+requires). Add a `RELEASE_PUSH_TOKEN` secret: a fine-grained PAT with
+*Contents: read and write* on this repo, owned by an account allowed to bypass
+`main`'s protection (the repo admin). Because `main` is locked and requires
+reviews, the token must be able to bypass those rules; with admin enforcement
+off, an admin PAT does. Without this token the release publishes the DMG but the
+appcast won't update.
 
 To build a notarizable DMG **locally**, create `.env.signing` (gitignored):
 
@@ -185,11 +200,13 @@ CI (the `release` job) then:
   Developer ID, and packages `Droidective-vX.Y.Z.dmg`;
 - notarizes the DMG with Apple and staples the ticket;
 - publishes the GitHub release with that DMG and the latest release notes;
-- signs the stapled DMG with the EdDSA key and writes `appcast.xml`;
-- updates the Homebrew cask;
-- deploys the site + appcast to GitHub Pages.
+- signs the stapled DMG with the EdDSA key and commits the regenerated
+  `site/appcast.xml` to `main`;
+- updates the Homebrew cask.
 
-Installed copies pick up the new appcast and offer the update automatically.
+That commit to `main` re-runs the `pages` job, which deploys the site and the
+new appcast to GitHub Pages. Installed copies then pick up the new appcast and
+offer the update automatically.
 
 > **First Sparkle release:** existing v2.0.0 installs predate Sparkle, so they
 > won't auto-update *to* the first Sparkle-enabled build — download that one
@@ -219,7 +236,8 @@ Copy this into the release PR and tick each item.
 ### Release (CI does the build — triggered by the tag)
 
 - [ ] Tag from `main` and push: `git tag vX.Y.Z && git push origin vX.Y.Z`.
-- [ ] The Actions `release` job succeeds: builds Release with `MARKETING_VERSION=X.Y.Z` (scrcpy-server + ffmpeg ship inside the app), signs with the Developer ID, packages `Droidective-vX.Y.Z.dmg`, notarizes + staples it, signs it with the Sparkle EdDSA key, updates the Homebrew cask, publishes the GitHub release with the DMG + latest notes, writes `appcast.xml`, and deploys the site to GitHub Pages.
+- [ ] The Actions `release` job succeeds: builds Release with `MARKETING_VERSION=X.Y.Z` (scrcpy-server + ffmpeg ship inside the app), signs with the Developer ID, packages `Droidective-vX.Y.Z.dmg`, notarizes + staples it, signs it with the Sparkle EdDSA key, updates the Homebrew cask, publishes the GitHub release with the DMG + latest notes, and commits the regenerated `site/appcast.xml` to `main`.
+- [ ] The follow-up `pages` run (triggered by that appcast commit) deploys the site + appcast to GitHub Pages.
 
 ### Verify (post-release)
 
