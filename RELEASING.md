@@ -93,14 +93,15 @@ notarized by Apple, so users get no Gatekeeper warning. Set this up once:
 
 ### 4b. Appcast publish token
 
-The release job commits the freshly signed `site/appcast.xml` back to `main` via
-the GitHub contents API (a verified, signed commit — which the protected branch
-requires). Add a `RELEASE_PUSH_TOKEN` secret: a fine-grained PAT with
-*Contents: read and write* on this repo, owned by an account allowed to bypass
-`main`'s protection (the repo admin). Because `main` is locked and requires
-reviews, the token must be able to bypass those rules; with admin enforcement
-off, an admin PAT does. Without this token the release publishes the DMG but the
-appcast won't update.
+The release job commits the freshly signed `site/appcast.xml` (its enclosure
+carries the Sparkle EdDSA signature) back to `main` via the GitHub contents API.
+Add a `RELEASE_PUSH_TOKEN` secret: a fine-grained PAT with *Contents: read and
+write* on this repo, owned by the repo admin. `main` is protected (locked,
+requires reviews, requires signed commits), and this commit is itself unsigned —
+it lands only because the admin PAT bypasses all of those rules, which works
+because **"Include administrators" (`enforce_admins`) is off**. Keep it off, or
+this step (and the auto-update feed) breaks. Without the token the release still
+publishes the DMG, but the appcast won't update.
 
 To build a notarizable DMG **locally**, create `.env.signing` (gitignored):
 
