@@ -24,9 +24,27 @@ if [[ "$IDENTITY" != "-" ]]; then
   opts+=(--options runtime --timestamp)
 fi
 
-# Sign inner-out: bundle-tools added loose dylibs and helper executables after
-# xcodebuild signed the app, so re-sign those, then re-seal the whole bundle.
-# (Nested .frameworks keep the signatures xcodebuild already gave them.)
+# Sparkle ships nested helpers (Autoupdate, Updater.app, the Downloader/Installer
+# XPC services) that xcodebuild leaves with their upstream signatures — no
+# Developer ID and no secure timestamp — which notarization rejects. Re-sign each
+# (preserving its entitlements), then re-seal the framework.
+sparkle="$APP/Contents/Frameworks/Sparkle.framework"
+if [[ -d "$sparkle" ]]; then
+  for version in "$sparkle"/Versions/[A-Z]; do
+    [[ -d "$version" ]] || continue
+    for nested in \
+      "$version/XPCServices/Downloader.xpc" \
+      "$version/XPCServices/Installer.xpc" \
+      "$version/Autoupdate" \
+      "$version/Updater.app"; do
+      [[ -e "$nested" ]] && codesign "${opts[@]}" --preserve-metadata=entitlements "$nested"
+    done
+  done
+  codesign "${opts[@]}" "$sparkle"
+fi
+
+# bundle-tools added loose dylibs and helper executables after xcodebuild signed
+# the app, so re-sign those too, then re-seal the whole bundle.
 if [[ -d "$APP/Contents/Frameworks" ]]; then
   for lib in "$APP/Contents/Frameworks"/*.dylib; do
     [[ -f "$lib" ]] && codesign "${opts[@]}" "$lib"
