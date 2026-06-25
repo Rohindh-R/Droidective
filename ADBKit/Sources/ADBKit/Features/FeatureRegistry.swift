@@ -387,7 +387,7 @@ public enum FeatureRegistry {
             id: "bug-report", num: 34, title: "Bug Report",
             subtitle: "Zip screenshot + logs + device info + version",
             keywords: ["bug report", "zip", "bundle", "diagnostics", "export"],
-            category: .logs, icon: "doc.zipper", kind: .instantAction
+            category: .logs, icon: "doc.zipper", kind: .view
         ),
         FeatureDef(
             id: "performance", num: 35, title: "Performance Monitor",
@@ -443,6 +443,40 @@ public enum FeatureRegistry {
     /// Features the user manages individually in the catalog and sidebar:
     /// everything except hub members. The hub screens themselves are included.
     public static let catalogFeatureIDs: [String] = all.map(\.id).filter { !absorbedFeatureIDs.contains($0) }
+
+    /// Curated, ordered catalog features per role — the focused set a newcomer
+    /// gets after picking a role on first launch. The order is the recommended
+    /// sidebar order; the launchpad re-ranks it by real usage over time. Roles
+    /// reference hub ids (`react-native`, `simulate`, `connection`, `apps`), not
+    /// the members folded into them. Every non-system catalog feature appears in
+    /// at least one role (enforced by `FeatureRegistryTests`).
+    public static let featuresByRole: [UserRole: [String]] = [
+        .androidDeveloper: [
+            "logcat", "crash-catcher", "device-info", "current-activity", "foreground-package",
+            "file-explorer", "sandbox-browser", "apps", "connection", "get-ip",
+            "meminfo", "monkey", "scrcpy", "screenshot", "send-text", "custom-commands",
+        ],
+        .reactNativeDeveloper: [
+            "react-native", "logcat", "crash-catcher", "performance", "network-speed",
+            "apps", "connection", "device-info", "scrcpy", "screenshot", "send-text", "custom-commands",
+        ],
+        .qaTester: [
+            "screenshot", "screen-record", "scrcpy", "video-editor", "bug-report",
+            "crash-catcher", "logcat", "simulate", "performance", "apps",
+            "device-info", "demo-mode", "monkey",
+        ],
+        .supportTriage: [
+            "device-info", "connection", "wifi", "get-ip", "network-speed",
+            "root-status", "system-restrictions", "scrcpy", "screenshot", "bug-report", "logcat",
+            "apps", "emulators",
+        ],
+    ]
+
+    /// The curated, ordered catalog ids for a role (validated to exist in the
+    /// registry). Empty for an unknown role.
+    public static func featureIDs(for role: UserRole) -> [String] {
+        (featuresByRole[role] ?? []).filter { byID[$0] != nil }
+    }
 }
 
 public extension FeatureDef {

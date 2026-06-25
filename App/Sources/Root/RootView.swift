@@ -7,11 +7,16 @@ struct RootView: View {
     @Environment(\.openWindow) private var openWindow
     @AppStorage("sidebarWidth") private var sidebarWidth = 280.0
     @AppStorage("hasSeenTour") private var hasSeenTour = false
+    @AppStorage("hasChosenRole") private var hasChosenRole = false
     @AppStorage("telemetryConsentAsked") private var consentAsked = false
     @AppStorage("launchCount") private var launchCount = 0
     @AppStorage("starPromptShown") private var starPromptShown = false
     @State private var presentConsent = false
     @State private var presentStar = false
+    /// True only while the *first-run* role picker is up, so its dismissal
+    /// chains into the welcome tour. Changing role later (pill / Settings)
+    /// leaves this false, so the tour never reappears.
+    @State private var pickerIsFirstRun = false
     @Environment(\.colorScheme) private var colorScheme
 
     /// Launches to allow before the first-run privacy disclosure appears.
@@ -33,6 +38,22 @@ struct RootView: View {
     var body: some View {
         @Bindable var state = state
         zoomedContent
+            .background(WindowAccessor { window in
+                // Fill the screen's usable area on launch — a regular maximized
+                // window, not a native full-screen Space.
+                if let screen = window.screen ?? NSScreen.main {
+                    window.setFrame(screen.visibleFrame, display: true)
+                }
+            })
+            .overlay {
+                // Full-window takeover (macOS has no fullScreenCover), shown
+                // before the tour for brand-new users and from "Change role".
+                if state.presentRolePicker {
+                    RolePickerView()
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: state.presentRolePicker)
             .sheet(isPresented: $state.presentTour) {
                 TourView()
             }
@@ -56,12 +77,24 @@ struct RootView: View {
                 applyStoredTheme()
                 updateDockIcon()
                 HotkeyManager.install(state: state)
-                if !hasSeenTour {
+                if !hasChosenRole && !hasSeenTour {
+                    // Brand-new user: pick a role first, then run the tour.
+                    pickerIsFirstRun = true
+                    state.presentRolePicker = true
+                } else if !hasSeenTour {
                     state.presentTour = true
                 } else if shouldPromptConsent {
                     presentConsent = true
                 } else if shouldPromptStar {
                     presentStar = true
+                }
+            }
+            .onChange(of: state.presentRolePicker) { _, showing in
+                // Only the first-run picker chains into the tour; changing role
+                // later (pill / Settings) must not reopen it.
+                if !showing && pickerIsFirstRun {
+                    pickerIsFirstRun = false
+                    if !hasSeenTour { state.presentTour = true }
                 }
             }
             .onChange(of: state.presentTour) { _, showing in
@@ -147,6 +180,33 @@ struct RootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .foregroundStyle(.textMain)
     }
+}
+
+/// Reads the hosting `NSWindow` once it attaches, so the main window can be
+/// sized to fill the screen on launch. `viewDidMoveToWindow` runs on the main
+/// actor with the window in place — no async hop, so it stays Swift-6 clean.
+private final class WindowReaderView: NSView {
+    var onWindow: ((NSWindow) -> Void)?
+    private var resolved = false
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard !resolved, let window else { return }
+        resolved = true
+        onWindow?(window)
+    }
+}
+
+private struct WindowAccessor: NSViewRepresentable {
+    let onResolve: (NSWindow) -> Void
+
+    func makeNSView(context: Context) -> WindowReaderView {
+        let view = WindowReaderView()
+        view.onWindow = onResolve
+        return view
+    }
+
+    func updateNSView(_ nsView: WindowReaderView, context: Context) {}
 }
 
 /// A draggable divider that resizes an adjacent pane. `value` is the pane's

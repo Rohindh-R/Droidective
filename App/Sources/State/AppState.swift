@@ -60,6 +60,9 @@ final class AppState {
     var searchText = ""
     var selectedFeatureID: String?
     var layout = LayoutState()
+    /// Per-feature usage tally (persisted), used to re-rank the launchpad's
+    /// curated feature order by how the user actually works.
+    var usageStats = UsageStats()
     var toasts: [Toast] = []
     /// History of important notifications (errors, warnings, key wins), newest
     /// first. Routine success toasts are not kept.
@@ -76,6 +79,9 @@ final class AppState {
     var commandBarTab: CommandBarTab = .recent
     /// Drives the first-launch / replayable welcome tour sheet.
     var presentTour = false
+    /// Drives the first-launch role picker (a full-window takeover) and the
+    /// "Change role" flow. Picking a role seeds a curated feature set.
+    var presentRolePicker = false
     /// True while a performance/network recording is in flight — locks the
     /// device and bundle pickers so the captured series stays consistent.
     var recordingActive = false
@@ -215,6 +221,9 @@ final class AppState {
     var adbMissing: Bool { adbStatus?.installed == false }
 
     private var deviceStreamTask: Task<Void, Never>?
+    /// Set the moment the user picks a role this session, so `bootstrap`'s
+    /// async layout load can't overwrite the just-seeded curation.
+    private var roleChosenThisSession = false
 
     init(env: AppEnvironment) {
         self.env = env
@@ -228,16 +237,21 @@ final class AppState {
         selectedSerial = prefs.selectedSerial
         runOnAll = prefs.runOnAll
         selectedBundleId = prefs.selectedBundleId
-        let restoreLast = UserDefaults.standard.object(forKey: "restoreLastFeature") as? Bool ?? true
-        if restoreLast, let last = prefs.lastFeatureId, FeatureRegistry.byID[last] != nil {
-            selectedFeatureID = last
+        // The launchpad (Home) is the consistent entry point — land there on
+        // every launch rather than reopening the last-used feature.
+        selectedFeatureID = "home"
+        let loadedLayout = await env.stores.layout.load()
+        // A brand-new user can pick a role — which seeds `layout` — while these
+        // async store loads are still in flight; don't clobber that seed.
+        if !roleChosenThisSession {
+            layout = loadedLayout
+            var layoutChanged = layout.adoptNewDefaults()
+            layoutChanged = layout.adoptAllEnabled() || layoutChanged
+            if layoutChanged {
+                persistLayout()
+            }
         }
-        layout = await env.stores.layout.load()
-        var layoutChanged = layout.adoptNewDefaults()
-        layoutChanged = layout.adoptAllEnabled() || layoutChanged
-        if layoutChanged {
-            persistLayout()
-        }
+        usageStats = await env.stores.usage.load()
         bundles = await env.stores.bundles.load()
         await refreshToolStatus()
 
@@ -373,6 +387,15 @@ final class AppState {
     var enabledFeatures: [FeatureDef] {
         let enabled = layout.effectiveEnabledIDs
         return FeatureRegistry.all.filter { enabled.contains($0.id) && !$0.isAbsorbedByHub }
+    }
+
+    /// The launchpad grid: the role-curated enabled set in its curated order,
+    /// re-ranked by real usage (most-used first), with the curated order as the
+    /// stable fallback. Hub members stay excluded, exactly like the sidebar.
+    var launchpadFeatures: [FeatureDef] {
+        let curated = ordered(enabledFeatures)
+        let byID = Dictionary(uniqueKeysWithValues: curated.map { ($0.id, $0) })
+        return usageStats.rank(curated.map(\.id)).compactMap { byID[$0] }
     }
 
     var visibleFeatures: [FeatureDef] {
@@ -519,10 +542,31 @@ final class AppState {
 
     // MARK: - Feature running
 
+    /// Open or run a feature from a launch surface (launchpad or sidebar),
+    /// recording the engagement for adaptive ranking. Instant/toggle actions
+    /// that need no screen fire in place (recorded inside `run`); everything
+    /// else opens its detail pane.
+    func openFeature(_ feature: FeatureDef) {
+        if feature.firesWithoutScreen {
+            Task { await run(feature: feature, params: [:]) }
+        } else {
+            noteFeatureUse(feature.id)
+            selectedFeatureID = feature.id
+        }
+    }
+
+    /// Record one engagement with a feature, persisted for adaptive launchpad
+    /// ranking across launches.
+    func noteFeatureUse(_ featureID: String) {
+        usageStats.record(featureID, at: Date())
+        persistUsage()
+    }
+
     func run(feature: FeatureDef, params: [String: FeatureValue]) async {
         isRunningFeature = true
         defer { isRunningFeature = false }
         Telemetry.shared.track("feature_used", ["feature": feature.id])
+        noteFeatureUse(feature.id)
 
         // A screenshot from a quick path (sidebar ⏎, global hotkey, menu bar)
         // captures and saves straight to the capture folder; the Screenshot
@@ -642,6 +686,28 @@ final class AppState {
         notifications.removeAll { $0.id == id }
     }
 
+    // MARK: - Role
+
+    /// Apply the user's role choice (first-run or "Change role"): curate the
+    /// enabled set + sidebar order to that role, or keep everything on for
+    /// `nil` ("show me everything"). Persists and lands on the launchpad.
+    func chooseRole(_ role: UserRole?) {
+        if let role {
+            layout.seedRole(role)
+        } else {
+            layout.seedEverything()
+        }
+        roleChosenThisSession = true
+        persistLayout()
+        presentRolePicker = false
+        selectedFeatureID = "home"
+    }
+
+    /// The user's current role, nil when they chose "show me everything".
+    var selectedRole: UserRole? {
+        layout.selectedRole.flatMap(UserRole.init(rawValue:))
+    }
+
     // MARK: - Layout (catalog customization)
 
     func setFeatureEnabled(_ featureID: String, enabled: Bool) {
@@ -729,6 +795,13 @@ final class AppState {
         let snapshot = layout
         Task {
             try? await env.stores.layout.save(snapshot)
+        }
+    }
+
+    private func persistUsage() {
+        let snapshot = usageStats
+        Task {
+            try? await env.stores.usage.save(snapshot)
         }
     }
 
@@ -898,13 +971,6 @@ final class AppState {
                 let result = await env.engine.adbKeyboard.install(serial: serial)
                 showToast(Toast(message: result.message, ok: result.ok))
             }
-        }
-    }
-
-    func persistLastFeature() {
-        let id = selectedFeatureID
-        Task {
-            try? await env.stores.prefs.update { $0.lastFeatureId = id }
         }
     }
 
