@@ -2,12 +2,14 @@ import ADBKit
 import AppKit
 import SwiftUI
 
-/// The landing screen: what Droidective is, the keyboard shortcuts that drive
-/// it, how to customize features and theme, and an overview of every feature
-/// category. Doubles as the no-device onboarding when nothing is connected.
+/// The landing screen, now a role-aware launchpad: a grid of the user's curated
+/// tools (sorted by what they use most), an expandable "More features" section
+/// to add the rest, the keyboard shortcuts that drive the app, and the
+/// no-device onboarding when nothing is connected.
 struct HomeView: View {
     @Environment(AppState.self) private var state
     @Environment(\.colorScheme) private var colorScheme
+    @State private var showMore = false
 
     var body: some View {
         ScrollView {
@@ -16,9 +18,9 @@ struct HomeView: View {
                 if state.devices.isEmpty {
                     connectCard
                 }
+                launchpadSection
+                moreFeaturesSection
                 shortcutsSection
-                customizeSection
-                categoriesSection
                 tourFooter
             }
             .frame(maxWidth: 760, alignment: .leading)
@@ -42,7 +44,124 @@ struct HomeView: View {
                     .font(.title3)
                     .foregroundStyle(.textMuted)
             }
+            Spacer(minLength: 12)
+            roleBadge
         }
+    }
+
+    /// Current role as a pill that opens the picker — the "change this anytime"
+    /// affordance the first-run picker promises.
+    private var roleBadge: some View {
+        Button { state.presentRolePicker = true } label: {
+            HStack(spacing: 6) {
+                Image(systemName: state.selectedRole?.icon ?? "square.grid.2x2")
+                Text(state.selectedRole?.label ?? "All features")
+                Image(systemName: "chevron.down")
+                    .font(.caption2)
+                    .foregroundStyle(.textMuted)
+            }
+            .font(.callout)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(Color.bgSurface, in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.borderSubtle, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+        .help("Your role decides which tools start here — change it anytime")
+    }
+
+    // MARK: - Launchpad
+
+    private var launchpadSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("Your tools")
+            Text("Your most-used features, front and center. Add more below or from the sidebar.")
+                .font(.callout)
+                .foregroundStyle(.textMuted)
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 210), spacing: 12)],
+                alignment: .leading,
+                spacing: 12
+            ) {
+                ForEach(state.launchpadFeatures) { feature in
+                    FeatureCard(feature: feature) { state.openFeature(feature) }
+                }
+            }
+        }
+    }
+
+    // MARK: - More features
+
+    /// Catalog features the user hasn't enabled yet — the "show me other
+    /// features so I can pick" path, addable in one click. System features are
+    /// always on, so they never appear here.
+    private var addableFeatures: [FeatureDef] {
+        let enabled = Set(state.enabledFeatures.map(\.id))
+        let catalog = Set(FeatureRegistry.catalogFeatureIDs)
+        return state.orderedCategories.flatMap { state.catalogFeatures(in: $0) }
+            .filter { catalog.contains($0.id) && !enabled.contains($0.id) && $0.kind != .system }
+    }
+
+    @ViewBuilder private var moreFeaturesSection: some View {
+        let addable = addableFeatures
+        if !addable.isEmpty {
+            DisclosureGroup(isExpanded: $showMore) {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 210), spacing: 12)],
+                    alignment: .leading,
+                    spacing: 12
+                ) {
+                    ForEach(addable) { feature in
+                        addCard(feature)
+                    }
+                }
+                .padding(.top, 10)
+                Button("Manage all features…") { state.selectedFeatureID = "catalog" }
+                    .buttonStyle(.link)
+                    .font(.callout)
+                    .padding(.top, 8)
+            } label: {
+                HStack(spacing: 8) {
+                    Text("More features")
+                        .font(.title2.bold())
+                    Text("\(addable.count)")
+                        .font(.callout.monospacedDigit())
+                        .foregroundStyle(.textMuted)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { withAnimation { showMore.toggle() } }
+            }
+            .tint(.textMuted)
+        }
+    }
+
+    private func addCard(_ feature: FeatureDef) -> some View {
+        Button { state.setFeatureEnabled(feature.id, enabled: true) } label: {
+            HStack(spacing: 10) {
+                Image(systemName: feature.icon)
+                    .frame(width: 22)
+                    .foregroundStyle(.textMuted)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(feature.title).foregroundStyle(.textMain)
+                    if let subtitle = feature.subtitle {
+                        Text(subtitle)
+                            .font(.footnote)
+                            .foregroundStyle(.textMuted)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 6)
+                Image(systemName: "plus.circle")
+                    .foregroundStyle(.brandAccent)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.borderSubtle, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .help("Add \(feature.title) to your tools")
     }
 
     // MARK: - Shortcuts
@@ -102,69 +221,6 @@ struct HomeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.borderSubtle, lineWidth: 1))
-    }
-
-    // MARK: - Customize
-
-    private var customizeSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("Make it yours")
-
-            infoRow(
-                icon: "pin",
-                title: "Enable, disable & pin features",
-                detail: "Right-click any feature in the sidebar to pin it to the top, or enable/disable it. The Feature Catalog manages them all at once."
-            ) {
-                Button("Open Feature Catalog") { state.selectedFeatureID = "catalog" }
-            }
-
-            infoRow(
-                icon: "paintbrush",
-                title: "Theme",
-                detail: "Match the system appearance, or force light or dark."
-            ) {
-                ThemePicker()
-            }
-        }
-    }
-
-    // MARK: - Categories
-
-    private var categoriesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("All \(FeatureRegistry.catalogFeatureIDs.count) features")
-            Text("Grouped into \(FeatureCategory.displayOrder.count) categories — browse and toggle every tool in the catalog.")
-                .font(.callout)
-                .foregroundStyle(.textMuted)
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 220), spacing: 12)],
-                alignment: .leading,
-                spacing: 12
-            ) {
-                ForEach(FeatureCategory.displayOrder, id: \.self) { category in
-                    categoryChip(category)
-                }
-            }
-        }
-    }
-
-    private func categoryChip(_ category: FeatureCategory) -> some View {
-        let count = FeatureRegistry.all.filter { $0.category == category && !$0.isAbsorbedByHub }.count
-        return HStack(spacing: 10) {
-            Image(systemName: category.icon)
-                .foregroundStyle(.textMuted)
-                .frame(width: 22)
-            Text(category.label)
-                .lineLimit(1)
-            Spacer(minLength: 6)
-            Text("\(count)")
-                .font(.callout.monospacedDigit())
-                .foregroundStyle(.textMuted)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.borderSubtle, lineWidth: 1))
     }
 
     // MARK: - Connect card (no device)
@@ -228,48 +284,50 @@ struct HomeView: View {
         Text(text)
             .font(.title2.bold())
     }
-
-    private func infoRow(
-        icon: String,
-        title: String,
-        detail: String,
-        @ViewBuilder action: () -> some View
-    ) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(.textMuted)
-                .frame(width: 26)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.headline)
-                Text(detail)
-                    .font(.callout)
-                    .foregroundStyle(.textMuted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 12)
-            action()
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.borderSubtle, lineWidth: 1))
-    }
 }
 
-/// The Light / Dark / Auto segmented control, reused on Home and Settings.
-struct ThemePicker: View {
-    @AppStorage("theme") private var theme = "auto"
+/// One tappable tool on the launchpad grid — icon, title, and subtitle, with the
+/// brand-green hover border used across the app. Opens or runs the feature.
+private struct FeatureCard: View {
+    let feature: FeatureDef
+    let action: () -> Void
+    @State private var hovering = false
 
     var body: some View {
-        Picker("", selection: $theme) {
-            Text("Auto").tag("auto")
-            Text("Light").tag("light")
-            Text("Dark").tag("dark")
+        Button(action: action) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: feature.icon)
+                    .font(.title2)
+                    .foregroundStyle(hovering ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMuted))
+                    .frame(width: 26)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(feature.title)
+                        .font(.headline)
+                        .foregroundStyle(.textMain)
+                    if let subtitle = feature.subtitle {
+                        Text(subtitle)
+                            .font(.callout)
+                            .foregroundStyle(.textMuted)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+            .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(
+                        hovering ? Color.brandAccent : Color.borderSubtle,
+                        lineWidth: hovering ? 2 : 1
+                    )
+            }
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .frame(width: 200)
-        .onChange(of: theme) { applyStoredTheme() }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(.easeInOut(duration: 0.15), value: hovering)
+        .help(feature.subtitle ?? feature.title)
     }
 }

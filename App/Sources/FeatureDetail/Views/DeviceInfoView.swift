@@ -57,7 +57,7 @@ struct DeviceInfoView: View {
         VStack(spacing: 0) {
             TextField("Filter properties…", text: $search)
                 .brandField()
-                .padding(10)
+                .padding(12)
 
             Divider()
 
@@ -70,36 +70,35 @@ struct DeviceInfoView: View {
     }
 
     private func curated(_ props: [String: String]) -> some View {
-        Form {
+        HubColumn {
             if let overview {
-                Section("Memory") {
-                    LabeledContent("Total RAM", value: formatKb(overview.ramTotalKb))
-                    LabeledContent("Used RAM", value: formatKb(overview.ramUsedKb))
-                    LabeledContent("Available RAM", value: formatKb(overview.ramAvailableKb))
+                HubSection("Memory") {
+                    infoRows([
+                        ("Total RAM", formatKb(overview.ramTotalKb)),
+                        ("Used RAM", formatKb(overview.ramUsedKb)),
+                        ("Available RAM", formatKb(overview.ramAvailableKb)),
+                    ])
                 }
-                Section("Storage") {
-                    LabeledContent("Total", value: formatKb(overview.storageTotalKb))
-                    LabeledContent("Used", value: formatKb(overview.storageUsedKb))
-                    LabeledContent("Available", value: formatKb(overview.storageAvailableKb))
+                HubSection("Storage") {
+                    infoRows([
+                        ("Total", formatKb(overview.storageTotalKb)),
+                        ("Used", formatKb(overview.storageUsedKb)),
+                        ("Available", formatKb(overview.storageAvailableKb)),
+                    ])
                 }
-                Section("Battery") {
-                    LabeledContent("Level", value: overview.batteryLevel.map { "\($0)%" } ?? "—")
-                    LabeledContent("Health", value: overview.batteryHealth ?? "—")
-                    if let cycles = overview.batteryCycleCount {
-                        LabeledContent("Cycle Count", value: "\(cycles)")
-                    }
-                }
-                Section("Apps & CPU") {
-                    LabeledContent("CPU Architecture", value: overview.cpuAbi ?? "—")
-                    LabeledContent("Installed Apps", value: overview.userAppCount.map(String.init) ?? "—")
-                    LabeledContent("System Apps", value: overview.systemAppCount.map(String.init) ?? "—")
+                HubSection("Battery") { infoRows(batteryRows) }
+                HubSection("Apps & CPU") {
+                    infoRows([
+                        ("CPU Architecture", overview.cpuAbi ?? "—"),
+                        ("Installed Apps", overview.userAppCount.map(String.init) ?? "—"),
+                        ("System Apps", overview.systemAppCount.map(String.init) ?? "—"),
+                    ])
                 }
             } else {
-                Section("Overview") {
-                    HStack {
+                HubSection("Overview") {
+                    HStack(spacing: 8) {
                         ProgressView().controlSize(.small)
-                        Text("Reading memory, storage, and battery…")
-                            .foregroundStyle(.textMuted)
+                        Text("Reading memory, storage, and battery…").foregroundStyle(.textMuted)
                     }
                 }
             }
@@ -110,25 +109,37 @@ struct DeviceInfoView: View {
                     return (item.label, value)
                 }
                 if !rows.isEmpty {
-                    Section(group.section) {
-                        ForEach(rows, id: \.0) { row in
-                            LabeledContent(row.0) {
-                                Text(row.1)
-                                    .textSelection(.enabled)
-                                    .foregroundStyle(.textMuted)
-                            }
-                        }
-                    }
+                    HubSection(group.section) { infoRows(rows) }
                 }
             }
-            Section("All properties (\(props.count))") {
+
+            HubSection("All properties (\(props.count))") {
                 Text("Type in the filter box above to search every raw getprop value.")
                     .font(.footnote)
                     .foregroundStyle(.textMuted)
             }
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
+    }
+
+    private var batteryRows: [(String, String)] {
+        guard let overview else { return [] }
+        var rows: [(String, String)] = [
+            ("Level", overview.batteryLevel.map { "\($0)%" } ?? "—"),
+            ("Health", overview.batteryHealth ?? "—"),
+        ]
+        if let cycles = overview.batteryCycleCount {
+            rows.append(("Cycle Count", "\(cycles)"))
+        }
+        return rows
+    }
+
+    private func infoRows(_ pairs: [(String, String)]) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(pairs.enumerated()), id: \.offset) { index, pair in
+                if index > 0 { Divider() }
+                HubRow(pair.0, pair.1).padding(.vertical, 7)
+            }
+        }
     }
 
     private func filtered(_ props: [String: String]) -> some View {
@@ -155,6 +166,7 @@ struct DeviceInfoView: View {
                             .textSelection(.enabled)
                     }
                 }
+                .scrollContentBackground(.hidden)
             }
         }
     }

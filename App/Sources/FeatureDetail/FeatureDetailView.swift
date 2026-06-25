@@ -96,6 +96,8 @@ struct FeatureDetailView: View {
                 VideoEditorView()
             case "crash-catcher":
                 CrashView()
+            case "bug-report":
+                BugReportView()
             case "wireless-adb":
                 WirelessAdbView()
             case "custom-commands":

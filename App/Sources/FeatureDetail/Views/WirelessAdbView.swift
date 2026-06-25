@@ -2,7 +2,7 @@ import ADBKit
 import SwiftUI
 
 /// Wireless ADB wizard (USB→tcpip bootstrap, Android 11+ pair, connect, and
-/// per-device disconnect) as `Form` sections, so it composes into both the
+/// per-device disconnect) as reusable cards, so it composes into both the
 /// standalone screen and the Connection hub.
 struct WirelessAdbSection: View {
     @Environment(AppState.self) private var state
@@ -16,62 +16,55 @@ struct WirelessAdbSection: View {
     private var wirelessDevices: [Device] { state.devices.filter(\.isWireless) }
 
     var body: some View {
-        Section("Wireless ADB — over USB") {
+        HubSection("Wireless ADB", subtitle: "Switch a USB-connected device to debugging over Wi-Fi.") {
             if usbDevices.isEmpty {
-                Text("Connect a device over USB to bootstrap wireless ADB.")
+                Text("Connect a device over USB to start.")
                     .foregroundStyle(.textMuted)
             } else {
                 ForEach(usbDevices) { device in
                     HStack {
                         Text(device.label)
                         Spacer()
-                        Button("Enable Wi-Fi & Connect") {
-                            enableTcpip(device.serial)
-                        }
-                        .disabled(busy)
+                        Button("Enable Wi-Fi & Connect") { enableTcpip(device.serial) }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(busy)
                     }
                 }
             }
         }
 
-        Section("Pair (Android 11+)") {
-            TextField("Host / IP", text: $host, prompt: Text("192.168.1.42"))
-                .brandField()
-            TextField("Pairing port", text: $pairingPort, prompt: Text("37123"))
-                .brandField()
-            TextField("Pairing code", text: $pairingCode, prompt: Text("123456"))
-                .brandField()
-            Button("Pair") {
-                pair()
+        HubSection("Pair a device", subtitle: "Android 11+ — pair with a code, then connect.") {
+            HubField("Host / IP", prompt: "192.168.1.42", text: $host)
+            HStack(spacing: 12) {
+                HubField("Pairing port", prompt: "37123", text: $pairingPort)
+                HubField("Pairing code", prompt: "123456", text: $pairingCode)
             }
-            .disabled(busy || host.isEmpty || pairingPort.isEmpty || pairingCode.isEmpty)
+            Button("Pair") { pair() }
+                .buttonStyle(.bordered)
+                .disabled(busy || host.isEmpty || pairingPort.isEmpty || pairingCode.isEmpty)
 
-            TextField("Connection port", text: $connectionPort, prompt: Text("5555"))
-                .brandField()
-            Button("Connect") {
-                connect()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(busy || host.isEmpty || connectionPort.isEmpty)
+            Divider().padding(.vertical, 2)
 
-            Text("The pairing port (from \"Pair device with pairing code\") differs from the connection port on the Wireless Debugging screen.")
+            HubField("Connection port", prompt: "5555", text: $connectionPort)
+            Button("Connect") { connect() }
+                .buttonStyle(.borderedProminent)
+                .disabled(busy || host.isEmpty || connectionPort.isEmpty)
+
+            Text("The pairing port (from \"Pair device with pairing code\") differs from the connection port shown on the device's Wireless debugging screen.")
                 .font(.footnote)
                 .foregroundStyle(.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
         }
 
-        Section("Connected over Wi-Fi") {
-            if wirelessDevices.isEmpty {
-                Text("No wireless devices.")
-                    .foregroundStyle(.textMuted)
-            } else {
+        if !wirelessDevices.isEmpty {
+            HubSection("Connected over Wi-Fi") {
                 ForEach(wirelessDevices) { device in
                     HStack {
                         Text(device.label)
                         Spacer()
-                        Button("Disconnect") {
-                            disconnect(device.serial)
-                        }
-                        .disabled(busy)
+                        Button("Disconnect") { disconnect(device.serial) }
+                            .buttonStyle(.bordered)
+                            .disabled(busy)
                     }
                 }
             }
@@ -116,14 +109,9 @@ struct WirelessAdbSection: View {
     }
 }
 
-/// Standalone Wireless ADB screen — the sections on their own in a grouped form.
+/// Standalone Wireless ADB screen — the cards on their own in the hub column.
 struct WirelessAdbView: View {
     var body: some View {
-        Form {
-            WirelessAdbSection()
-        }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .centeredColumn()
+        HubColumn { WirelessAdbSection() }
     }
 }

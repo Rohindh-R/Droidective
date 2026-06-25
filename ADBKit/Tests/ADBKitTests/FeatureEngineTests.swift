@@ -237,4 +237,50 @@ import Testing
         #expect(layout.effectiveEnabledIDs.contains("custom-commands"))
         #expect(!layout.effectiveEnabledIDs.contains("fake-battery"))
     }
+
+    @Test func everyRoleMapsValidFeatureIDsAndCoversTheCatalog() {
+        for role in UserRole.allCases {
+            for id in FeatureRegistry.featuresByRole[role] ?? [] {
+                #expect(FeatureRegistry.byID[id] != nil, "role \(role.rawValue): unknown feature \(id)")
+                #expect(
+                    !(FeatureRegistry.byID[id]?.isAbsorbedByHub ?? false),
+                    "role \(role.rawValue): \(id) is a hub member; reference its hub instead"
+                )
+            }
+        }
+        // Every non-system catalog feature must be reachable from some role, so
+        // curation never orphans a feature. System features are always on
+        // regardless of role, so they're exempt.
+        let covered = Set(UserRole.allCases.flatMap { FeatureRegistry.featuresByRole[$0] ?? [] })
+        let mustCover = Set(FeatureRegistry.catalogFeatureIDs)
+            .subtracting(FeatureRegistry.systemFeatureIDs)
+        #expect(mustCover.isSubset(of: covered), "uncovered catalog features: \(mustCover.subtracting(covered))")
+    }
+
+    @Test func seedRoleCuratesEnabledSetAndOrder() {
+        var layout = LayoutState()
+        layout.seedRole(.qaTester)
+        let curated = FeatureRegistry.featureIDs(for: .qaTester)
+        #expect(layout.selectedRole == UserRole.qaTester.rawValue)
+        #expect(layout.roleChosen == true)
+        #expect(layout.enabledIds == curated)
+        #expect(layout.sidebarOrder == curated)
+        #expect(layout.effectiveEnabledIDs.isSuperset(of: Set(curated)))
+        #expect(layout.effectiveEnabledIDs.contains("custom-commands"))  // system stays on
+        #expect(!layout.effectiveEnabledIDs.contains("wifi"))            // curated out for QA
+        // The legacy migrations must not re-expand a curated role back to all-on.
+        #expect(layout.adoptAllEnabled() == false)
+        #expect(layout.adoptNewDefaults() == false)
+        #expect(layout.enabledIds == curated)
+    }
+
+    @Test func seedEverythingLeavesEverythingOn() {
+        var layout = LayoutState()
+        layout.seedRole(.qaTester)
+        layout.seedEverything()
+        #expect(layout.roleChosen == true)
+        #expect(layout.selectedRole == nil)
+        #expect(layout.enabledIds == nil)
+        #expect(Set(FeatureRegistry.catalogFeatureIDs).isSubset(of: layout.effectiveEnabledIDs))
+    }
 }

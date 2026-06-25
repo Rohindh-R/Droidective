@@ -1,9 +1,8 @@
 import ADBKit
 import SwiftUI
 
-/// Saved deep links for the selected bundle, as a `Form` section so it composes
-/// into both the standalone screen and the React Native hub (and scrolls with
-/// the rest of the form).
+/// Saved deep links for the selected bundle, as a reusable card so it composes
+/// into both the standalone screen and the React Native hub.
 struct DeepLinksSection: View {
     @Environment(AppState.self) private var state
     @State private var links: [DeepLink] = []
@@ -13,7 +12,7 @@ struct DeepLinksSection: View {
     @State private var draftURL = ""
 
     var body: some View {
-        Section("Deep links") {
+        HubSection("Deep links", subtitle: "Saved per app — launch a URL on the device in one click.") {
             if state.selectedBundle == nil {
                 Text("Select a bundle in the bar above — deep links are saved per app.")
                     .foregroundStyle(.textMuted)
@@ -21,36 +20,12 @@ struct DeepLinksSection: View {
                 if links.isEmpty {
                     Text("No deep links yet. Add one like myapp://orders/123 to launch it in a click.")
                         .foregroundStyle(.textMuted)
-                }
-                ForEach(links) { link in
-                    HStack {
-                        Image(systemName: "link").foregroundStyle(.textMuted)
-                        VStack(alignment: .leading) {
-                            if !link.label.isEmpty { Text(link.label) }
-                            Text(link.url)
-                                .font(.footnote)
-                                .foregroundStyle(.textMuted)
-                                .textSelection(.enabled)
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(links) { link in
+                            if link.id != links.first?.id { Divider() }
+                            linkRow(link)
                         }
-                        Spacer()
-                        Button { launch(link) } label: {
-                            Image(systemName: "play.fill").foregroundStyle(.brandAccent)
-                        }
-                        .buttonStyle(.borderless)
-                        .help("Launch on device")
-                        Button {
-                            editingLink = link
-                            draftLabel = link.label
-                            draftURL = link.url
-                            showEditor = true
-                        } label: {
-                            Image(systemName: "pencil")
-                        }
-                        .buttonStyle(.borderless)
-                        Button { remove(link) } label: {
-                            Image(systemName: "trash").foregroundStyle(.red)
-                        }
-                        .buttonStyle(.borderless)
                     }
                 }
                 Button {
@@ -61,10 +36,44 @@ struct DeepLinksSection: View {
                 } label: {
                     Label("Add deep link", systemImage: "plus")
                 }
+                .buttonStyle(.bordered)
             }
         }
         .task(id: state.selectedBundleId) { await loadLinks() }
         .sheet(isPresented: $showEditor) { editor }
+    }
+
+    private func linkRow(_ link: DeepLink) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "link").foregroundStyle(.textMuted)
+            VStack(alignment: .leading, spacing: 1) {
+                if !link.label.isEmpty { Text(link.label).foregroundStyle(.textMain) }
+                Text(link.url)
+                    .font(.footnote)
+                    .foregroundStyle(.textMuted)
+                    .textSelection(.enabled)
+            }
+            Spacer()
+            Button { launch(link) } label: {
+                Image(systemName: "play.fill").foregroundStyle(.brandAccent)
+            }
+            .buttonStyle(.borderless)
+            .help("Launch on device")
+            Button {
+                editingLink = link
+                draftLabel = link.label
+                draftURL = link.url
+                showEditor = true
+            } label: {
+                Image(systemName: "pencil")
+            }
+            .buttonStyle(.borderless)
+            Button { remove(link) } label: {
+                Image(systemName: "trash").foregroundStyle(.red)
+            }
+            .buttonStyle(.borderless)
+        }
+        .padding(.vertical, 7)
     }
 
     private var editor: some View {
@@ -143,14 +152,9 @@ struct DeepLinksSection: View {
     }
 }
 
-/// Standalone Deep Links screen — the section on its own in a grouped form.
+/// Standalone Deep Links screen — the section on its own in the hub column.
 struct DeepLinksView: View {
     var body: some View {
-        Form {
-            DeepLinksSection()
-        }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .centeredColumn()
+        HubColumn { DeepLinksSection() }
     }
 }

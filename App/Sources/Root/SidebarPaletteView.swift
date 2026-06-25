@@ -230,7 +230,6 @@ struct SidebarPaletteView: View {
         .background(.bgSurface)
         .background { shortcutButtons }
         .onChange(of: state.focusSearchToken) { searchFocused = true }
-        .onChange(of: state.selectedFeatureID) { state.persistLastFeature() }
         .onAppear {
             // Track ⌘ so the row hints can appear/disappear as it's held.
             flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
@@ -500,11 +499,7 @@ struct FeatureRowView: View {
     /// a screen, which just runs (feedback is the toast + clipboard) and leaves
     /// the current detail pane untouched.
     private func activate() {
-        if feature.firesWithoutScreen {
-            Task { await state.run(feature: feature, params: [:]) }
-        } else {
-            state.selectedFeatureID = feature.id
-        }
+        state.openFeature(feature)
     }
 
     /// Trailing edge of a row: a hover-revealed pin button, then a live switch

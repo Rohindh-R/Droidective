@@ -18,25 +18,25 @@ struct SimulateView: View {
     @State private var proxy = ""
 
     var body: some View {
-        Form {
+        HubColumn {
             if !state.activeOverrides.isEmpty {
-                Section {
-                    Button("Reset all overrides", role: .destructive) { state.resetAllOverrides() }
-                }
+                Button("Reset all overrides", role: .destructive) { state.resetAllOverrides() }
+                    .buttonStyle(.bordered)
             }
 
-            Section("Battery") {
-                VStack(alignment: .leading) {
-                    Text("Level: \(Int(batteryLevel))%")
+            HubSection("Battery") {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Level: \(Int(batteryLevel))%").foregroundStyle(.textMain)
                     Slider(value: $batteryLevel, in: 0...100, step: 1)
                 }
                 SwitchRow("Simulate unplugged", isOn: $batteryUnplugged)
                 Button("Apply") {
                     run("fake-battery", ["level": .number(batteryLevel), "unplugged": .bool(batteryUnplugged)])
                 }
+                .buttonStyle(.borderedProminent)
             }
 
-            Section("Appearance & Motion") {
+            HubSection("Appearance & motion") {
                 if let darkMode = FeatureRegistry.byID["dark-mode"] {
                     HStack {
                         Text("Dark mode")
@@ -55,55 +55,58 @@ struct SimulateView: View {
                 }
             }
 
-            Section("Layout") {
-                VStack(alignment: .leading) {
-                    Text("Font scale: \(fontScale, specifier: "%.2f")")
+            HubSection("Layout") {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Font scale: \(fontScale, specifier: "%.2f")").foregroundStyle(.textMain)
                     Slider(value: $fontScale, in: 0.85...1.3, step: 0.05)
                 }
-                TextField("Density (dpi, blank = keep)", text: $density)
-                    .brandField()
-                    .frame(maxWidth: 200)
+                HubField("Display density", prompt: "dpi — blank to keep", text: $density)
                 Button("Apply") {
                     var params: [String: FeatureValue] = ["fontScale": .number(fontScale)]
                     let raw = density.trimmingCharacters(in: .whitespaces)
                     if !raw.isEmpty, let value = Double(raw) { params["density"] = .number(value) }
                     run("layout-overrides", params)
                 }
+                .buttonStyle(.borderedProminent)
             }
 
-            Section("Locale") {
-                Picker("Language", selection: $locale) {
-                    ForEach(localeOptions, id: \.value) { option in
-                        Text(option.label).tag(option.value)
+            HubSection("Locale") {
+                HStack {
+                    Text("Language")
+                    Spacer(minLength: 12)
+                    Picker("", selection: $locale) {
+                        ForEach(localeOptions, id: \.value) { option in
+                            Text(option.label).tag(option.value)
+                        }
                     }
+                    .labelsHidden()
+                    .fixedSize()
                 }
                 Button("Apply") { run("locale", ["locale": .string(locale)]) }
+                    .buttonStyle(.borderedProminent)
             }
 
-            Section("Network") {
+            HubSection("Network") {
                 SwitchRow("Wi-Fi", isOn: $wifi)
                 SwitchRow("Mobile data", isOn: $data)
                 SwitchRow("Airplane mode", isOn: $airplane)
                 Button("Apply") {
                     run("network-toggles", ["wifi": .bool(wifi), "data": .bool(data), "airplane": .bool(airplane)])
                 }
+                .buttonStyle(.borderedProminent)
             }
 
-            Section("Proxy") {
-                TextField("Proxy (host:port)", text: $proxy)
-                    .brandField()
-                    .frame(maxWidth: 200)
-                HStack {
+            HubSection("HTTP proxy", subtitle: "Route traffic through Charles, Proxyman, or mitmproxy.") {
+                HubField("Proxy", prompt: "10.0.0.5:8888", text: $proxy)
+                HStack(spacing: 10) {
                     Button("Set") { run("http-proxy", ["proxy": .string(proxy.trimmingCharacters(in: .whitespaces))]) }
+                        .buttonStyle(.borderedProminent)
                         .disabled(proxy.trimmingCharacters(in: .whitespaces).isEmpty)
-                    // Clear via the feature (empty proxy → engine resets it) so it
-                    // lands in the command log like Set, instead of a silent reset.
                     Button("Clear") { run("http-proxy", ["proxy": .string("")]) }
+                        .buttonStyle(.bordered)
                 }
             }
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
         .disabled(state.targetSerials.isEmpty)
         .overlay {
             if state.targetSerials.isEmpty {

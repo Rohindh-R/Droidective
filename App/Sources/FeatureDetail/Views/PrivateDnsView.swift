@@ -1,7 +1,7 @@
 import ADBKit
 import SwiftUI
 
-/// Private DNS (DNS-over-TLS) controls as a `Form` section, so it composes into
+/// Private DNS (DNS-over-TLS) controls as a reusable card, so it composes into
 /// both the standalone screen and the Connection hub.
 struct PrivateDnsSection: View {
     @Environment(AppState.self) private var state
@@ -13,22 +13,22 @@ struct PrivateDnsSection: View {
     private var serial: String { state.targetSerials.first ?? "" }
 
     var body: some View {
-        Section("Private DNS") {
+        HubSection("Private DNS", subtitle: "Set DNS-over-TLS mode for this device.") {
             Picker("Mode", selection: $mode) {
                 Text("Off").tag(DnsStatus.Mode.off)
                 Text("Automatic").tag(DnsStatus.Mode.automatic)
-                Text("Provider hostname").tag(DnsStatus.Mode.hostname)
+                Text("Hostname").tag(DnsStatus.Mode.hostname)
             }
-            .pickerStyle(.radioGroup)
+            .pickerStyle(.segmented)
+            .labelsHidden()
 
             if mode == .hostname {
-                TextField("dns.google", text: $hostname)
-                    .brandField()
-                    .frame(maxWidth: 280)
+                HubField("Provider hostname", prompt: "dns.google", text: $hostname)
             }
 
-            HStack {
+            HStack(spacing: 10) {
                 Button("Apply") { Task { await apply() } }
+                    .buttonStyle(.borderedProminent)
                     .disabled(busy || !loaded || state.targetSerials.isEmpty
                         || (mode == .hostname && hostname.trimmingCharacters(in: .whitespaces).isEmpty))
                 Button { Task { await load() } } label: { Image(systemName: "arrow.clockwise") }
@@ -77,14 +77,9 @@ struct PrivateDnsSection: View {
     }
 }
 
-/// Standalone Private DNS screen — the section on its own in a grouped form.
+/// Standalone Private DNS screen — the section on its own in the hub column.
 struct PrivateDnsView: View {
     var body: some View {
-        Form {
-            PrivateDnsSection()
-        }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .centeredColumn()
+        HubColumn { PrivateDnsSection() }
     }
 }
