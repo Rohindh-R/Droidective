@@ -95,16 +95,6 @@ struct ADTApp: App {
             }
         }
 
-        Window("Search", id: "palette") {
-            PaletteWindowView()
-                .environment(appState)
-                .tint(.brandAccent)
-        }
-        .windowStyle(.hiddenTitleBar)
-        .windowResizability(.contentSize)
-        .defaultPosition(.center)
-        .commandsRemoved()
-
         Settings {
             SettingsView()
                 .environment(appState)

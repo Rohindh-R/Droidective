@@ -5,7 +5,7 @@ import SwiftUI
 struct RootView: View {
     @Environment(AppState.self) private var state
     @Environment(\.openWindow) private var openWindow
-    @AppStorage("sidebarWidth") private var sidebarWidth = 280.0
+    @AppStorage("sidebarWidth") private var sidebarWidth = 300.0
     @AppStorage("hasSeenTour") private var hasSeenTour = false
     @AppStorage("hasChosenRole") private var hasChosenRole = false
     @AppStorage("telemetryConsentAsked") private var consentAsked = false
@@ -72,7 +72,7 @@ struct RootView: View {
             }
             .onAppear {
                 state.openMainWindow = { openWindow(id: "main") }
-                state.openPalette = { openWindow(id: "palette") }
+                state.openPalette = { PaletteController.shared.show(appState: state) }
                 migrateDefaultsIfNeeded()
                 applyStoredTheme()
                 updateDockIcon()
@@ -148,9 +148,9 @@ struct RootView: View {
         HStack(spacing: 0) {
             if state.sidebarVisible {
                 SidebarPaletteView()
-                    .frame(width: min(max(sidebarWidth, 250), 460))
+                    .frame(width: min(max(sidebarWidth, 300), 460))
                     .transition(.move(edge: .leading).combined(with: .opacity))
-                ResizeHandle(value: $sidebarWidth, range: 250...460)
+                ResizeHandle(value: $sidebarWidth, range: 300...460)
             }
             VStack(spacing: 0) {
                 // The catalog has no device context, so its device bar is hidden.

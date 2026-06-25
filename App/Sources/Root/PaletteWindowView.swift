@@ -8,7 +8,8 @@ import SwiftUI
 /// closes.
 struct PaletteWindowView: View {
     @Environment(AppState.self) private var state
-    @Environment(\.dismissWindow) private var dismissWindow
+
+    let onClose: () -> Void
 
     @State private var query = ""
     @State private var highlighted = 0
@@ -50,44 +51,40 @@ struct PaletteWindowView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            // Full-bleed material fills the whole window (incl. under the hidden
-            // title bar). Kept as its own layer so it doesn't inflate the
-            // content's measured height — the content respects the safe area and
-            // ends at the window's bottom, with no dead strip.
-            Color.clear.background(.regularMaterial).ignoresSafeArea()
+        VStack(spacing: 0) {
+            searchField
 
-            VStack(spacing: 0) {
-                searchField
-
-                if !visibleMatches.isEmpty {
-                    Divider()
-                    VStack(spacing: 0) {
-                        ForEach(Array(visibleMatches.enumerated()), id: \.element.id) { index, feature in
-                            paletteRow(feature, index: index, isHighlighted: index == highlighted)
-                                .onTapGesture { open(at: index) }
-                        }
+            if !visibleMatches.isEmpty {
+                Divider()
+                VStack(spacing: 0) {
+                    ForEach(Array(visibleMatches.enumerated()), id: \.element.id) { index, feature in
+                        paletteRow(feature, index: index, isHighlighted: index == highlighted)
+                            .onTapGesture { open(at: index) }
                     }
-                    .padding(6)
-                    Divider()
-                    footer
-                } else if !query.isEmpty {
-                    Divider()
-                    Text("No matching features")
-                        .font(.callout)
-                        .foregroundStyle(.textMuted)
-                        .padding(14)
                 }
+                .padding(6)
+                Divider()
+                footer
+            } else if !query.isEmpty {
+                Divider()
+                Text("No matching features")
+                    .font(.callout)
+                    .foregroundStyle(.textMuted)
+                    .padding(14)
             }
         }
         .frame(width: 520)
+        // Borderless window has no title bar and a clear backing, so the content
+        // sizes the window exactly — flush at top and bottom. The material is the
+        // content's own background, clipped to rounded corners.
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .background { shortcutButtons }
         .onExitCommand { close() }
         .onAppear {
             query = ""
             highlighted = 0
-            configureWindow()
-            // Focus must land after the window becomes key — setting it
+            // Focus must land after the panel becomes key — setting it
             // synchronously in onAppear loses the race.
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(250))
@@ -95,13 +92,6 @@ struct PaletteWindowView: View {
             }
         }
         .onChange(of: query) { highlighted = 0 }
-        // Spotlight behavior: clicking anywhere else dismisses the palette.
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { note in
-            if let window = note.object as? NSWindow,
-               window.identifier?.rawValue.contains("palette") == true {
-                close()
-            }
-        }
     }
 
     private var searchField: some View {
@@ -223,26 +213,7 @@ struct PaletteWindowView: View {
     }
 
     private func close() {
-        dismissWindow(id: "palette")
-    }
-
-    /// Float above everything, minimal chrome, centered — Spotlight-like.
-    /// The window keeps its normal opaque backing: a clear background plus a
-    /// clipped view leaves transparent corners and a see-through title strip.
-    private func configureWindow() {
-        guard let window = NSApp.windows.first(where: { $0.identifier?.rawValue.contains("palette") == true }) else {
-            return
-        }
-        window.level = .floating
-        window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
-        window.styleMask.insert(.fullSizeContentView)
-        window.standardWindowButton(.closeButton)?.isHidden = true
-        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        window.standardWindowButton(.zoomButton)?.isHidden = true
-        window.isMovableByWindowBackground = true
-        window.center()
-        window.makeKeyAndOrderFront(nil)
+        onClose()
     }
 }
 
