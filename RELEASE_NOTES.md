@@ -1,17 +1,43 @@
-## Droidective v2.4.2
+## Droidective v2.5.0
 
-A fix for the in-app updater's release notes, plus a couple of first-run changes.
+A big UX release: pick your role on first launch and get a focused Home, a faster
+command palette, a sidebar you can rearrange, and refreshed screens throughout.
 
-### Fixes
+### New features
 
-- **Update notes** — the in-app updater now shows the release notes in its own
-  window instead of opening the GitHub release web page.
+- **Role-based start** — on first launch, pick a role (Android, React Native, QA,
+  Support, or "everything") and Droidective curates a focused feature set and a
+  Home launchpad of your most-used tools, ordered by real usage. Change your role
+  anytime in Settings; nothing is ever removed.
+- **Bug Report screen** — capturing a bug report now has its own screen instead
+  of firing blind.
+- **Forward Metro (React Native)** — one click runs `adb reverse tcp:8081` so the
+  device reaches Metro on your Mac.
 
 ### Improvements
 
-- **First-run privacy screen** — appears after a few launches instead of on the
-  first one. Anonymous crash reports and usage analytics are on by default in
-  the meantime; both stay opt-out anytime in Settings → Privacy.
+- **Command palette (⌘K)** — rebuilt as a tight, centered Spotlight-style panel.
+  Pin features with `⌘P` (pinned items lead the sidebar and palette), enable or
+  disable with `⌘E`, and search now matches every word you type — so "copy ip"
+  finds "Copy Device IP". Keyboard hints throughout.
+- **Reorder the sidebar** — a reorder button drops the sidebar into an edit mode
+  (rows jiggle) where you drag to rearrange. Grouped and ungrouped layouts keep
+  independent orders, and pinning moved to right-click so rows stay clean.
+- **Grouping toggle** — group-by-category is now a button next to the search
+  field instead of a Settings option.
+- **Refreshed screens** — Connection, Device Info, Simulate, React Native, Deep
+  Links, App Info, System Restrictions, and the Apps detail pane share one card
+  layout.
+- **Emulators** — click a running emulator to bring its window to the front, and
+  a freshly launched emulator comes forward on its own.
+- **Screenshot editor** — press Delete to remove the selected annotation.
+- **Theme** — a neutral charcoal dark palette (no blue cast) and brand-green
+  feature icons throughout.
+- **Update notes** — the in-app updater shows release notes in its own window
+  instead of opening the web page.
+- **First-run privacy screen** — appears after a few launches instead of the
+  first. Anonymous crash reports and usage analytics stay opt-out in
+  Settings → Privacy.
 - **Star prompt** — a one-time nudge to star the project on GitHub.
 
 Installed copies update in place via Sparkle.
