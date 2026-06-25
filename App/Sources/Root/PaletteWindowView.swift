@@ -2,8 +2,10 @@ import ADBKit
 import AppKit
 import SwiftUI
 
-/// Spotlight-style floating search palette (⌘K): type, arrow through
-/// matches, ⏎ jumps to the feature in the main window. Esc closes.
+/// Spotlight-style floating search palette (⌘K): type, arrow through matches,
+/// ⏎ opens the feature in the main window. ⌘P pins / ⌘E enables-disables the
+/// highlighted feature. Pinned features lead the list when not searching. Esc
+/// closes.
 struct PaletteWindowView: View {
     @Environment(AppState.self) private var state
     @Environment(\.dismissWindow) private var dismissWindow
@@ -14,77 +16,72 @@ struct PaletteWindowView: View {
 
     private static let digitKeys: [KeyEquivalent] = ["1", "2", "3", "4", "5", "6", "7", "8"]
 
+    private var searching: Bool { !query.isEmpty }
+
+    /// Results in display order. When not searching, pinned features lead; once
+    /// the user types, the pinned section drops and results rank by relevance.
     private var matches: [FeatureDef] {
         let enabled = state.layout.effectiveEnabledIDs
-        // Rank by relevance (best match first), registry order as tiebreak. Hub
-        // members are excluded — they're used from their hub (which matches the
-        // same keywords), not as standalone palette rows.
-        let ranked = FeatureRegistry.all.enumerated()
-            .filter { $0.element.matches(query) && !$0.element.isAbsorbedByHub }
-            .sorted { lhs, rhs in
-                let rl = lhs.element.relevance(for: query)
-                let rr = rhs.element.relevance(for: query)
-                return rl != rr ? rl > rr : lhs.offset < rhs.offset
-            }
-            .map(\.element)
-        // Enabled features first, then disabled matches.
-        return ranked.filter { enabled.contains($0.id) } + ranked.filter { !enabled.contains($0.id) }
+        if searching {
+            let ranked = FeatureRegistry.all.enumerated()
+                .filter { $0.element.matches(query) && !$0.element.isAbsorbedByHub }
+                .sorted { lhs, rhs in
+                    let rl = lhs.element.relevance(for: query)
+                    let rr = rhs.element.relevance(for: query)
+                    return rl != rr ? rl > rr : lhs.offset < rhs.offset
+                }
+                .map(\.element)
+            return ranked.filter { enabled.contains($0.id) } + ranked.filter { !enabled.contains($0.id) }
+        }
+        let pinned = state.layout.favorites
+            .compactMap { FeatureRegistry.byID[$0] }
+            .filter { !$0.isAbsorbedByHub }
+        let pinnedIDs = Set(pinned.map(\.id))
+        let rest = FeatureRegistry.all.filter { !$0.isAbsorbedByHub && !pinnedIDs.contains($0.id) }
+        return pinned
+            + rest.filter { enabled.contains($0.id) }
+            + rest.filter { !enabled.contains($0.id) }
     }
 
-    private var visibleMatches: [FeatureDef] {
-        Array(matches.prefix(8))
+    private var visibleMatches: [FeatureDef] { Array(matches.prefix(8)) }
+
+    private var highlightedFeature: FeatureDef? {
+        visibleMatches.indices.contains(highlighted) ? visibleMatches[highlighted] : nil
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                Image(systemName: "magnifyingglass")
-                    .font(.title)
-                    .foregroundStyle(.textMuted)
-                TextField("Search features…", text: $query)
-                    .textFieldStyle(.plain)
-                    .font(.title)
-                    .focused($fieldFocused)
-                    .onSubmit { open(at: highlighted) }
-                    .onKeyPress(.downArrow) { move(1); return .handled }
-                    .onKeyPress(.upArrow) { move(-1); return .handled }
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
+        ZStack(alignment: .top) {
+            // Full-bleed material fills the whole window (incl. under the hidden
+            // title bar). Kept as its own layer so it doesn't inflate the
+            // content's measured height — the content respects the safe area and
+            // ends at the window's bottom, with no dead strip.
+            Color.clear.background(.regularMaterial).ignoresSafeArea()
 
-            if !visibleMatches.isEmpty {
-                Divider()
-                VStack(spacing: 0) {
-                    ForEach(Array(visibleMatches.enumerated()), id: \.element.id) { index, feature in
-                        paletteRow(feature, index: index, isHighlighted: index == highlighted)
-                            .onTapGesture { open(at: index) }
+            VStack(spacing: 0) {
+                searchField
+
+                if !visibleMatches.isEmpty {
+                    Divider()
+                    VStack(spacing: 0) {
+                        ForEach(Array(visibleMatches.enumerated()), id: \.element.id) { index, feature in
+                            paletteRow(feature, index: index, isHighlighted: index == highlighted)
+                                .onTapGesture { open(at: index) }
+                        }
                     }
+                    .padding(6)
+                    Divider()
+                    footer
+                } else if !query.isEmpty {
+                    Divider()
+                    Text("No matching features")
+                        .font(.callout)
+                        .foregroundStyle(.textMuted)
+                        .padding(14)
                 }
-                .padding(6)
-            } else if !query.isEmpty {
-                Divider()
-                Text("No matching features")
-                    .font(.callout)
-                    .foregroundStyle(.textMuted)
-                    .padding(14)
             }
         }
-        // Natural height so the window tracks content (.windowResizability
-        // .contentSize) — it shrinks to the search row alone when nothing
-        // matches and grows with results. ignoresSafeArea lets the material
-        // fill under the hidden title bar so there's no dead strip on top.
         .frame(width: 520)
-        .background(.regularMaterial)
-        .ignoresSafeArea()
-        .background {
-            // ⌘1–⌘8 jump straight to the Nth visible result.
-            ForEach(Array(Self.digitKeys.enumerated()), id: \.offset) { index, key in
-                Button("") { open(at: index) }
-                    .keyboardShortcut(key, modifiers: .command)
-                    .frame(width: 0, height: 0)
-                    .opacity(0)
-            }
-        }
+        .background { shortcutButtons }
         .onExitCommand { close() }
         .onAppear {
             query = ""
@@ -107,6 +104,61 @@ struct PaletteWindowView: View {
         }
     }
 
+    private var searchField: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "magnifyingglass")
+                .font(.title)
+                .foregroundStyle(.textMuted)
+            TextField("Search features…", text: $query)
+                .textFieldStyle(.plain)
+                .font(.title)
+                .focused($fieldFocused)
+                .onSubmit { open(at: highlighted) }
+                .onKeyPress(.downArrow) { move(1); return .handled }
+                .onKeyPress(.upArrow) { move(-1); return .handled }
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
+    }
+
+    /// Hidden buttons backing the palette's keyboard shortcuts: ⌘1–8 jump,
+    /// ⌘P pin/unpin, ⌘E enable/disable — all acting on the highlighted row.
+    private var shortcutButtons: some View {
+        ZStack {
+            ForEach(Array(Self.digitKeys.enumerated()), id: \.offset) { index, key in
+                Button("") { open(at: index) }
+                    .keyboardShortcut(key, modifiers: .command)
+            }
+            Button("") { togglePinHighlighted() }.keyboardShortcut("p", modifiers: .command)
+            Button("") { toggleEnabledHighlighted() }.keyboardShortcut("e", modifiers: .command)
+        }
+        .frame(width: 0, height: 0)
+        .opacity(0)
+    }
+
+    private var footer: some View {
+        let pinned = highlightedFeature.map { state.layout.favorites.contains($0.id) } ?? false
+        let isEnabled = highlightedFeature.map { state.layout.effectiveEnabledIDs.contains($0.id) } ?? true
+        return HStack(spacing: 14) {
+            footerHint("⏎", "Open")
+            footerHint("⌘P", pinned ? "Unpin" : "Pin")
+            if highlightedFeature?.kind != .system {
+                footerHint("⌘E", isEnabled ? "Disable" : "Enable")
+            }
+            Spacer()
+            footerHint("⌘1–8", "Jump")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+    }
+
+    private func footerHint(_ key: String, _ label: String) -> some View {
+        HStack(spacing: 5) {
+            KeyHint(key)
+            Text(label).font(.caption2).foregroundStyle(.textMuted)
+        }
+    }
+
     private func paletteRow(_ feature: FeatureDef, index: Int, isHighlighted: Bool) -> some View {
         HStack(spacing: 10) {
             Image(systemName: feature.icon)
@@ -122,6 +174,11 @@ struct PaletteWindowView: View {
                 }
             }
             Spacer()
+            if state.layout.favorites.contains(feature.id) {
+                Image(systemName: "pin.fill")
+                    .font(.caption2)
+                    .foregroundStyle(isHighlighted ? AnyShapeStyle(.white.opacity(0.8)) : AnyShapeStyle(.brandAccent))
+            }
             if !state.layout.effectiveEnabledIDs.contains(feature.id) {
                 Text("disabled")
                     .font(.caption2)
@@ -153,6 +210,16 @@ struct PaletteWindowView: View {
         close()
         state.activateMainWindow()
         state.selectedFeatureID = feature.id
+    }
+
+    private func togglePinHighlighted() {
+        guard let feature = highlightedFeature else { return }
+        state.toggleFavorite(feature.id)
+    }
+
+    private func toggleEnabledHighlighted() {
+        guard let feature = highlightedFeature, feature.kind != .system else { return }
+        state.setFeatureEnabled(feature.id, enabled: !state.layout.effectiveEnabledIDs.contains(feature.id))
     }
 
     private func close() {
