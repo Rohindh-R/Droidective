@@ -52,6 +52,7 @@ extension FeatureRegistry {
         "custom-commands": "Your own adb one-liners with {bundleId} and {serial} placeholders. Tokenized safely — never run through a shell.",
         "file-explorer": "Browse the device's shared storage. Double-click a folder to open it, single-click to select, right-click for options. Copy/cut/paste, delete, create folders, and pull files to your Mac. On a rooted device, flip Root on to browse the whole filesystem from / via su (pulls stage through /data/local/tmp).",
         "apps": "Every installed app (user + system) with search. Select one for its info, live permission toggles, APK pull, and full management — open, force-stop, clear cache (Android 14+) or clear data, disable/enable, and uninstall-for-user/restore (`pm clear` / `pm disable-user` / `pm uninstall --user 0` / `cmd package install-existing`). The reversible per-user actions double as a debloater; removing core system apps can break the UI, so stick to ones you recognise.",
+        "install-app": "Install an APK onto the connected device(s) with `adb install -r` — reinstalling keeps the app's data. Drag an `.apk` onto the drop zone or pick one with the file button; with several devices selected it installs on each. Double-clicking an `.apk` in Finder opens Droidective and offers the same install.",
         "emulators": "Your Android Studio AVDs: launch normally, cold boot (skip the snapshot), or wipe data first; running ones show their adb serial and can be stopped. Needs the SDK emulator.",
     ]
 }

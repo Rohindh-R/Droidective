@@ -145,9 +145,9 @@ import Testing
 }
 
 @Suite struct FeatureRegistryTests {
-    @Test func hasAll46Features() {
-        #expect(FeatureRegistry.all.count == 46)
-        #expect(FeatureRegistry.byID.count == 46)
+    @Test func hasAll47Features() {
+        #expect(FeatureRegistry.all.count == 47)
+        #expect(FeatureRegistry.byID.count == 47)
     }
 
     @Test func everyCatalogFeatureIsEnabledByDefault() {
@@ -212,6 +212,18 @@ import Testing
         #expect(logcat.matches("logs"))
         #expect(logcat.matches("LOGCAT"))
         #expect(!logcat.matches("battery"))
+    }
+
+    @Test func installParsesSuccessAndFailure() {
+        let success = AppInstallService.parse(
+            AdbResult(stdout: "Performing Streamed Install\nSuccess\n", stderr: "", exitCode: 0, timedOut: false))
+        #expect(success.ok)
+
+        let failure = AppInstallService.parse(AdbResult(
+            stdout: "", stderr: "adb: failed to install app.apk: Failure [INSTALL_FAILED_INSUFFICIENT_STORAGE]",
+            exitCode: 1, timedOut: false))
+        #expect(!failure.ok)
+        #expect(failure.message.contains("INSTALL_FAILED_INSUFFICIENT_STORAGE"))
     }
 
     @Test func multiWordSearchMatchesNonContiguousTokens() {
