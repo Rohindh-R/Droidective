@@ -1,4 +1,4 @@
-## Droidective v2.5.1
+## Droidective v2.6.0
 
 ### New features
 
