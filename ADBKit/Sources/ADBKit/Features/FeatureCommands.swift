@@ -83,6 +83,9 @@ extension FeatureRegistry {
             ),
             FeatureCommand("adb emu kill", note: "stop a running emulator"),
         ],
+        "install-app": [
+            FeatureCommand("adb install -r <path.apk>", note: "install or reinstall (keeps data)"),
+        ],
 
         // ── React Native ─────────────────────────────────────────────────
         "react-native": [

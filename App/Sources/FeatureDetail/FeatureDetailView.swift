@@ -106,6 +106,8 @@ struct FeatureDetailView: View {
                 FileExplorerView()
             case "apps":
                 AppsExplorerView()
+            case "install-app":
+                InstallAppView()
             case "emulators":
                 EmulatorsView()
             case "performance":

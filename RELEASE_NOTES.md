@@ -1,3 +1,23 @@
+## Droidective v2.5.1
+
+### New features
+
+- **Install App** — install an APK onto your device(s) by dragging it onto the
+  new Install App screen or picking a file (reinstalls keep app data, and it
+  installs on every selected device). Double-clicking an `.apk` in Finder opens
+  Droidective and asks which device to install onto.
+
+### Improvements
+
+- **Dark by default** — new installs start in dark mode. Light mode is now marked
+  **Beta** in Settings → Appearance while a few screens are tuned for it; Auto and
+  your own choice still work as before.
+- **Emulators in the dev roles** — the Android and React Native roles now include
+  the Emulators feature, and existing users on those roles pick it up
+  automatically (no need to re-pick your role).
+
+Installed copies update in place via Sparkle.
+
 ## Droidective v2.5.0
 
 A big UX release: pick your role on first launch and get a focused Home, a faster

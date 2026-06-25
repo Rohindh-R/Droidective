@@ -316,6 +316,15 @@ public enum FeatureRegistry {
             category: .appManagement, icon: "square.grid.3x3", kind: .view
         ),
         FeatureDef(
+            id: "install-app", num: 50, title: "Install App",
+            subtitle: "Install an APK — drag and drop or pick a file",
+            keywords: [
+                "install", "apk", "sideload", "side load", "drag", "drop",
+                "install app", "add app", "package",
+            ],
+            category: .appManagement, icon: "arrow.down.app", kind: .view
+        ),
+        FeatureDef(
             id: "app-management", num: 25, title: "Manage App",
             subtitle: "Open, stop, clear, or uninstall an app",
             keywords: ["open", "close", "force stop", "clear data", "uninstall", "cache"],
@@ -453,12 +462,12 @@ public enum FeatureRegistry {
     public static let featuresByRole: [UserRole: [String]] = [
         .androidDeveloper: [
             "logcat", "crash-catcher", "device-info", "current-activity", "foreground-package",
-            "file-explorer", "sandbox-browser", "apps", "connection", "get-ip",
+            "file-explorer", "sandbox-browser", "apps", "install-app", "emulators", "connection", "get-ip",
             "meminfo", "monkey", "scrcpy", "screenshot", "send-text", "custom-commands",
         ],
         .reactNativeDeveloper: [
             "react-native", "logcat", "crash-catcher", "performance", "network-speed",
-            "apps", "connection", "device-info", "scrcpy", "screenshot", "send-text", "custom-commands",
+            "apps", "install-app", "emulators", "connection", "device-info", "scrcpy", "screenshot", "send-text", "custom-commands",
         ],
         .qaTester: [
             "screenshot", "screen-record", "scrcpy", "video-editor", "bug-report",

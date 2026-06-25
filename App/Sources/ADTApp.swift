@@ -1,9 +1,20 @@
 import ADBKit
 import SwiftUI
 
+/// Routes APKs opened from Finder (double-click / "Open With") into the install
+/// inbox, which surfaces the device picker once the UI is ready.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func application(_ application: NSApplication, open urls: [URL]) {
+        let apks = urls.filter { $0.pathExtension.lowercased() == "apk" }
+        guard !apks.isEmpty else { return }
+        InstallInbox.shared.receive(apks)
+    }
+}
+
 @main
 struct ADTApp: App {
     @State private var appState: AppState
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @AppStorage("showMenuBarExtra") private var showMenuBarExtra = true
 
     init() {

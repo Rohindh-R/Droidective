@@ -96,6 +96,11 @@ public struct LayoutState: Codable, Sendable, Equatable {
     /// `didEnableAll`/`knownIds` so the legacy migrations can't re-expand a
     /// curated role back to all-on. Optional so older files decode.
     public var roleChosen: Bool?
+    /// The curated id list as it was when this layout last seeded its role — the
+    /// baseline `adoptNewRoleFeatures` diffs against, so a feature later added to
+    /// the user's role turns on for them without re-running the picker. Optional
+    /// so older files decode.
+    public var seededRoleIds: [String]?
 
     public init(
         enabledIds: [String]? = nil,
@@ -108,7 +113,8 @@ public struct LayoutState: Codable, Sendable, Equatable {
         menuBarItems: [String]? = nil,
         didEnableAll: Bool? = nil,
         selectedRole: String? = nil,
-        roleChosen: Bool? = nil
+        roleChosen: Bool? = nil,
+        seededRoleIds: [String]? = nil
     ) {
         self.enabledIds = enabledIds
         self.favorites = favorites
@@ -120,6 +126,7 @@ public struct LayoutState: Codable, Sendable, Equatable {
         self.menuBarItems = menuBarItems
         self.didEnableAll = didEnableAll
         self.selectedRole = selectedRole
+        self.seededRoleIds = seededRoleIds
         self.roleChosen = roleChosen
     }
 
@@ -180,6 +187,7 @@ public struct LayoutState: Codable, Sendable, Equatable {
         roleChosen = true
         enabledIds = ids
         sidebarOrder = ids
+        seededRoleIds = ids
         knownIds = FeatureRegistry.all.map(\.id)
         didEnableAll = true
     }
@@ -190,8 +198,29 @@ public struct LayoutState: Codable, Sendable, Equatable {
         selectedRole = nil
         roleChosen = true
         enabledIds = nil
+        seededRoleIds = nil
         knownIds = FeatureRegistry.all.map(\.id)
         didEnableAll = true
+    }
+
+    /// Enable features added to the user's role since it was last seeded, so a
+    /// role curation change reaches existing role users without re-running the
+    /// picker (the role analog of `adoptNewDefaults`). Returns true when
+    /// something changed (caller persists). No-op for "everything" users
+    /// (`enabledIds == nil`) and unknown roles.
+    public mutating func adoptNewRoleFeatures() -> Bool {
+        guard let roleRaw = selectedRole, let role = UserRole(rawValue: roleRaw),
+              var ids = enabledIds else { return false }
+        let roleIDs = FeatureRegistry.featureIDs(for: role)
+        let seeded = Set(seededRoleIds ?? [])
+        let additions = roleIDs.filter { !seeded.contains($0) && !ids.contains($0) }
+        let baselineChanged = seededRoleIds != roleIDs
+        guard !additions.isEmpty || baselineChanged else { return false }
+        ids.append(contentsOf: additions)
+        enabledIds = ids
+        if sidebarOrder != nil { sidebarOrder?.append(contentsOf: additions) }
+        seededRoleIds = roleIDs
+        return true
     }
 }
 

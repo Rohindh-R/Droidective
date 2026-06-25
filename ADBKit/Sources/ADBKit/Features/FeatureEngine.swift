@@ -35,6 +35,7 @@ public struct FeatureEngine: Sendable {
     public let locator: ToolLocator
     public let monitor: DeviceMonitor
     public let appControl: AppControlService
+    public let appInstall: AppInstallService
     public let inspection: AppInspectionService
     public let toolDetection: ToolDetectionService
     public let overrides: OverridesService
@@ -62,6 +63,7 @@ public struct FeatureEngine: Sendable {
         self.locator = locator
         self.monitor = monitor
         self.appControl = AppControlService(client: client)
+        self.appInstall = AppInstallService(client: client)
         self.inspection = AppInspectionService(client: client)
         self.toolDetection = ToolDetectionService(locator: locator)
         self.overrides = OverridesService(client: client, store: overridesStore)

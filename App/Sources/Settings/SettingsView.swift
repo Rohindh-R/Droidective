@@ -33,15 +33,15 @@ struct SettingsView: View {
 func applyStoredTheme() {
     switch UserDefaults.standard.string(forKey: "theme") {
     case "light": NSApp.appearance = NSAppearance(named: .aqua)
-    case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
-    // "auto" — and the default when unset, so new users follow the system.
-    default: NSApp.appearance = nil
+    case "auto": NSApp.appearance = nil
+    // "dark" — and the default when unset, so new users get dark.
+    default: NSApp.appearance = NSAppearance(named: .darkAqua)
     }
 }
 
 struct GeneralSettingsView: View {
     @Environment(AppState.self) private var state
-    @AppStorage("theme") private var theme = "auto"
+    @AppStorage("theme") private var theme = "dark"
     @AppStorage("showFeatureNotes") private var showFeatureNotes = false
     @AppStorage(ScreenCaptureService.captureFolderDefaultsKey) private var captureFolderPath = ""
     @AppStorage("showMenuBarExtra") private var showMenuBar = true
@@ -98,12 +98,17 @@ struct GeneralSettingsView: View {
         Form {
             Section("Appearance") {
                 Picker("Theme", selection: $theme) {
-                    Text("Auto").tag("auto")
-                    Text("Light").tag("light")
                     Text("Dark").tag("dark")
+                    Text("Auto").tag("auto")
+                    Text("Light (Beta)").tag("light")
                 }
                 .pickerStyle(.segmented)
                 .onChange(of: theme) { applyStoredTheme() }
+                if theme == "light" {
+                    Text("Light mode is in beta — a few screens are still being tuned for it.")
+                        .font(.footnote)
+                        .foregroundStyle(.textMuted)
+                }
 
                 Toggle("Show how-it-works notes", isOn: $showFeatureNotes)
                 Text("The info text beneath each feature, above the command bar.")
