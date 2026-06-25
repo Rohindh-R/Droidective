@@ -139,6 +139,9 @@ struct ScreenshotEditorView: View {
         // its window is key. Nil while typing a text label, so ⌘Z falls through
         // to the text field's own undo.
         .focusedSceneValue(\.screenshotEdit, editCommands)
+        // Delete / Backspace removes the selected annotation. Skipped while a text
+        // label is being edited so the field's own deletion keeps working.
+        .onDeleteCommand { if editingTextID == nil { deleteSelected() } }
     }
 
     /// Undo/redo are unavailable while a text label is being typed, so ⌘Z falls
