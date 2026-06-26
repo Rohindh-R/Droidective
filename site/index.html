@@ -777,22 +777,29 @@ Pixel 8     device</pre>
     document.documentElement.classList.add("js");
     const motionOK = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    /* Point the Download buttons straight at the latest release's .dmg.
-       Rewrites the href as soon as the API responds, and also intercepts a
-       click that lands before the request finishes so the first click still
-       gets the .dmg. Falls back to the /releases/latest page (the static href)
-       if the API call fails or JS is off. */
+    /* Point the Download buttons straight at the latest release's .dmg, read
+       from the same-origin appcast.xml the release pipeline publishes (no
+       api.github.com — that's rate-limited and often blocked by extensions).
+       Rewrites the href as soon as it resolves and intercepts an early click
+       so the first click still gets the .dmg. Falls back to the
+       /releases/latest page (the static href) if the fetch fails or JS is off. */
     (function () {
       const btns = document.querySelectorAll("[data-dl-latest]");
       if (!btns.length) return;
       let dmgUrl = null;
-      const pending = fetch("https://api.github.com/repos/Droidective/Droidective/releases/latest", {
-        headers: { Accept: "application/vnd.github+json" },
-      })
-        .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-        .then((rel) => {
-          const dmg = (rel.assets || []).find((a) => a.name.toLowerCase().endsWith(".dmg"));
-          if (dmg) { dmgUrl = dmg.browser_download_url; btns.forEach((b) => { b.href = dmgUrl; }); }
+      const pending = fetch("appcast.xml", { headers: { Accept: "application/xml" } })
+        .then((r) => (r.ok ? r.text() : Promise.reject(r.status)))
+        .then((xml) => {
+          const doc = new DOMParser().parseFromString(xml, "application/xml");
+          const enc = Array.from(doc.querySelectorAll("item"))
+            .map((it) => {
+              const e = it.querySelector("enclosure");
+              const vEl = it.getElementsByTagName("sparkle:version")[0];
+              return { url: e && e.getAttribute("url"), v: vEl ? parseInt(vEl.textContent, 10) || 0 : 0 };
+            })
+            .filter((x) => x.url && x.url.toLowerCase().endsWith(".dmg"))
+            .sort((a, b) => b.v - a.v)[0];
+          if (enc) { dmgUrl = enc.url; btns.forEach((b) => { b.href = dmgUrl; }); }
           return dmgUrl;
         })
         .catch(() => null);
