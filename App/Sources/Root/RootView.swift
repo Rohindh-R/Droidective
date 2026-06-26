@@ -17,6 +17,18 @@ struct RootView: View {
     /// chains into the welcome tour. Changing role later (pill / Settings)
     /// leaves this false, so the tour never reappears.
     @State private var pickerIsFirstRun = false
+    /// Leaving the Reactotron feature with a live connection bounces back here
+    /// and prompts whether to keep streaming in the background; the target is
+    /// stashed until the user decides, and the bypass flag lets the chosen
+    /// navigation through without re-prompting.
+    @State private var pendingLeaveFeature: String?
+    @State private var showReactotronLeavePrompt = false
+    @State private var bypassReactotronLeavePrompt = false
+    /// Same maintain/kill choice when the active device changes while you're on
+    /// the Reactotron feature with a live connection.
+    @State private var pendingDeviceSerial: String?
+    @State private var showReactotronDevicePrompt = false
+    @State private var bypassReactotronDevicePrompt = false
     @Environment(\.colorScheme) private var colorScheme
 
     /// Launches to allow before the first-run privacy disclosure appears.
@@ -73,6 +85,7 @@ struct RootView: View {
             .onAppear {
                 state.openMainWindow = { openWindow(id: "main") }
                 state.openPalette = { PaletteController.shared.show(appState: state) }
+                (NSApp.delegate as? AppDelegate)?.appState = state
                 InstallInbox.shared.onReceive = { urls in
                     InstallPickerController.shared.present(apks: urls, state: state)
                 }
@@ -104,6 +117,116 @@ struct RootView: View {
                 if !showing && shouldPromptConsent { presentConsent = true }
             }
             .onChange(of: colorScheme) { _, _ in updateDockIcon() }
+            .onChange(of: state.selectedFeatureID) { old, new in
+                handleFeatureChange(from: old, to: new)
+            }
+            .onChange(of: state.selectedSerial) { old, new in
+                handleDeviceChange(from: old, to: new)
+            }
+            .confirmationDialog(
+                "Keep Reactotron running?",
+                isPresented: $showReactotronLeavePrompt,
+                titleVisibility: .visible
+            ) {
+                Button("Keep Running") { resolveReactotronLeave(keepAlive: true) }
+                Button("Disconnect", role: .destructive) { resolveReactotronLeave(keepAlive: false) }
+                Button("Stay", role: .cancel) { pendingLeaveFeature = nil }
+            } message: {
+                Text("Keep the server on :9090 alive in the background, or disconnect.")
+            }
+            .background {
+                // Its own host view so the two confirmation dialogs don't drop
+                // each other (same reason as the consent/star sheets above).
+                Color.clear.confirmationDialog(
+                    "Keep Reactotron running?",
+                    isPresented: $showReactotronDevicePrompt,
+                    titleVisibility: .visible
+                ) {
+                    Button("Keep Running") { resolveReactotronDeviceChange(keepAlive: true) }
+                    Button("Disconnect", role: .destructive) { resolveReactotronDeviceChange(keepAlive: false) }
+                    Button("Cancel", role: .cancel) { pendingDeviceSerial = nil }
+                } message: {
+                    Text("Switching device — keep the connection, or disconnect.")
+                }
+            }
+    }
+
+    /// Intercept leaving the Reactotron feature: if a device is connected, bounce
+    /// back and ask whether to keep the session alive; if it's only listening
+    /// with nothing connected, quietly stop it to free the port.
+    private func handleFeatureChange(from old: String?, to new: String?) {
+        guard old == "reactotron", new != "reactotron" else { return }
+        if bypassReactotronLeavePrompt {
+            bypassReactotronLeavePrompt = false
+            return
+        }
+        // The device prompt takes priority: if it's up, keep the user on
+        // Reactotron and let them answer it first (the revert won't re-prompt —
+        // its `old == "reactotron"` guard filters it out).
+        if showReactotronDevicePrompt {
+            state.selectedFeatureID = "reactotron"
+            return
+        }
+        let session = state.reactotronSession
+        guard session.isRunning else { return }
+        guard session.hasLiveConnection else {
+            Task { await session.stop() }
+            return
+        }
+        pendingLeaveFeature = new
+        state.selectedFeatureID = "reactotron"
+        showReactotronLeavePrompt = true
+    }
+
+    private func resolveReactotronLeave(keepAlive: Bool) {
+        guard let target = pendingLeaveFeature else { return }
+        pendingLeaveFeature = nil
+        if !keepAlive {
+            Task { await state.reactotronSession.stop() }
+        }
+        bypassReactotronLeavePrompt = true
+        state.selectedFeatureID = target
+    }
+
+    /// Mirror of `handleFeatureChange` for the device picker: only while viewing
+    /// Reactotron with a connection — a background session ignores device
+    /// switches the user makes for other features. Bounce back to the old device
+    /// (setting the bypass first, since this selection is symmetric) until the
+    /// user decides.
+    ///
+    /// Only a *user* switch between two present devices prompts. An automatic
+    /// reassignment when the selected device is unplugged/offline (AppState moves
+    /// `selectedSerial` off the vanished serial) must not prompt — the connection
+    /// is already going away and there's no live device to bounce back to.
+    private func handleDeviceChange(from old: String?, to new: String?) {
+        guard state.selectedFeatureID == "reactotron" else { return }
+        if bypassReactotronDevicePrompt {
+            bypassReactotronDevicePrompt = false
+            return
+        }
+        guard let old, old != new,
+              state.devices.contains(where: { $0.serial == old }) else { return }
+        guard state.reactotronSession.hasLiveConnection else { return }
+        // Device prompt wins over a pending feature-leave prompt: dismiss it and
+        // keep the user on Reactotron to answer the device question instead.
+        if showReactotronLeavePrompt || pendingLeaveFeature != nil {
+            showReactotronLeavePrompt = false
+            pendingLeaveFeature = nil
+        }
+        pendingDeviceSerial = new
+        bypassReactotronDevicePrompt = true
+        state.selectedSerial = old
+        showReactotronDevicePrompt = true
+    }
+
+    private func resolveReactotronDeviceChange(keepAlive: Bool) {
+        let target = pendingDeviceSerial
+        pendingDeviceSerial = nil
+        if !keepAlive {
+            Task { await state.reactotronSession.stop() }
+        }
+        bypassReactotronDevicePrompt = true
+        state.selectedSerial = target
     }
 
     /// macOS has no native light/dark app icon, so swap the Dock icon at

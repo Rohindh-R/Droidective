@@ -89,6 +89,10 @@ final class AppState {
     /// app-wide so it persists across features.
     let terminalSession = TerminalSession()
 
+    /// The Reactotron server + timeline, owned here (not by the view) so leaving
+    /// the feature can keep the connection alive and return to an intact session.
+    let reactotronSession: ReactotronSession
+
     func toggleSidebar() {
         withAnimation(.easeInOut(duration: 0.18)) { sidebarVisible.toggle() }
     }
@@ -229,6 +233,8 @@ final class AppState {
         self.env = env
         let savedStep = UserDefaults.standard.object(forKey: "fontScaleStep") as? Int ?? Self.defaultScaleIndex
         fontScaleStep = min(max(savedStep, 0), Self.scales.count - 1)
+        reactotronSession = ReactotronSession(client: env.client)
+        reactotronSession.app = self
         Task { await bootstrap() }
     }
 

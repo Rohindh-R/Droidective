@@ -62,6 +62,8 @@ struct FeatureDetailView: View {
             switch feature.id {
             case "react-native":
                 ReactNativeView()
+            case "reactotron":
+                ReactotronView()
             case "simulate":
                 SimulateView()
             case "connection":

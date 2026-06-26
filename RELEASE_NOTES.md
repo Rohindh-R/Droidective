@@ -2,6 +2,13 @@
 
 ### New features
 
+- **Reactotron** — a built-in Reactotron debugger for React Native apps, with no
+  desktop app required: Droidective runs the Reactotron server itself on :9090
+  and auto-reverses the port. A live timeline of logs, API calls (with cURL
+  export), state changes, and images; a store browser with live subscriptions,
+  action dispatch, and snapshots; custom commands; and a REPL. Switches between
+  multiple connected apps, and can keep the connection alive as you move around
+  the app.
 - **Install App** — install an APK onto your device(s) by dragging it onto the
   new Install App screen or picking a file (reinstalls keep app data, and it
   installs on every selected device). Double-clicking an `.apk` in Finder opens

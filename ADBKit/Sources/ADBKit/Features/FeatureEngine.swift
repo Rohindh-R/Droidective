@@ -101,6 +101,7 @@ public struct FeatureEngine: Sendable {
         "rn-dev-host", "process-death", "custom-commands",
         "file-explorer", "apps", "emulators", "performance", "network-speed",
         "root-status", "wifi", "private-dns", "system-restrictions",
+        "reactotron",
     ]
 
     /// Screenshot with an explicit destination (UI asks the user first).
