@@ -110,6 +110,12 @@ extension FeatureRegistry {
         "rn-dev-host": [
             FeatureCommand("adb reverse tcp:<port> tcp:<port>", note: "tunnel the Metro port back to your Mac"),
         ],
+        "reactotron": [
+            FeatureCommand(
+                "adb reverse tcp:9090 tcp:9090",
+                note: "route the device's localhost:9090 to Droidective's Reactotron server"
+            ),
+        ],
 
         // ── Screen & Capture ─────────────────────────────────────────────
         "scrcpy": [

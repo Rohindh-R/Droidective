@@ -141,6 +141,16 @@ public enum FeatureRegistry {
                 FieldDef(name: "host", label: "Host (ip:port)", control: .text, placeholder: "192.168.1.10:8081")
             ]
         ),
+        FeatureDef(
+            id: "reactotron", num: 51, title: "Reactotron",
+            subtitle: "Live React Native inspector — logs, network, state, custom display",
+            keywords: [
+                "reactotron", "inspector", "timeline", "redux", "mst", "state",
+                "network", "api", "display", "log", "debug", "react native", "rn",
+                "9090", "infinite red", "devtools",
+            ],
+            category: .reactNative, icon: "antenna.radiowaves.left.and.right", kind: .view
+        ),
 
         // ── Screen & Capture ─────────────────────────────────────────────
         FeatureDef(
@@ -466,7 +476,7 @@ public enum FeatureRegistry {
             "meminfo", "monkey", "scrcpy", "screenshot", "send-text", "custom-commands",
         ],
         .reactNativeDeveloper: [
-            "react-native", "logcat", "crash-catcher", "performance", "network-speed",
+            "react-native", "reactotron", "logcat", "crash-catcher", "performance", "network-speed",
             "apps", "install-app", "emulators", "connection", "device-info", "scrcpy", "screenshot", "send-text", "custom-commands",
         ],
         .qaTester: [

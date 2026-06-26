@@ -4,10 +4,30 @@ import SwiftUI
 /// Routes APKs opened from Finder (double-click / "Open With") into the install
 /// inbox, which surfaces the device picker once the UI is ready.
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// Set by RootView once the UI is up, so quit can tear down a kept-alive
+    /// Reactotron session (server socket + adb reverse tunnels).
+    weak var appState: AppState?
+
     func application(_ application: NSApplication, open urls: [URL]) {
         let apks = urls.filter { $0.pathExtension.lowercased() == "apk" }
         guard !apks.isEmpty else { return }
         InstallInbox.shared.receive(apks)
+    }
+
+    /// If the Reactotron server is still running (the user kept it alive), stop
+    /// it before quitting so we don't orphan the listener or the reverse tunnel.
+    /// Defers termination until the async teardown finishes (bounded in
+    /// `stopForQuit`).
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let session = appState?.reactotronSession,
+              MainActor.assumeIsolated({ session.isRunning }) else {
+            return .terminateNow
+        }
+        Task { @MainActor in
+            await session.stopForQuit()
+            NSApp.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
 }
 
