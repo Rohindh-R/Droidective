@@ -6,9 +6,9 @@
     <description>Most recent Droidective updates.</description>
     <language>en</language>
     <item>
-      <title>Droidective 2.5.0</title>
-      <sparkle:version>89</sparkle:version>
-      <sparkle:shortVersionString>2.5.0</sparkle:shortVersionString>
+      <title>Droidective 2.6.0</title>
+      <sparkle:version>104</sparkle:version>
+      <sparkle:shortVersionString>2.6.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
       <description><![CDATA[
 <style>
@@ -24,62 +24,37 @@ pre { background: color-mix(in srgb, currentColor 8%, transparent); padding: .6e
 pre code { background: none; padding: 0; }
 a { color: #2f9e44; }
 </style>
-<p>A big UX release: pick your role on first launch and get a focused Home, a faster
-command palette, a sidebar you can rearrange, and refreshed screens throughout.</p>
 <h3>New features</h3>
 <ul>
 <li>
-<strong>Role-based start</strong> — on first launch, pick a role (Android, React Native, QA,
-Support, or "everything") and Droidective curates a focused feature set and a
-Home launchpad of your most-used tools, ordered by real usage. Change your role
-anytime in Settings; nothing is ever removed.</li>
+<strong>Reactotron</strong> — a built-in Reactotron debugger for React Native apps, with no
+desktop app required: Droidective runs the Reactotron server itself on :9090
+and auto-reverses the port. A live timeline of logs, API calls (with cURL
+export), state changes, and images; a store browser with live subscriptions,
+action dispatch, and snapshots; custom commands; and a REPL. Switches between
+multiple connected apps, and can keep the connection alive as you move around
+the app.</li>
 <li>
-<strong>Bug Report screen</strong> — capturing a bug report now has its own screen instead
-of firing blind.</li>
-<li>
-<strong>Forward Metro (React Native)</strong> — one click runs <code>adb reverse tcp:8081</code> so the
-device reaches Metro on your Mac.</li>
+<strong>Install App</strong> — install an APK onto your device(s) by dragging it onto the
+new Install App screen or picking a file (reinstalls keep app data, and it
+installs on every selected device). Double-clicking an <code>.apk</code> in Finder opens
+Droidective and asks which device to install onto.</li>
 </ul>
 <h3>Improvements</h3>
 <ul>
 <li>
-<strong>Command palette (⌘K)</strong> — rebuilt as a tight, centered Spotlight-style panel.
-Pin features with <code>⌘P</code> (pinned items lead the sidebar and palette), enable or
-disable with <code>⌘E</code>, and search now matches every word you type — so "copy ip"
-finds "Copy Device IP". Keyboard hints throughout.</li>
+<strong>Dark by default</strong> — new installs start in dark mode. Light mode is now marked
+<strong>Beta</strong> in Settings → Appearance while a few screens are tuned for it; Auto and
+your own choice still work as before.</li>
 <li>
-<strong>Reorder the sidebar</strong> — a reorder button drops the sidebar into an edit mode
-(rows jiggle) where you drag to rearrange. Grouped and ungrouped layouts keep
-independent orders, and pinning moved to right-click so rows stay clean.</li>
-<li>
-<strong>Grouping toggle</strong> — group-by-category is now a button next to the search
-field instead of a Settings option.</li>
-<li>
-<strong>Refreshed screens</strong> — Connection, Device Info, Simulate, React Native, Deep
-Links, App Info, System Restrictions, and the Apps detail pane share one card
-layout.</li>
-<li>
-<strong>Emulators</strong> — click a running emulator to bring its window to the front, and
-a freshly launched emulator comes forward on its own.</li>
-<li>
-<strong>Screenshot editor</strong> — press Delete to remove the selected annotation.</li>
-<li>
-<strong>Theme</strong> — a neutral charcoal dark palette (no blue cast) and brand-green
-feature icons throughout.</li>
-<li>
-<strong>Update notes</strong> — the in-app updater shows release notes in its own window
-instead of opening the web page.</li>
-<li>
-<strong>First-run privacy screen</strong> — appears after a few launches instead of the
-first. Anonymous crash reports and usage analytics stay opt-out in
-Settings → Privacy.</li>
-<li>
-<strong>Star prompt</strong> — a one-time nudge to star the project on GitHub.</li>
+<strong>Emulators in the dev roles</strong> — the Android and React Native roles now include
+the Emulators feature, and existing users on those roles pick it up
+automatically (no need to re-pick your role).</li>
 </ul>
 <p>Installed copies update in place via Sparkle.</p>
 ]]></description>
-      <pubDate>Thu, 25 Jun 2026 11:27:33 +0000</pubDate>
-      <enclosure url="https://github.com/Droidective/Droidective/releases/download/v2.5.0/Droidective-v2.5.0.dmg" sparkle:edSignature="q3Mv8CSRVC014x2PQRwXQO0/xsXKe5esrT9IRWb2+0O7wATtvD2FJ5BzmyEGvchTk4UMkFv2ihMOq0DiHNLXAg==" length="45191704" type="application/octet-stream" />
+      <pubDate>Fri, 26 Jun 2026 04:53:40 +0000</pubDate>
+      <enclosure url="https://github.com/Droidective/Droidective/releases/download/v2.6.0/Droidective-v2.6.0.dmg" sparkle:edSignature="+eQnE+NO+sc43iFyitKCkY9snyGmcSr0omqeW/rIBVfWCXfCZUbaxR9ZDl4FIhkvm0yyWHCCt+tH5UI+17mhCA==" length="45606039" type="application/octet-stream" />
     </item>
   </channel>
 </rss>
