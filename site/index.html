@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <title>Droidective — All-in-One Android &amp; React Native Debugging Tool for macOS</title>
-  <meta name="description" content="Droidective is a free, open-source macOS app: a Raycast-style command palette for Android & React Native debugging over adb. Mirror screens, tail logcat, browse device files, monitor performance — 45 tools in all, no terminal required." />
+  <meta name="description" content="Droidective is a free, open-source macOS app: a Raycast-style command palette for Android & React Native debugging over adb. Mirror screens, tail logcat, browse device files, monitor performance, and debug React Native with built-in Reactotron — 48 tools in all, no terminal required." />
   <meta name="keywords" content="adb tool, android debugging tool, all in one android dev tool, react native debugger, scrcpy gui mac, android developer tool macos, logcat viewer mac, adb gui, mobile dev tool, android emulator manager, react native debugging" />
   <meta name="author" content="Rohindh R" />
   <meta name="robots" content="index, follow" />
@@ -20,14 +20,14 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Droidective" />
   <meta property="og:title" content="Droidective — All-in-One Android & React Native Debugging Tool for macOS" />
-  <meta property="og:description" content="A Raycast-style command palette for Android & React Native debugging over adb. Mirror screens, tail logcat, browse files, monitor performance — 45 tools, one keystroke away." />
+  <meta property="og:description" content="A Raycast-style command palette for Android & React Native debugging over adb. Mirror screens, tail logcat, browse files, monitor performance — 48 tools, one keystroke away." />
   <meta property="og:url" content="https://droidective.github.io/Droidective/" />
   <meta property="og:image" content="https://droidective.github.io/Droidective/assets/screenshot-home.png" />
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Droidective — All-in-One Android & React Native Debugging Tool for macOS" />
-  <meta name="twitter:description" content="A Raycast-style command palette for Android & React Native debugging over adb. 45 tools, one keystroke away. Free & open source." />
+  <meta name="twitter:description" content="A Raycast-style command palette for Android & React Native debugging over adb. 48 tools, one keystroke away. Free & open source." />
   <meta name="twitter:image" content="https://droidective.github.io/Droidective/assets/screenshot-home.png" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -41,10 +41,10 @@
     "name": "Droidective",
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": "macOS 14.0 or later",
-    "description": "A free, open-source macOS command palette for Android & React Native debugging over adb: screen mirroring, logcat, file explorer, performance monitoring, app management — 45 tools in all.",
+    "description": "A free, open-source macOS command palette for Android & React Native debugging over adb: screen mirroring, logcat, file explorer, performance monitoring, app management — 48 tools in all.",
     "url": "https://droidective.github.io/Droidective/",
     "downloadUrl": "https://github.com/Droidective/Droidective/releases/latest",
-    "softwareVersion": "2.2.1",
+    "softwareVersion": "2.6.0",
     "screenshot": "https://droidective.github.io/Droidective/assets/screenshot-home.png",
     "license": "https://github.com/Droidective/Droidective/blob/main/LICENSE",
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
@@ -435,6 +435,7 @@
       <g id="ic-gh" fill="currentColor"><path d="M12 1.5A10.5 10.5 0 0 0 8.7 22c.5.1.7-.2.7-.5v-1.8c-2.9.6-3.5-1.4-3.5-1.4-.5-1.2-1.2-1.5-1.2-1.5-.9-.6.1-.6.1-.6 1 .1 1.6 1 1.6 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.3-.3-4.7-1.2-4.7-5.1 0-1.1.4-2 1-2.7-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .6 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.8-4.7 5.1.4.3.7 1 .7 2v2.9c0 .3.2.6.7.5A10.5 10.5 0 0 0 12 1.5"/></g>
       <g id="ic-dl" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></g>
       <g id="ic-star" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 17.9 6.7 19.6l1-5.8L3.5 9.7l5.9-.9z"/></g>
+      <g id="ic-bug" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="8" width="9" height="11" rx="4.5"/><path d="M9.2 8a2.8 2.8 0 0 1 5.6 0"/><path d="M12 8.5v10.5M4.5 11h3M16.5 11h3M4.5 15.5h3M16.5 15.5h3M5.5 7l2 1.6M18.5 7l-2 1.6"/></g>
     </defs>
   </svg>
 
@@ -456,18 +457,18 @@
   <header class="hero" id="top">
     <div class="wrap hero-grid">
       <div>
-        <span class="hero-badge"><span class="dot"></span> Free &amp; open source · macOS 14+ · Apple Silicon &amp; Intel</span>
+        <span class="hero-badge"><span class="dot"></span> Free &amp; open source · Signed &amp; notarized · macOS 14+ · Apple Silicon &amp; Intel</span>
         <h1>Every adb tool, <span class="hl">one keystroke</span> away.</h1>
         <p class="lede">
           Droidective is a native macOS command palette for <strong>Android &amp; React Native</strong>
           debugging over adb. Mirror screens, tail logcat, browse device files, fake any state, and watch
-          performance live — <strong>45 tools</strong>, no terminal required.
+          performance live — <strong>48 tools</strong>, no terminal required.
         </p>
         <div class="cta-row">
           <a class="btn btn-primary" data-dl-latest href="https://github.com/Droidective/Droidective/releases/latest"><svg class="ic"><use href="#ic-dl"/></svg> Download for macOS</a>
           <a class="btn btn-ghost" href="https://github.com/Droidective/Droidective"><svg class="ic"><use href="#ic-star"/></svg> Star on GitHub</a>
         </div>
-        <p class="fineprint">$ <span>requires Android adb · auto-updates via Sparkle · v2.2.1</span></p>
+        <p class="fineprint">$ <span>requires Android adb · auto-updates via Sparkle · v2.6.0</span></p>
       </div>
 
       <div class="palette reveal" aria-hidden="true">
@@ -518,9 +519,10 @@
       <div class="card reveal"><div class="card-ic"><svg><use href="#ic-cast"/></svg></div><h3>Screen mirror &amp; record</h3><p>A friendly GUI for scrcpy — mirror and control the device, tune bitrate, FPS and crop, record to file or GIF.</p><span class="sh">scrcpy --max-size 1920</span></div>
       <div class="card reveal"><div class="card-ic"><svg><use href="#ic-log"/></svg></div><h3>Logcat &amp; crash catcher</h3><p>Stream logs with level, tag and per-app filters, follow an app across restarts, grab the last crash for Slack or Jira.</p><span class="sh">adb logcat -v color</span></div>
       <div class="card reveal"><div class="card-ic"><svg><use href="#ic-folder"/></svg></div><h3>Device file explorer</h3><p>Browse shared storage — or the whole filesystem on rooted devices — copy, move, delete, and push/pull to your Mac.</p><span class="sh">adb pull /sdcard/...</span></div>
-      <div class="card reveal"><div class="card-ic"><svg><use href="#ic-apps"/></svg></div><h3>App management</h3><p>Install, uninstall, force-stop, clear data, toggle runtime permissions, pull APKs, and browse a debug app's sandbox.</p><span class="sh">pm grant &lt;pkg&gt; ...</span></div>
+      <div class="card reveal"><div class="card-ic"><svg><use href="#ic-apps"/></svg></div><h3>App management</h3><p>Drag in an APK to install on every device, uninstall, force-stop, clear data, toggle runtime permissions, pull APKs, and browse a debug app's sandbox.</p><span class="sh">adb install app.apk</span></div>
       <div class="card reveal"><div class="card-ic"><svg><use href="#ic-activity"/></svg></div><h3>Performance monitor</h3><p>Live per-core CPU, RAM, FPS &amp; jank, and network throughput — charted, recordable, exportable to JSON &amp; CSV.</p><span class="sh">dumpsys gfxinfo</span></div>
       <div class="card reveal"><div class="card-ic"><svg><use href="#ic-react"/></svg></div><h3>React Native tools</h3><p>Open the dev menu, reload the JS bundle, reverse the Metro port, and point the app at any dev server.</p><span class="sh">adb reverse tcp:8081</span></div>
+      <div class="card reveal"><div class="card-ic"><svg><use href="#ic-bug"/></svg></div><h3>Reactotron, built in</h3><p>A full Reactotron debugger with no desktop app — Droidective runs the server itself. Live timeline of logs &amp; API calls, a store browser, custom commands, and a REPL.</p><span class="sh">no Reactotron install</span></div>
       <div class="card reveal"><div class="card-ic"><svg><use href="#ic-wifi"/></svg></div><h3>Wireless ADB &amp; connection</h3><p>Connect over Wi-Fi (with Android 11 pairing), manage Wi-Fi and private DNS, check root status, fan out to every device.</p><span class="sh">adb tcpip 5555</span></div>
       <div class="card reveal"><div class="card-ic"><svg><use href="#ic-sliders"/></svg></div><h3>State simulation</h3><p>Fake the battery, force dark mode, change locale, scale fonts and density, set a proxy — every override is reset-tracked.</p><span class="sh">cmd uimode night yes</span></div>
     </div>
@@ -544,7 +546,7 @@
       <div>
         <span class="eyebrow">the palette</span>
         <h3>One keystroke to everything</h3>
-        <p>Hit <code>⌘K</code> from any screen and fuzzy-search all 45 tools. The device bar follows you, so every command targets the device you mean.</p>
+        <p>Hit <code>⌘K</code> from any screen and fuzzy-search all 48 tools. The device bar follows you, so every command targets the device you mean.</p>
         <ul class="ticks">
           <li><b>Pin favorites</b> and bind global hotkeys</li>
           <li><b>Target one device</b> or fan out to all of them</li>
@@ -606,8 +608,8 @@
         <figcaption><b>Device info</b>RAM, storage, battery health, CPU, and every getprop — searchable.</figcaption>
       </figure>
       <figure>
-        <div class="shot"><img src="assets/screenshot-catalog.webp" alt="Droidective feature catalog listing all 45 tools with on/off toggles" loading="lazy" /></div>
-        <figcaption><b>Feature catalog</b>Toggle, reorder, and pin any of the 45 tools.</figcaption>
+        <div class="shot"><img src="assets/screenshot-catalog.webp" alt="Droidective feature catalog listing all 48 tools with on/off toggles" loading="lazy" /></div>
+        <figcaption><b>Feature catalog</b>Toggle, reorder, and pin any of the 48 tools.</figcaption>
       </figure>
     </div>
   </section>
@@ -636,7 +638,7 @@ Pixel 8     device</pre>
       <div class="step reveal">
         <span class="step-n">03 / go</span>
         <h4>Press ⌘K and run</h4>
-        <p>Search any of the 45 tools and run it. The Setup Doctor confirms your toolchain on first launch.</p>
+        <p>Search any of the 48 tools and run it. The Setup Doctor confirms your toolchain on first launch.</p>
         <pre><span class="c">⌘K</span> mirror screen   ↩</pre>
       </div>
     </div>
@@ -646,12 +648,24 @@ Pixel 8     device</pre>
     <div class="section-head center reveal">
       <span class="eyebrow">changelog</span>
       <h2>Shipped, and still moving.</h2>
-      <p>Five releases since the first public build, with signed in-app updates from v2.1.0 on.</p>
+      <p>Ten releases since the first public build — automatic in-app updates since v2.1.0, and Apple-notarized builds since v2.4.0.</p>
     </div>
     <div class="timeline reveal">
       <div class="rel latest">
-        <div class="rel-head"><span class="rel-ver">v2.2.1</span><span class="rel-tag">latest</span><span class="rel-date">Jun 2026</span></div>
-        <p>Controls now always use the brand green, regardless of the macOS system accent.</p>
+        <div class="rel-head"><span class="rel-ver">v2.6.0</span><span class="rel-tag">latest</span><span class="rel-date">Jun 2026</span></div>
+        <p><b>Reactotron</b> built in — no desktop app, with a live timeline, store browser, custom commands, and a REPL — plus an <b>Install App</b> screen (drag in an APK), and <b>dark mode by default</b>.</p>
+      </div>
+      <div class="rel">
+        <div class="rel-head"><span class="rel-ver">v2.5.0</span><span class="rel-date">Jun 2026</span></div>
+        <p><b>Role-based start</b> with a curated Home, a rebuilt Spotlight-style <b>⌘K palette</b> (pin, enable, multi-word search), and a <b>reorderable sidebar</b>.</p>
+      </div>
+      <div class="rel">
+        <div class="rel-head"><span class="rel-ver">v2.4.0</span><span class="rel-date">Jun 2026</span></div>
+        <p><b>In-app screen mirror</b> and a <b>video editor</b>, with scrcpy &amp; ffmpeg bundled inside the app — and builds now <b>signed with a Developer ID and notarized by Apple</b>.</p>
+      </div>
+      <div class="rel">
+        <div class="rel-head"><span class="rel-ver">v2.3.0</span><span class="rel-date">Jun 2026</span></div>
+        <p><b>Screenshot editor</b> overhaul — move, resize, and rotate annotations after drawing, adjustable blur/opacity, editable text, and a rotatable crop.</p>
       </div>
       <div class="rel">
         <div class="rel-head"><span class="rel-ver">v2.2.0</span><span class="rel-date">Jun 2026</span></div>
@@ -686,8 +700,8 @@ Pixel 8     device</pre>
         <div class="a">Yes. Droidective is MIT-licensed and fully open source — no account, no paywall, no pro tier. Star it, fork it, ship it.</div>
       </details>
       <details class="qa">
-        <summary>Why does macOS say the app "is damaged"?<span class="plus"></span></summary>
-        <div class="a">It's ad-hoc signed but not notarized (there's no paid Apple Developer account behind it yet), so Gatekeeper quarantines it. Clear that once and you're done: <code>xattr -dr com.apple.quarantine "/Applications/Droidective.app"</code>. Building from source avoids the quarantine entirely.</div>
+        <summary>Is it signed and safe to open?<span class="plus"></span></summary>
+        <div class="a">Yes. Release builds are signed with an Apple Developer ID and notarized by Apple, so they open with a normal double-click — no Gatekeeper workaround needed. Everything is open source, and you can build from source if you prefer.</div>
       </details>
       <details class="qa">
         <summary>Do I need a rooted device?<span class="plus"></span></summary>
@@ -695,7 +709,7 @@ Pixel 8     device</pre>
       </details>
       <details class="qa">
         <summary>What do I need installed?<span class="plus"></span></summary>
-        <div class="a">Just Android <code>adb</code>. Droidective finds it via <code>ANDROID_HOME</code>, the default SDK path, or Homebrew, and offers a one-click install if it's missing. <code>scrcpy</code>, <code>ffmpeg</code>, and the Android <code>emulator</code> are optional — they enable mirroring, GIF export, and AVD management.</div>
+        <div class="a">Just Android <code>adb</code>. Droidective finds it via <code>ANDROID_HOME</code>, the default SDK path, or Homebrew, and offers a one-click install if it's missing. <code>scrcpy</code> and <code>ffmpeg</code> ship inside the app, so mirroring, recording, and video export work out of the box — only the Android <code>emulator</code> is optional, for AVD management.</div>
       </details>
       <details class="qa">
         <summary>Does it send my data anywhere?<span class="plus"></span></summary>
@@ -733,7 +747,6 @@ Pixel 8     device</pre>
         <h3>On the roadmap</h3>
         <p>Honest about what's next:</p>
         <ul class="roadmap">
-          <li><span class="box"></span><span><b>Notarized builds</b> — drop the quarantine step on first launch.</span></li>
           <li><span class="box"></span><span><b>Resizable Apps divider</b> — drag the list / detail split in the Apps explorer.</span></li>
           <li><span class="box"></span><span><b>Your idea here</b> — open an issue and let's talk.</span></li>
         </ul>
@@ -767,8 +780,8 @@ Pixel 8     device</pre>
       <p class="disclaimer">
         Made by Rohindh R · MIT licensed · © 2026. Not affiliated with Google or the Android Open
         Source Project. Android is a trademark of Google LLC. scrcpy, adb, ffmpeg, and the Android
-        emulator are independent projects with their own licenses; Droidective shells out to them and
-        does not bundle them.
+        emulator are independent projects with their own licenses; Droidective bundles the scrcpy
+        server and a static ffmpeg build, and shells out to adb and the Android emulator.
       </p>
     </div>
   </footer>
