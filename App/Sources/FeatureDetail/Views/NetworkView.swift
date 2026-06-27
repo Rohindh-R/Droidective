@@ -29,6 +29,8 @@ struct NetworkView: View {
     @State private var sessionRx: UInt64 = 0
     @State private var sessionTx: UInt64 = 0
     @State private var sampler: Task<Void, Never>?
+    /// Identifies this view's leave guard so a stale clear can't wipe another's.
+    @State private var exitGuardID = UUID()
 
     private static let interval: Duration = .seconds(1)
     private static let chartWindow = 120
@@ -44,8 +46,24 @@ struct NetworkView: View {
                 setLive(false)
                 setLive(true)
             }
+            .onChange(of: recorded.isEmpty) { _, empty in
+                if empty {
+                    state.clearExitGuard(exitGuardID)
+                } else {
+                    state.setExitGuard(.init(
+                        id: exitGuardID, style: .recording,
+                        title: "Recording not exported",
+                        message: "This network recording hasn’t been exported. Save it first, or discard it."))
+                }
+            }
+            .onChange(of: state.pendingExit?.saving) { _, saving in
+                guard saving == true else { return }
+                stopRecording()
+                if recorded.isEmpty || export() { state.finishExitSave() } else { state.cancelExit() }
+            }
             .onDisappear {
                 setLive(false)
+                state.clearExitGuard(exitGuardID)
             }
     }
 
@@ -350,9 +368,10 @@ struct NetworkView: View {
 
     // MARK: - Export
 
-    private func export() {
+    @discardableResult
+    private func export() -> Bool {
         guard !recorded.isEmpty,
-              let folder = state.askSaveFolder(prompt: "Export network report") else { return }
+              let folder = state.askSaveFolder(prompt: "Export network report") else { return false }
         let stamp = ScreenCaptureService.stamp()
         do {
             try buildJSON().write(to: folder.appendingPathComponent("network_\(stamp).json"))
@@ -362,8 +381,10 @@ struct NetworkView: View {
                 ok: true,
                 revealPath: folder.path
             ))
+            return true
         } catch {
             state.showToast(Toast(message: "Export failed: \(error.localizedDescription)", ok: false))
+            return false
         }
     }
 

@@ -53,55 +53,72 @@ public struct SystemProcessRunner: ProcessRunning {
         stderr.attach(errPipe.fileHandleForReading)
 
         let timedOut = LockedBox(false)
+        let cancelled = LockedBox(false)
         let boxed = UncheckedSendable(process)
 
-        // Started before the exit await so it runs concurrently; Task.sleep
-        // parks no thread. `isRunning` is false both before launch and after
-        // exit, so terminate() is only ever sent to a live process — and the
-        // timedOut flag is only set when termination was actually forced
-        // (a process exiting cleanly right at the deadline isn't a timeout).
-        let watchdog = Task {
-            try await Task.sleep(for: timeout)
-            if boxed.value.isRunning {
-                timedOut.set(true)
-                boxed.value.terminate()
+        return await withTaskCancellationHandler {
+            // Started before the exit await so it runs concurrently; Task.sleep
+            // parks no thread. `isRunning` is false both before launch and after
+            // exit, so terminate() is only ever sent to a live process — and the
+            // timedOut flag is only set when termination was actually forced
+            // (a process exiting cleanly right at the deadline isn't a timeout).
+            let watchdog = Task {
+                try await Task.sleep(for: timeout)
+                if boxed.value.isRunning {
+                    timedOut.set(true)
+                    boxed.value.terminate()
+                }
+                try await Task.sleep(for: .seconds(2))
+                if boxed.value.isRunning {
+                    kill(boxed.value.processIdentifier, SIGKILL)
+                }
             }
-            try await Task.sleep(for: .seconds(2))
-            if boxed.value.isRunning {
-                kill(boxed.value.processIdentifier, SIGKILL)
+
+            let exitCode: Int32? = await withCheckedContinuation { continuation in
+                let resumed = LockedBox(false)
+                process.terminationHandler = { finished in
+                    guard !resumed.swap(true) else { return }
+                    let exited = finished.terminationReason == .exit
+                    continuation.resume(returning: exited ? finished.terminationStatus : nil)
+                }
+                do {
+                    try process.run()
+                    // Cancelled during launch: tear the child down now so it
+                    // doesn't keep running after the caller's Task is gone.
+                    if cancelled.get(), boxed.value.isRunning { boxed.value.terminate() }
+                } catch {
+                    guard !resumed.swap(true) else { return }
+                    stdout.cancel(outPipe.fileHandleForReading)
+                    stderr.cancel(errPipe.fileHandleForReading)
+                    stderr.injectFailure("failed to launch \(executable): \(error.localizedDescription)")
+                    continuation.resume(returning: nil)
+                }
+            }
+            watchdog.cancel()
+
+            // Bounded: a grandchild (e.g. a spawned daemon) can inherit the pipe
+            // and delay EOF past the parent's exit.
+            await stdout.waitUntilEOF(grace: .seconds(3))
+            await stderr.waitUntilEOF(grace: .seconds(3))
+
+            return ProcessOutput(
+                stdout: stdout.data,
+                stderr: stderr.data,
+                exitCode: timedOut.get() ? nil : exitCode,
+                timedOut: timedOut.get()
+            )
+        } onCancel: {
+            // Cancelling the calling Task (e.g. a SwiftUI .task torn down on
+            // navigation, or a .task(id:) re-keying) must kill the child so
+            // run() returns promptly and no orphaned adb process lingers until
+            // its timeout. SIGTERM first, then SIGKILL for anything ignoring it.
+            cancelled.set(true)
+            if boxed.value.isRunning { boxed.value.terminate() }
+            Task {
+                try? await Task.sleep(for: .seconds(2))
+                if boxed.value.isRunning { kill(boxed.value.processIdentifier, SIGKILL) }
             }
         }
-
-        let exitCode: Int32? = await withCheckedContinuation { continuation in
-            let resumed = LockedBox(false)
-            process.terminationHandler = { finished in
-                guard !resumed.swap(true) else { return }
-                let exited = finished.terminationReason == .exit
-                continuation.resume(returning: exited ? finished.terminationStatus : nil)
-            }
-            do {
-                try process.run()
-            } catch {
-                guard !resumed.swap(true) else { return }
-                stdout.cancel(outPipe.fileHandleForReading)
-                stderr.cancel(errPipe.fileHandleForReading)
-                stderr.injectFailure("failed to launch \(executable): \(error.localizedDescription)")
-                continuation.resume(returning: nil)
-            }
-        }
-        watchdog.cancel()
-
-        // Bounded: a grandchild (e.g. a spawned daemon) can inherit the pipe
-        // and delay EOF past the parent's exit.
-        await stdout.waitUntilEOF(grace: .seconds(3))
-        await stderr.waitUntilEOF(grace: .seconds(3))
-
-        return ProcessOutput(
-            stdout: stdout.data,
-            stderr: stderr.data,
-            exitCode: timedOut.get() ? nil : exitCode,
-            timedOut: timedOut.get()
-        )
     }
 }
 
@@ -121,7 +138,9 @@ final class PipeCollector: @unchecked Sendable {
     private weak var handle: FileHandle?
 
     func attach(_ handle: FileHandle) {
+        lock.lock()
         self.handle = handle
+        lock.unlock()
         handle.readabilityHandler = { [weak self] handle in
             let chunk = handle.availableData
             if chunk.isEmpty {
@@ -153,6 +172,12 @@ final class PipeCollector: @unchecked Sendable {
         return buffer
     }
 
+    private func currentHandle() -> FileHandle? {
+        lock.lock()
+        defer { lock.unlock() }
+        return handle
+    }
+
     func waitUntilEOF(grace: Duration) async {
         // On expiry, also tear down the read source — a grandchild holding
         // the pipe's write end would otherwise keep the FD and handler alive
@@ -160,7 +185,7 @@ final class PipeCollector: @unchecked Sendable {
         let deadline = Task { [weak self] in
             try await Task.sleep(for: grace)
             guard let self else { return }
-            if let handle = self.handle {
+            if let handle = self.currentHandle() {
                 self.cancel(handle)
             } else {
                 self.finish()

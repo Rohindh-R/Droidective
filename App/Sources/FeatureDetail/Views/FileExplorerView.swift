@@ -313,7 +313,7 @@ struct FileExplorerView: View {
             } label: {
                 Image(systemName: selection.contains(entry.id) ? "checkmark.square.fill" : "square")
                     .imageScale(.large)
-                    .foregroundStyle(selection.contains(entry.id) ? Color("BrandAccent") : Color("TextMuted"))
+                    .foregroundStyle(selection.contains(entry.id) ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMuted))
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

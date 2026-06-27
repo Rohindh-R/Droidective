@@ -142,6 +142,35 @@ import Testing
         #expect(!result.ok)
         #expect(result.message.contains("isn't implemented yet"))
     }
+
+    @Test func implementedIDsAreAllRealFeatures() {
+        // A typo'd or stale id in implementedIDs would silently mark a
+        // non-existent feature as runnable.
+        let registryIDs = Set(FeatureRegistry.byID.keys)
+        for id in FeatureEngine.implementedIDs {
+            #expect(registryIDs.contains(id), "implementedIDs lists \"\(id)\", which is not in the registry")
+        }
+    }
+
+    @Test func everyImplementedActionResolvesToARunner() async {
+        // The #1 scaling hazard: an action feature added to implementedIDs but
+        // missing its dispatch case silently falls through to the "coming soon"
+        // placeholder, with no other signal. (View features are intentionally in
+        // implementedIDs without a dispatch case — the App layer serves them —
+        // so this guard is scoped to action kinds.)
+        let runner = MockProcessRunner()
+        runner.script(argsPrefix: [], stdout: "")
+        let engine = await makeEngine(runner)
+        let actionKinds: Set<FeatureKind> = [.instantAction, .formAction, .toggleAction]
+        for feature in FeatureRegistry.all
+        where actionKinds.contains(feature.kind) && FeatureEngine.implementedIDs.contains(feature.id) {
+            let result = await engine.run(featureID: feature.id, serial: "S1", params: [:])
+            #expect(
+                !result.message.contains("isn't implemented yet"),
+                "\(feature.id) is action-kind and in implementedIDs but has no dispatch case"
+            )
+        }
+    }
 }
 
 @Suite struct FeatureRegistryTests {

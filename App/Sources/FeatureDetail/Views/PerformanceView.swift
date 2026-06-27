@@ -38,6 +38,8 @@ struct PerformanceView: View {
     @State private var selectedElapsed: Double?
     /// Stopping with captured samples prompts to export before discarding them.
     @State private var confirmingStop = false
+    /// Identifies this view's leave guard so a stale clear can't wipe another's.
+    @State private var exitGuardID = UUID()
 
     /// Poll cadence. dumpsys meminfo (per-process) is heavy, so it runs every
     /// other tick while the lighter CPU/RAM/FPS counters run every tick.
@@ -79,9 +81,25 @@ struct PerformanceView: View {
             samples = []
             processes = []
         }
+        .onChange(of: samples.isEmpty) { _, empty in
+            if empty {
+                state.clearExitGuard(exitGuardID)
+            } else {
+                state.setExitGuard(.init(
+                    id: exitGuardID, style: .recording,
+                    title: "Recording not exported",
+                    message: "This performance recording hasn’t been exported. Save it first, or discard it."))
+            }
+        }
+        .onChange(of: state.pendingExit?.saving) { _, saving in
+            guard saving == true else { return }
+            stop()
+            if samples.isEmpty || export() { state.finishExitSave() } else { state.cancelExit() }
+        }
         .onDisappear {
             sampler?.cancel()
             state.recordingActive = false
+            state.clearExitGuard(exitGuardID)
         }
     }
 
@@ -577,9 +595,10 @@ struct PerformanceView: View {
 
     // MARK: - Export
 
-    private func export() {
+    @discardableResult
+    private func export() -> Bool {
         guard !samples.isEmpty,
-              let folder = state.askSaveFolder(prompt: "Export performance report") else { return }
+              let folder = state.askSaveFolder(prompt: "Export performance report") else { return false }
         let stamp = ScreenCaptureService.stamp()
         do {
             try buildJSON().write(to: folder.appendingPathComponent("performance_\(stamp).json"))
@@ -589,8 +608,10 @@ struct PerformanceView: View {
                 ok: true,
                 revealPath: folder.path
             ))
+            return true
         } catch {
             state.showToast(Toast(message: "Export failed: \(error.localizedDescription)", ok: false))
+            return false
         }
     }
 

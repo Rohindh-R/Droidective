@@ -77,4 +77,20 @@ import Testing
         canary.cancel()
         #expect(canaryTicks.get() > 5, "canary task starved — runner is blocking cooperative threads")
     }
+
+    @Test func cancellationKillsChildAndReturnsPromptly() async {
+        // A long-running child under a generous timeout: cancelling the calling
+        // Task must kill it and return now, not block until the 60s timeout.
+        let clock = ContinuousClock()
+        let started = clock.now
+        let task = Task {
+            await runner.run(executable: "/bin/sleep", arguments: ["30"], timeout: .seconds(60))
+        }
+        try? await Task.sleep(for: .milliseconds(200))
+        task.cancel()
+        let output = await task.value
+        #expect(clock.now - started < .seconds(10), "cancellation did not tear the child down promptly")
+        #expect(!output.timedOut, "a cancelled run is not a timeout")
+        #expect(output.exitCode == nil, "a killed child has no clean exit code")
+    }
 }

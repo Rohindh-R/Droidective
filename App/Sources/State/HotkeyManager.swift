@@ -49,7 +49,7 @@ enum HotkeyManager {
                     Task { await state.run(feature: feature, params: [:]) }
                 } else {
                     state.activateMainWindow()
-                    state.selectedFeatureID = feature.id
+                    state.requestFeature(feature.id)
                 }
             }
         }

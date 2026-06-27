@@ -86,10 +86,13 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.rohindh.droidective
         SENTRY_DSN: ""
         POSTHOG_KEY: ""
-        MARKETING_VERSION: "2.6.1"
+        MARKETING_VERSION: "2.6.2"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete
+        # Enforce the zero-warnings policy for first-party App code. Scoped to
+        # this target's sources — SPM dependencies build with their own settings.
+        SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_STYLE: Manual
         ENABLE_HARDENED_RUNTIME: NO
@@ -97,3 +100,20 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         DEAD_CODE_STRIPPING: YES
+  AppTests:
+    type: bundle.unit-test
+    platform: macOS
+    # A logic-test bundle (no app host to launch): it compiles the pure
+    # App-layer sources under test directly, so decision logic like LaunchPrompt
+    # is tested fast and deterministically. Genuinely UI-coupled coordinators
+    # would need a hosted/XCUITest target instead.
+    sources:
+      - App/Tests
+      - App/Sources/State/LaunchPrompt.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.rohindh.droidective.tests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+        SWIFT_TREAT_WARNINGS_AS_ERRORS: YES

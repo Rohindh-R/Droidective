@@ -29,4 +29,9 @@ separate ffmpeg install.
   https://ffmpeg.org/download.html and https://git.ffmpeg.org/ffmpeg.git
 
 Because this ffmpeg build is GPLv3, distributing the app bundle with it included
-carries GPLv3 obligations for the combined distribution.
+carries GPLv3 obligations. Droidective invokes ffmpeg only as a separate
+executable (via `Process`) and never links against it or its libraries, so the
+app and ffmpeg are aggregated rather than a combined/derivative work — the app's
+own MIT license is unaffected. The obligation is to make ffmpeg's corresponding
+source and license available to recipients, which the upstream links above
+satisfy; the unmodified binary is redistributed under GPLv3.

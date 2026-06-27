@@ -16,6 +16,30 @@ public struct AppInstallService: Sendable {
         return Self.parse(result)
     }
 
+    /// Read a local APK's identifying details for the install prompt. Uses the
+    /// SDK's aapt2 when available; without build-tools it returns just the file
+    /// name and size, so the prompt still shows something useful.
+    public func inspect(apkPath: String) async -> ApkInfo {
+        let attrs = try? FileManager.default.attributesOfItem(atPath: apkPath)
+        let size = (attrs?[.size] as? Int) ?? 0
+        var info = ApkInfo(fileName: URL(fileURLWithPath: apkPath).lastPathComponent, fileSizeBytes: size)
+        guard let aapt2 = await client.locator.aapt2Path() else { return info }
+        let result = await SystemProcessRunner().run(
+            executable: aapt2,
+            arguments: ["dump", "badging", apkPath],
+            timeout: .seconds(20),
+            maxOutputBytes: 4 * 1024 * 1024)
+        guard result.exitCode == 0 else { return info }
+        let fields = ApkBadging.parse(result.stdoutText)
+        info.label = fields.label
+        info.packageName = fields.packageName
+        info.versionName = fields.versionName
+        info.versionCode = fields.versionCode
+        info.minSdk = fields.minSdk
+        info.targetSdk = fields.targetSdk
+        return info
+    }
+
     /// Map adb's install output to a result. adb prints "Success" on success and
     /// "Failure [INSTALL_FAILED_…]" (or a streamed error line) on failure, often
     /// on a zero exit, so the text — not the exit code — is authoritative. The

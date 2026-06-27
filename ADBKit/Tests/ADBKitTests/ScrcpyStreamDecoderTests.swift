@@ -112,4 +112,22 @@ import Testing
         let events = decoder.consume(Data(bytes))
         #expect(events.first == .deviceName("sdk_gphone64_arm64"))
     }
+
+    @Test func haltsOnOversizedPacketSize() {
+        // dummy + empty 64-byte name + "h264" + session meta (800x500) + a packet
+        // header whose size field is an absurd 0xFFFFFFFF, then some payload bytes.
+        var bytes: [UInt8] = [0x00]
+        bytes += [UInt8](repeating: 0, count: 64)
+        bytes += [0x68, 0x32, 0x36, 0x34]                             // "h264"
+        bytes += [0x80, 0, 0, 0, 0, 0, 0x03, 0x20, 0, 0, 0x01, 0xF4]  // flags, w=800, h=500
+        bytes += [0, 0, 0, 0, 0, 0, 0, 0]                             // ptsFlags
+        bytes += [0xFF, 0xFF, 0xFF, 0xFF]                             // absurd size
+        bytes += [0x01, 0x02, 0x03, 0x04]
+        var decoder = ScrcpyStreamDecoder(tunnelForward: true)
+        let events = decoder.consume(Data(bytes))
+        // The header parses, but the absurd size must not yield a packet…
+        #expect(!events.contains { if case .packet = $0 { true } else { false } })
+        // …and the decoder is halted: further bytes yield nothing (not buffered).
+        #expect(decoder.consume(Data([UInt8](repeating: 0xAB, count: 4096))).isEmpty)
+    }
 }

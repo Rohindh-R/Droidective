@@ -31,16 +31,24 @@ struct EditState: Equatable {
     var format: VideoFormat = .mp4
 }
 
-/// Clips a view to a normalized crop region (full view when crop is nil).
-struct CropClipShape: Shape {
-    let crop: CropRect?
+/// A read-only crop indicator: dims outside the normalized crop region and
+/// outlines it, so an applied crop is previewed without clipping the player or
+/// its transport controls. The actual crop is applied at export via ffmpeg.
+struct CropIndicator: View {
+    let crop: CropRect
 
-    func path(in rect: CGRect) -> Path {
-        guard let crop else { return Path(rect) }
-        return Path(CGRect(
-            x: rect.minX + crop.x * rect.width, y: rect.minY + crop.y * rect.height,
-            width: crop.width * rect.width, height: crop.height * rect.height
-        ))
+    var body: some View {
+        Canvas { context, size in
+            let rect = CGRect(
+                x: crop.x * size.width, y: crop.y * size.height,
+                width: crop.width * size.width, height: crop.height * size.height)
+            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.black.opacity(0.4)))
+            context.blendMode = .destinationOut
+            context.fill(Path(rect), with: .color(.black))
+            context.blendMode = .normal
+            context.stroke(Path(rect), with: .color(.brandAccent), lineWidth: 2)
+        }
+        .allowsHitTesting(false)
     }
 }
 
@@ -90,6 +98,12 @@ struct VideoEditorPane: View {
     @State private var videoSize: CGSize?
     @State private var assetDuration: Double = 0
 
+    /// Identifies this view's leave guard so a stale clear can't wipe another's.
+    @State private var exitGuardID = UUID()
+    /// The edit state at the last successful export; edits matching it count as
+    /// saved, so the leave prompt doesn't fire after exporting.
+    @State private var lastExportedEdit: EditState?
+
     init(source: VideoSource, onClose: @escaping () -> Void) {
         self.source = source
         self.onClose = onClose
@@ -101,6 +115,10 @@ struct VideoEditorPane: View {
     /// View transforms apply only while not trimming/cropping, so those UIs stay
     /// upright and map to the unrotated frame.
     private var transformActive: Bool { !cropMode && !isTrimming }
+
+    /// Edits exist when the state differs from the default and from the state
+    /// last exported — these are lost on leave unless exported first.
+    private var hasUnsavedEdits: Bool { edit != EditState() && edit != lastExportedEdit }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -115,7 +133,20 @@ struct VideoEditorPane: View {
         }
         .task(id: source.url) { await loadAsset() }
         .onReceive(player.publisher(for: \.status)) { playerReady = ($0 == .readyToPlay) }
-        .onDisappear { player.pause() }
+        .onChange(of: hasUnsavedEdits) { _, dirty in
+            if dirty {
+                state.setExitGuard(.init(
+                    id: exitGuardID, style: .edits,
+                    title: "Unsaved video edits",
+                    message: "Your trim, rotate, crop, and other edits haven’t been exported. Leaving discards them."))
+            } else {
+                state.clearExitGuard(exitGuardID)
+            }
+        }
+        .onDisappear {
+            player.pause()
+            state.clearExitGuard(exitGuardID)
+        }
     }
 
     // MARK: player + crop overlay
@@ -132,7 +163,11 @@ struct VideoEditorPane: View {
                     let size = playerSize(in: geo.size)
                     VideoPlayerView(player: player, trimmer: trimmer)
                         .frame(width: size.width, height: size.height)
-                        .clipShape(CropClipShape(crop: transformActive ? edit.crop : nil))
+                        .overlay {
+                            if transformActive, let crop = edit.crop {
+                                CropIndicator(crop: crop)
+                            }
+                        }
                         .rotationEffect(.degrees(transformActive ? Double(edit.rotation) : 0))
                         .scaleEffect(
                             x: transformActive && edit.flipH ? -1 : 1,
@@ -479,6 +514,7 @@ struct VideoEditorPane: View {
         guard let chosen = state.askSaveLocation(suggestedName: suggested) else { return }
         let dest = chosen.deletingPathExtension().appendingPathExtension(edit.format.fileExtension)
         let options = exportOptions
+        let exported = edit
         let url = source.url
         isExporting = true
         player.pause()
@@ -489,6 +525,7 @@ struct VideoEditorPane: View {
                         locator: state.env.client.locator, bundledPath: BundledTools.ffmpegPath())
                         .export(source: url, options: options, to: dest)
                 }
+                lastExportedEdit = exported
                 state.showToast(Toast(message: "Video exported", ok: true, revealPath: saved.path))
             } catch {
                 state.showToast(Toast(message: error.localizedDescription, ok: false))

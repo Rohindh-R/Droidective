@@ -12,9 +12,9 @@ public struct DeviceDetails: Sendable, Equatable {
 
         let version = (await versionResult)?.stdout
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        let battery = (await batteryResult)?.stdout
-            .firstMatch(of: /level:\s*(\d+)/)
-            .flatMap { Int($0.1) }
+        // Reuse DeviceOverview's parser so battery-level parsing lives in one
+        // place (and inherits its line-anchored, decoy-proof matching).
+        let battery = (await batteryResult).flatMap { DeviceOverview.parseBattery($0.stdout).level }
 
         return DeviceDetails(
             androidVersion: (version?.isEmpty == false) ? version : nil,

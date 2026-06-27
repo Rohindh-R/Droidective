@@ -8,7 +8,10 @@ let package = Package(
         .library(name: "ADBKit", targets: ["ADBKit"])
     ],
     targets: [
-        .target(name: "ADBKit"),
-        .testTarget(name: "ADBKitTests", dependencies: ["ADBKit"]),
+        // Pin the Swift 6 language mode (complete strict concurrency) explicitly
+        // rather than inheriting it from the tools version, so it can't silently
+        // relax if the tools-version line is ever lowered.
+        .target(name: "ADBKit", swiftSettings: [.swiftLanguageMode(.v6)]),
+        .testTarget(name: "ADBKitTests", dependencies: ["ADBKit"], swiftSettings: [.swiftLanguageMode(.v6)]),
     ]
 )

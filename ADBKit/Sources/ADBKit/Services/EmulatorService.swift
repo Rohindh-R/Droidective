@@ -106,4 +106,26 @@ public struct EmulatorService: Sendable {
             ? FeatureResult(ok: true, message: "Stopping emulator…")
             : FeatureResult(ok: false, message: friendlyAdbError(result, fallback: "Couldn't stop the emulator"))
     }
+
+    /// pid of the process listening on the emulator's console port (the number
+    /// in "emulator-5554"). That port is held by exactly that qemu process, so
+    /// `lsof` maps the serial to the right pid even with several emulators up.
+    /// Runs through the non-blocking runner so it can't park a cooperative
+    /// thread (the reason this lives here, not in the view).
+    public func consolePID(serial: String) async -> pid_t? {
+        guard let port = serial.split(separator: "-").last.flatMap({ Int($0) }) else { return nil }
+        let output = await runner.run(
+            executable: "/usr/sbin/lsof",
+            arguments: ["-nP", "-iTCP:\(port)", "-sTCP:LISTEN", "-t"],
+            timeout: .seconds(5), maxOutputBytes: 64 * 1024
+        )
+        return Self.parseLsofPID(output.stdoutText)
+    }
+
+    /// First pid from `lsof -t` output (one pid per line; tolerates CRLF).
+    static func parseLsofPID(_ output: String) -> pid_t? {
+        output.split(whereSeparator: \.isNewline)
+            .compactMap { pid_t($0.trimmingCharacters(in: .whitespaces)) }
+            .first
+    }
 }

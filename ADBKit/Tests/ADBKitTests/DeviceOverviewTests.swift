@@ -33,6 +33,20 @@ import Testing
         #expect(available == 34_057_940)
     }
 
+    @Test func parsesDfWithWrappedLongFilesystemName() {
+        // Dynamic-partition devices (Pixel, most Android 11+) wrap a long device
+        // path onto its own line, pushing the numbers to the next physical line.
+        let output = """
+        Filesystem               1K-blocks      Used Available Use% Mounted on
+        /dev/block/mapper/userdata
+                                  56371708  22152504  34057940  40% /data
+        """
+        let (total, used, available) = DeviceOverview.parseDf(output)
+        #expect(total == 56_371_708)
+        #expect(used == 22_152_504)
+        #expect(available == 34_057_940)
+    }
+
     @Test func parsesBatteryWithHealthAndCycles() {
         let output = """
         Current Battery Service state:
@@ -51,6 +65,20 @@ import Testing
         #expect(level == 80)
         #expect(health == "Overheat")
         #expect(cycles == nil)
+    }
+
+    @Test func parsesBatteryIgnoresDecoyLevelLine() {
+        // Some ROMs print "Max charging level:" before the real "level:"; the
+        // line-anchored match must take the canonical value, not the decoy.
+        let output = """
+        Current Battery Service state:
+          Max charging level: 80
+          level: 55
+          health: 2
+        """
+        let (level, health, _) = DeviceOverview.parseBattery(output)
+        #expect(level == 55)
+        #expect(health == "Good")
     }
 
     @Test func countsPackages() {
@@ -100,6 +128,13 @@ import Testing
 
     @Test func parsesAvdListWithCrlf() {
         #expect(EmulatorService.parseAvdList("Pixel_7\r\nMedium_Tablet\r\n") == ["Pixel_7", "Medium_Tablet"])
+    }
+
+    @Test func parsesLsofPidTakingFirstLine() {
+        #expect(EmulatorService.parseLsofPID("12345\n") == 12345)
+        #expect(EmulatorService.parseLsofPID("12345\r\n67890\r\n") == 12345)
+        #expect(EmulatorService.parseLsofPID("") == nil)
+        #expect(EmulatorService.parseLsofPID("not-a-pid") == nil)
     }
 }
 

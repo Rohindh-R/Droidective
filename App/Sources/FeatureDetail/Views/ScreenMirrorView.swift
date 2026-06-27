@@ -7,6 +7,8 @@ import SwiftUI
 struct ScreenMirrorView: View {
     @Environment(AppState.self) private var state
     @State private var model: MirrorViewModel?
+    /// Identifies this view's leave guard so a stale clear can't wipe another's.
+    @State private var exitGuardID = UUID()
 
     var body: some View {
         ZStack {
@@ -43,11 +45,42 @@ struct ScreenMirrorView: View {
             state.showToast(Toast(message: message, ok: false))
             model?.recordingError = nil
         }
+        .onChange(of: model?.isRecording) { _, recording in
+            if recording == true {
+                state.setExitGuard(.init(
+                    id: exitGuardID, style: .recording,
+                    title: "Recording in progress",
+                    message: "Leaving will stop the screen recording. Save it first, or discard it."))
+            } else {
+                state.clearExitGuard(exitGuardID)
+            }
+        }
+        .onChange(of: state.pendingExit?.saving) { _, saving in
+            if saving == true, model?.isRecording == true { Task { await saveRecordingForLeave() } }
+        }
         .onDisappear {
+            state.clearExitGuard(exitGuardID)
             let leaving = model
             model = nil
             Task { await leaving?.stop() }
         }
+    }
+
+    /// "Stop & save" from the leave prompt: finalize the in-mirror recording into
+    /// the capture folder (skipping the Discard/Save/Edit sheet), then proceed.
+    private func saveRecordingForLeave() async {
+        guard let model else { state.finishExitSave(); return }
+        if let temp = await model.finishRecordingForLeave() {
+            do {
+                let dir = try ScreenCaptureService.ensureCaptureDir()
+                let dest = dir.appendingPathComponent("recording_\(ScreenCaptureService.stamp()).mp4")
+                try FileManager.default.moveItem(at: temp, to: dest)
+                state.showToast(Toast(message: "Recording saved", ok: true, revealPath: dest.path))
+            } catch {
+                state.showToast(Toast(message: "Couldn’t save recording: \(error.localizedDescription)", ok: false))
+            }
+        }
+        state.finishExitSave()
     }
 
     private func reconnect(to serial: String?) async {

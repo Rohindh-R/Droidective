@@ -19,6 +19,11 @@ public struct ScrcpyDeviceMessageDecoder: Sendable {
     private var buffer: [UInt8] = []
     private var cursor = 0
 
+    /// Sanity ceiling for a clipboard message's declared length (a UInt32 on the
+    /// wire); past this is a corrupt length, so drop the buffer rather than wait
+    /// for gigabytes that never arrive.
+    private static let maxClipboardBytes = 16 * 1024 * 1024
+
     public init() {}
 
     private var available: Int { buffer.count - cursor }
@@ -37,6 +42,10 @@ public struct ScrcpyDeviceMessageDecoder: Sendable {
             case .clipboard:
                 guard available >= 5 else { break parse }
                 let length = Int(readU32BE(at: cursor + 1))
+                guard length <= Self.maxClipboardBytes else {
+                    // Corrupt/oversized length — can't trust the frame; drop it.
+                    buffer.removeAll(); cursor = 0; break parse
+                }
                 guard available >= 5 + length else { break parse }
                 let text = String(decoding: buffer[(cursor + 5) ..< (cursor + 5 + length)], as: UTF8.self)
                 cursor += 5 + length

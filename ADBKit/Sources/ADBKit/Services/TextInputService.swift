@@ -39,9 +39,11 @@ public struct TextInputService: Sendable {
             return FeatureResult(ok: false, message: "Nothing to send")
         }
 
-        // `input text` has no escape for a literal % (%s means space), so
-        // %-containing text goes through the ADBKeyboard path like Unicode.
-        let needsIME = text.contains { !$0.isASCII } || text.contains("%")
+        // `input text` has no escape for a literal % (%s means space), and a
+        // newline/tab in the argument would act as a device-shell command
+        // separator. So %, control whitespace, and non-ASCII all go through the
+        // base64 ADBKeyboard path, which can't be shell-injected.
+        let needsIME = text.contains { !$0.isASCII || $0.isNewline || $0 == "\t" } || text.contains("%")
         if !needsIME {
             let result = try await client.run(
                 on: serial, ["shell", "input", "text", Self.escapeForInput(text)]
@@ -55,7 +57,7 @@ public struct TextInputService: Sendable {
         guard imeList.stdout.contains(Self.adbKeyboardIME) else {
             return FeatureResult(
                 ok: false,
-                message: "This text needs the ADBKeyboard app on the device (Unicode and % can't go through `input text`).",
+                message: "This text needs the ADBKeyboard app on the device (Unicode, %, and line breaks can't go through `input text`).",
                 needsAdbKeyboard: true
             )
         }

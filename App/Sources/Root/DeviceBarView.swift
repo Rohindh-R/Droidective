@@ -132,8 +132,7 @@ struct DeviceBarView: View {
             }
             ForEach(state.devices) { device in
                 Button {
-                    state.selectedSerial = device.serial
-                    state.persistSelection()
+                    state.requestDevice(device.serial)
                 } label: {
                     if device.serial == state.selectedSerial {
                         Label(state.deviceTitle(device), systemImage: "checkmark")

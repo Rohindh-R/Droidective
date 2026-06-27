@@ -19,25 +19,37 @@ struct RootView: View {
     @State private var pickerIsFirstRun = false
     @Environment(\.colorScheme) private var colorScheme
 
-    /// Launches to allow before the first-run privacy disclosure appears.
-    /// Telemetry is anonymous and on by default in the meantime (opt-out in
-    /// Settings → Privacy); the modal then lets the user confirm or opt out.
+    /// Temporary toggle: flip to `true` to surface the privacy disclosure on the
+    /// first launch (after the welcome flow) instead of deferring it. Left
+    /// `false` for now to keep current behavior. Telemetry stays anonymous and
+    /// on by default either way (opt-out in Settings → Privacy). Remove this
+    /// (and the deferral below) when switching to ask-on-first-launch for good.
+    private let askConsentOnFirstLaunch = false
+
+    /// Launches to allow before the first-run privacy disclosure appears, when
+    /// `askConsentOnFirstLaunch` is false.
     private let consentPromptAfterLaunches = 5
 
     /// Launches before the one-time GitHub-star nudge (shown after consent).
     private let starPromptAfterLaunches = 10
 
     private var shouldPromptConsent: Bool {
-        !consentAsked && launchCount >= consentPromptAfterLaunches
+        LaunchPrompt.consentDue(
+            consentAsked: consentAsked, launchCount: launchCount,
+            askOnFirstLaunch: askConsentOnFirstLaunch, afterLaunches: consentPromptAfterLaunches)
     }
 
     private var shouldPromptStar: Bool {
-        !starPromptShown && launchCount >= starPromptAfterLaunches
+        LaunchPrompt.starDue(
+            starPromptShown: starPromptShown, launchCount: launchCount, afterLaunches: starPromptAfterLaunches)
     }
 
     var body: some View {
         @Bindable var state = state
-        zoomedContent
+        // Read pendingExit here so body re-renders when a navigation is deferred
+        // (the exitGuard alone is often unchanged), driving the leave dialog.
+        let showExitDialog = state.pendingExit.map { !$0.saving } ?? false
+        return zoomedContent
             .background(WindowAccessor { window in
                 // Fill the screen's usable area on launch — a regular maximized
                 // window, not a native full-screen Space.
@@ -70,41 +82,82 @@ struct RootView: View {
                     StarPromptView(onStar: { state.openRepository() })
                 }
             }
-            .onAppear {
-                state.openMainWindow = { openWindow(id: "main") }
-                state.openPalette = { PaletteController.shared.show(appState: state) }
-                (NSApp.delegate as? AppDelegate)?.appState = state
-                InstallInbox.shared.onReceive = { urls in
-                    InstallPickerController.shared.present(apks: urls, state: state)
-                }
-                migrateDefaultsIfNeeded()
-                applyStoredTheme()
-                updateDockIcon()
-                HotkeyManager.install(state: state)
-                if !hasChosenRole && !hasSeenTour {
-                    // Brand-new user: pick a role first, then run the tour.
-                    pickerIsFirstRun = true
-                    state.presentRolePicker = true
-                } else if !hasSeenTour {
-                    state.presentTour = true
-                } else if shouldPromptConsent {
-                    presentConsent = true
-                } else if shouldPromptStar {
-                    presentStar = true
-                }
-            }
-            .onChange(of: state.presentRolePicker) { _, showing in
-                // Only the first-run picker chains into the tour; changing role
-                // later (pill / Settings) must not reopen it.
-                if !showing && pickerIsFirstRun {
-                    pickerIsFirstRun = false
-                    if !hasSeenTour { state.presentTour = true }
-                }
-            }
+            .onAppear { performLaunchSetup() }
+            .onChange(of: state.presentRolePicker) { _, showing in rolePickerVisibilityChanged(showing) }
             .onChange(of: state.presentTour) { _, showing in
                 if !showing && shouldPromptConsent { presentConsent = true }
             }
             .onChange(of: colorScheme) { _, _ in updateDockIcon() }
+            .confirmationDialog(
+                state.exitGuard?.title ?? "",
+                isPresented: Binding(
+                    get: { showExitDialog },
+                    set: { shown in
+                        if !shown, state.pendingExit?.saving == false { state.cancelExit() }
+                    }
+                ),
+                titleVisibility: .visible,
+                presenting: state.exitGuard
+            ) { info in
+                exitDialogButtons(for: info)
+            } message: { info in
+                Text(info.message)
+            }
+    }
+
+    /// Runs once when the root view appears: wires AppState callbacks, applies
+    /// stored prefs/theme/hotkeys, and shows the first due launch prompt. Kept
+    /// out of `body` so the view-builder expression stays cheap to type-check.
+    private func performLaunchSetup() {
+        state.openMainWindow = { openWindow(id: "main") }
+        state.openPalette = { PaletteController.shared.show(appState: state) }
+        (NSApp.delegate as? AppDelegate)?.appState = state
+        InstallInbox.shared.onReceive = { urls in state.openAPKs(urls) }
+        migrateDefaultsIfNeeded()
+        applyStoredTheme()
+        updateDockIcon()
+        HotkeyManager.install(state: state)
+        switch LaunchPrompt.next(
+            hasChosenRole: hasChosenRole, hasSeenTour: hasSeenTour,
+            consentAsked: consentAsked, starPromptShown: starPromptShown,
+            launchCount: launchCount, askConsentOnFirstLaunch: askConsentOnFirstLaunch,
+            consentAfterLaunches: consentPromptAfterLaunches, starAfterLaunches: starPromptAfterLaunches
+        ) {
+        case .rolePicker:
+            // Brand-new user: pick a role first, then run the tour.
+            pickerIsFirstRun = true
+            state.presentRolePicker = true
+        case .tour:
+            state.presentTour = true
+        case .consent:
+            presentConsent = true
+        case .star:
+            presentStar = true
+        case nil:
+            break
+        }
+    }
+
+    /// Only the first-run role picker chains into the tour; changing role later
+    /// (pill / Settings) must not reopen it.
+    private func rolePickerVisibilityChanged(_ showing: Bool) {
+        if !showing && pickerIsFirstRun {
+            pickerIsFirstRun = false
+            if !hasSeenTour { state.presentTour = true }
+        }
+    }
+
+    @ViewBuilder
+    private func exitDialogButtons(for info: AppState.ExitGuard) -> some View {
+        switch info.style {
+        case .recording:
+            Button("Stop & Save") { state.beginExitSave() }
+            Button("Discard", role: .destructive) { state.discardAndExit() }
+            Button("Keep Recording", role: .cancel) { state.cancelExit() }
+        case .edits:
+            Button("Discard", role: .destructive) { state.discardAndExit() }
+            Button("Keep Editing", role: .cancel) { state.cancelExit() }
+        }
     }
 
     /// macOS has no native light/dark app icon, so swap the Dock icon at

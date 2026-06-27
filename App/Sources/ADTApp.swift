@@ -14,20 +14,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         InstallInbox.shared.receive(apks)
     }
 
-    /// If the Reactotron server is still running (the user kept it alive), stop
-    /// it before quitting so we don't orphan the listener or the reverse tunnel.
-    /// Defers termination until the async teardown finishes (bounded in
-    /// `stopForQuit`).
+    /// Block quit when losable work is in flight (an active recording / unsaved
+    /// edit) to show the leave prompt; otherwise stop a kept-alive Reactotron
+    /// session so we don't orphan the listener or the reverse tunnel. Both defer
+    /// termination and reply once resolved.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let session = appState?.reactotronSession,
-              MainActor.assumeIsolated({ session.isRunning }) else {
-            return .terminateNow
+        guard let appState else { return .terminateNow }
+        return MainActor.assumeIsolated {
+            // The leave prompt's resolution (quit / cancel) drives termination.
+            if !appState.requestQuit() { return .terminateLater }
+            guard appState.reactotronSession.isRunning else { return .terminateNow }
+            Task { @MainActor in
+                await appState.reactotronSession.stopForQuit()
+                NSApp.reply(toApplicationShouldTerminate: true)
+            }
+            return .terminateLater
         }
-        Task { @MainActor in
-            await session.stopForQuit()
-            NSApp.reply(toApplicationShouldTerminate: true)
-        }
-        return .terminateLater
     }
 }
 
@@ -83,7 +85,7 @@ struct ADTApp: App {
             CommandGroup(replacing: .appInfo) {
                 Button("About Droidective") {
                     appState.activateMainWindow()
-                    appState.selectedFeatureID = "about"
+                    appState.requestFeature("about")
                 }
                 #if !APPSTORE
                 CheckForUpdatesCommand(updater: SparkleUpdater.shared)
@@ -106,7 +108,7 @@ struct ADTApp: App {
 
                 Button("Manage Features") {
                     appState.activateMainWindow()
-                    appState.selectedFeatureID = "catalog"
+                    appState.requestFeature("catalog")
                 }
                 .keyboardShortcut(".", modifiers: .command)
             }
@@ -171,7 +173,7 @@ struct MenuBarView: View {
         }
         Button("Mirror Screen") {
             state.activateMainWindow()
-            state.selectedFeatureID = "scrcpy"
+            state.requestFeature("scrcpy")
         }
         Divider()
 
@@ -181,7 +183,7 @@ struct MenuBarView: View {
                     Task { await state.run(feature: feature, params: [:]) }
                 } else {
                     state.activateMainWindow()
-                    state.selectedFeatureID = feature.id
+                    state.requestFeature(feature.id)
                 }
             }
         }

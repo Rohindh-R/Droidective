@@ -261,7 +261,7 @@ struct SidebarPaletteView: View {
     private var bottomBar: some View {
         HStack(spacing: 16) {
             Button {
-                state.selectedFeatureID = "home"
+                state.requestFeature("home")
             } label: {
                 Image(systemName: "house")
                     .font(.title2)
@@ -273,7 +273,7 @@ struct SidebarPaletteView: View {
             .help("Home — overview & getting started")
 
             Button {
-                state.selectedFeatureID = "catalog"
+                state.requestFeature("catalog")
             } label: {
                 Label(
                     state.hiddenFeatureCount > 0 ? "+ \(state.hiddenFeatureCount) more features" : "Manage features",
@@ -288,7 +288,7 @@ struct SidebarPaletteView: View {
             Spacer()
 
             Button {
-                state.selectedFeatureID = "about"
+                state.requestFeature("about")
             } label: {
                 Image(systemName: "info.circle")
                     .font(.title2)
@@ -546,7 +546,7 @@ struct SidebarPaletteView: View {
     private func activate(_ index: Int) {
         let matches = orderedMatches
         guard matches.indices.contains(index) else { return }
-        state.selectedFeatureID = matches[index].id
+        state.requestFeature(matches[index].id)
         searchFocused = false
     }
 
@@ -558,7 +558,7 @@ struct SidebarPaletteView: View {
         if target.firesWithoutScreen {
             Task { await state.run(feature: target, params: [:]) }
         } else {
-            state.selectedFeatureID = target.id
+            state.requestFeature(target.id)
             searchFocused = false
         }
     }
@@ -568,7 +568,7 @@ struct SidebarPaletteView: View {
         guard !matches.isEmpty else { return }
         let currentIndex = matches.firstIndex { $0.id == state.selectedFeatureID }
         let next = ((currentIndex ?? -1) + offset + matches.count) % matches.count
-        state.selectedFeatureID = matches[next].id
+        state.requestFeature(matches[next].id)
     }
 }
 

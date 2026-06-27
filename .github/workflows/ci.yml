@@ -16,7 +16,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Run ADBKit tests
-        run: cd ADBKit && swift test
+        run: cd ADBKit && swift test -Xswiftc -warnings-as-errors
 
   build:
     runs-on: macos-15
@@ -30,6 +30,8 @@ jobs:
         run: |
           xcodegen generate
           xcodebuild -project Droidective.xcodeproj -scheme App -configuration Debug -derivedDataPath DerivedData build CODE_SIGNING_ALLOWED=NO
+      - name: Run App tests
+        run: xcodebuild -project Droidective.xcodeproj -scheme AppTests -configuration Debug -derivedDataPath DerivedData test CODE_SIGNING_ALLOWED=NO
 
   # Publish the marketing site (and the committed Sparkle appcast) to GitHub
   # Pages on every push to main. The appcast in site/ is the single source of

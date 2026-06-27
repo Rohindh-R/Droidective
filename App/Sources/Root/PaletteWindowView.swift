@@ -199,7 +199,7 @@ struct PaletteWindowView: View {
         let feature = visibleMatches[index]
         close()
         state.activateMainWindow()
-        state.selectedFeatureID = feature.id
+        state.requestFeature(feature.id)
     }
 
     private func togglePinHighlighted() {

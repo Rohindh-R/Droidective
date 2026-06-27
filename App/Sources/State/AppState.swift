@@ -55,10 +55,15 @@ final class AppState {
     let env: AppEnvironment
 
     var devices: [Device] = []
-    var selectedSerial: String?
+    /// Switch via `requestDevice(_:)`, not direct assignment — that routes the
+    /// change through the leave guard so an active recording isn't lost.
+    private(set) var selectedSerial: String?
     var runOnAll = false
     var searchText = ""
-    var selectedFeatureID: String?
+    /// Switch via `requestFeature(_:)`, not direct assignment — that routes the
+    /// change through the leave guard so an active recording / unsaved edit isn't
+    /// silently discarded.
+    private(set) var selectedFeatureID: String?
     var layout = LayoutState()
     /// Per-feature usage tally (persisted), used to re-rank the launchpad's
     /// curated feature order by how the user actually works.
@@ -85,6 +90,14 @@ final class AppState {
     /// True while a performance/network recording is in flight — locks the
     /// device and bundle pickers so the captured series stays consistent.
     var recordingActive = false
+
+    /// Registered by a view holding work that navigating away would destroy —
+    /// an active screen recording or unsaved editor edits. While set,
+    /// feature/device switches and app-quit route through `pendingExit` instead
+    /// of proceeding. See `setExitGuard` / `requestFeature`.
+    private(set) var exitGuard: ExitGuard?
+    /// A navigation deferred until the user resolves the active `exitGuard`.
+    private(set) var pendingExit: PendingExit?
     /// The command bar's Terminal tab — a real PTY-backed shell, shared
     /// app-wide so it persists across features.
     let terminalSession = TerminalSession()
@@ -124,6 +137,10 @@ final class AppState {
     var selectedBundleId: String?
     var adbStatus: ToolStatus?
     var installingTool: Tool?
+    /// APKs opened from Finder (double-click / Open With), handed to the Install
+    /// App feature to stage for an explicit install. The view consumes (clears)
+    /// it once shown.
+    var pendingInstallAPKs: [URL] = []
     /// Set by RootView so hotkeys/menu bar can reopen a closed main window.
     var openMainWindow: (() -> Void)?
     /// Set by RootView; opens the floating ⌘K search palette.
@@ -263,9 +280,11 @@ final class AppState {
         await refreshToolStatus()
 
         deviceStreamTask = Task { [weak self, monitor = env.monitor] in
+            // This Task inherits AppState's @MainActor isolation, so the loop
+            // body already runs on the main actor — no extra hop needed.
             for await devices in await monitor.updates() {
                 guard let self else { break }
-                await MainActor.run { self.devicesChanged(devices) }
+                self.devicesChanged(devices)
             }
         }
     }
@@ -387,150 +406,6 @@ final class AppState {
         return selected.map { [$0.serial] } ?? []
     }
 
-    /// Enabled features shown on the sidebar, in display order (registry order
-    /// within categories). Hub members are excluded — they're managed from
-    /// their hub screen, never as standalone sidebar rows — but stay reachable
-    /// via search (`disabledMatches`) and hotkeys.
-    var enabledFeatures: [FeatureDef] {
-        let enabled = layout.effectiveEnabledIDs
-        return FeatureRegistry.all.filter { enabled.contains($0.id) && !$0.isAbsorbedByHub }
-    }
-
-    /// The launchpad grid: the role-curated enabled set in its curated order,
-    /// re-ranked by real usage (most-used first), with the curated order as the
-    /// stable fallback. Hub members stay excluded, exactly like the sidebar.
-    var launchpadFeatures: [FeatureDef] {
-        let curated = ordered(enabledFeatures)
-        let byID = Dictionary(uniqueKeysWithValues: curated.map { ($0.id, $0) })
-        return usageStats.rank(curated.map(\.id)).compactMap { byID[$0] }
-    }
-
-    var visibleFeatures: [FeatureDef] {
-        enabledFeatures.filter { $0.matches(searchText) }
-    }
-
-    /// Sorts features by the user's custom order (`sidebarOrder`), registry
-    /// order as the tiebreak. Shared by the grouped/ungrouped sidebar and the
-    /// catalog so every surface reflects the same reordering.
-    private func ordered(_ features: [FeatureDef]) -> [FeatureDef] {
-        let order = layout.sidebarOrder ?? []
-        let rank = Dictionary(order.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
-        let registryIndex = Dictionary(
-            uniqueKeysWithValues: FeatureRegistry.all.enumerated().map { ($1.id, $0) }
-        )
-        return features.sorted {
-            (rank[$0.id] ?? Int.max, registryIndex[$0.id] ?? 0)
-                < (rank[$1.id] ?? Int.max, registryIndex[$1.id] ?? 0)
-        }
-    }
-
-    /// Categories in the user's order (`categoryOrder`), display order as the
-    /// fallback and tiebreak.
-    var orderedCategories: [FeatureCategory] {
-        let order = layout.categoryOrder ?? []
-        let rank = Dictionary(order.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
-        let displayIndex = Dictionary(
-            uniqueKeysWithValues: FeatureCategory.displayOrder.enumerated().map { ($1.rawValue, $0) }
-        )
-        return FeatureCategory.displayOrder.sorted {
-            (rank[$0.rawValue] ?? Int.max, displayIndex[$0.rawValue] ?? 0)
-                < (rank[$1.rawValue] ?? Int.max, displayIndex[$1.rawValue] ?? 0)
-        }
-    }
-
-    /// Enabled, non-pinned features in `category`, in the user's order — the
-    /// contents of one grouped-sidebar section.
-    func enabledFeatures(in category: FeatureCategory) -> [FeatureDef] {
-        ordered(enabledFeatures.filter { $0.category == category && !layout.favorites.contains($0.id) })
-    }
-
-    /// The feature rows actually rendered for a group — empty when collapsed, so
-    /// a collapsed group is a single header row (and reordering collapsed groups
-    /// shows the drop guideline only at group boundaries).
-    func shownFeatures(in category: FeatureCategory) -> [FeatureDef] {
-        isCategoryCollapsed(category) ? [] : enabledFeatures(in: category)
-    }
-
-    /// Categories rendered in the grouped sidebar: those with ≥1 enabled
-    /// feature, in the user's order (collapsed ones still show their header).
-    var sidebarCategories: [FeatureCategory] {
-        orderedCategories.filter { !enabledFeatures(in: $0).isEmpty }
-    }
-
-    func isCategoryCollapsed(_ category: FeatureCategory) -> Bool {
-        layout.collapsedCategories?.contains(category.rawValue) ?? false
-    }
-
-    func toggleCategoryCollapsed(_ category: FeatureCategory) {
-        var collapsed = layout.collapsedCategories ?? []
-        if let index = collapsed.firstIndex(of: category.rawValue) {
-            collapsed.remove(at: index)
-        } else {
-            collapsed.append(category.rawValue)
-        }
-        layout.collapsedCategories = collapsed
-        persistLayout()
-    }
-
-    /// Every catalog feature in `category` (enabled or not), in the user's
-    /// order — the contents of one catalog section.
-    func catalogFeatures(in category: FeatureCategory) -> [FeatureDef] {
-        ordered(FeatureRegistry.all.filter { $0.category == category && !$0.isAbsorbedByHub })
-    }
-
-    /// Enabled, non-pinned features in grouped display order, flattened — the
-    /// seed for the flat sidebar before the user reorders it.
-    private var groupedFlatFeatures: [FeatureDef] {
-        orderedCategories.flatMap { enabledFeatures(in: $0) }
-    }
-
-    /// Enabled, non-pinned features in the flat sidebar's own order. Until the
-    /// user reorders the flat list (`flatOrder` is nil), it mirrors the grouped
-    /// order so toggling grouping off doesn't reshuffle anything.
-    var orderedEnabledFeatures: [FeatureDef] {
-        guard let flatOrder = layout.flatOrder else { return groupedFlatFeatures }
-        let rank = Dictionary(flatOrder.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
-        let registryIndex = Dictionary(
-            uniqueKeysWithValues: FeatureRegistry.all.enumerated().map { ($1.id, $0) }
-        )
-        return enabledFeatures.filter { !layout.favorites.contains($0.id) }.sorted {
-            (rank[$0.id] ?? Int.max, registryIndex[$0.id] ?? 0)
-                < (rank[$1.id] ?? Int.max, registryIndex[$1.id] ?? 0)
-        }
-    }
-
-    /// Genuinely-disabled features — not on the sidebar and not folded into a
-    /// hub — that match the current search, shown in their own section so
-    /// they're runnable or openable without enabling. Hub members are excluded:
-    /// they're used from their hub, which carries their keywords and surfaces
-    /// for the same searches, so listing them as "disabled" would mislead.
-    var disabledMatches: [FeatureDef] {
-        let shown = Set(enabledFeatures.map(\.id))
-        return FeatureRegistry.all.filter {
-            !shown.contains($0.id) && !$0.isAbsorbedByHub && $0.matches(searchText)
-        }
-    }
-
-    /// Catalog features not currently on the sidebar — drives the "+N more
-    /// features" label, so it counts only what the catalog can actually toggle
-    /// (hub members aren't in the catalog).
-    var hiddenFeatureCount: Int {
-        FeatureRegistry.catalogFeatureIDs.count - enabledFeatures.count
-    }
-
-    /// Enabled features in the exact order the sidebar shows them — pinned
-    /// first, then grouped by category or the user's drag order — ignoring any
-    /// active search. Lets the Hotkeys settings list mirror the sidebar instead
-    /// of dumping the full registry.
-    var sidebarFeatures: [FeatureDef] {
-        let grouped = UserDefaults.standard.object(forKey: "groupSidebar") as? Bool ?? true
-        let pinned = ordered(enabledFeatures.filter { layout.favorites.contains($0.id) })
-        let rest = grouped
-            ? orderedCategories.flatMap { enabledFeatures(in: $0) }
-            : orderedEnabledFeatures
-        return pinned + rest
-    }
-
     func refreshDevices() {
         Task { await env.monitor.invalidate() }
     }
@@ -562,6 +437,110 @@ final class AppState {
         devices.filter(\.isReady).count
     }
 
+    // MARK: - Leave guard (protect in-flight recordings / unsaved edits)
+
+    /// Work that navigating away would destroy. `style` picks the confirmation's
+    /// copy and button set: a recording offers Stop & save, an edit doesn't.
+    struct ExitGuard: Equatable, Identifiable {
+        enum Style: Equatable { case recording, edits }
+        let id: UUID
+        var style: Style
+        var title: String
+        var message: String
+    }
+
+    /// A navigation held back until the user resolves the active `ExitGuard`.
+    struct PendingExit: Equatable {
+        enum Target: Equatable { case feature(String), device(String), quit }
+        var target: Target
+        /// Flips true when the user chooses "Stop & save": the active view runs
+        /// its own save, then calls `finishExitSave()`. The dialog hides while
+        /// the save is in flight.
+        var saving = false
+    }
+
+    /// Register (or replace) the active leave guard. A protected view calls this
+    /// when losable work begins, and `clearExitGuard` when it ends.
+    func setExitGuard(_ value: ExitGuard) { exitGuard = value }
+
+    /// Clear the guard only if it's still the one identified by `id`, so a
+    /// torn-down view can't wipe a guard a newer view just registered.
+    func clearExitGuard(_ id: UUID) {
+        if exitGuard?.id == id { exitGuard = nil }
+    }
+
+    /// Switch the selected feature, or hold the switch behind a confirmation
+    /// when a leave guard is active. Every feature switch (sidebar, palette,
+    /// menu, hotkeys) routes through here.
+    func requestFeature(_ id: String) {
+        guard id != selectedFeatureID else { return }
+        if exitGuard == nil {
+            selectedFeatureID = id
+        } else {
+            pendingExit = PendingExit(target: .feature(id))
+        }
+    }
+
+    /// Switch the active device, or hold it behind a confirmation when a guard
+    /// is active.
+    func requestDevice(_ serial: String) {
+        guard serial != selectedSerial else { return }
+        if exitGuard == nil {
+            selectedSerial = serial
+            persistSelection()
+        } else {
+            pendingExit = PendingExit(target: .device(serial))
+        }
+    }
+
+    /// Called from `applicationShouldTerminate`. Returns true to quit now; false
+    /// means losable work is in flight — the leave prompt is shown and the
+    /// resolution drives termination (see `quitNow` / `cancelExit`).
+    func requestQuit() -> Bool {
+        guard exitGuard != nil else { return true }
+        pendingExit = PendingExit(target: .quit)
+        return false
+    }
+
+    /// "Discard" / "Discard changes": drop the work and run the deferred
+    /// navigation. The leaving view's `.onDisappear` aborts recorders / frees
+    /// edits, so nothing extra is needed here.
+    func discardAndExit() { performPendingExit() }
+
+    /// "Keep recording" / "Keep editing": abandon the pending navigation.
+    func cancelExit() {
+        let wasQuit = pendingExit?.target == .quit
+        pendingExit = nil
+        if wasQuit { NSApp.reply(toApplicationShouldTerminate: false) }
+    }
+
+    /// "Stop & save": ask the active view to save (it observes `pendingExit`),
+    /// keeping the dialog hidden until it calls `finishExitSave()`.
+    func beginExitSave() { pendingExit?.saving = true }
+
+    /// Called by the active view once its save-on-leave finished, to proceed.
+    func finishExitSave() { performPendingExit() }
+
+    private func performPendingExit() {
+        guard let pending = pendingExit else { return }
+        exitGuard = nil
+        pendingExit = nil
+        switch pending.target {
+        case .feature(let id): selectedFeatureID = id
+        case .device(let serial): selectedSerial = serial; persistSelection()
+        case .quit: quitNow()
+        }
+    }
+
+    /// Finish a deferred quit: tear down a kept-alive Reactotron session (as the
+    /// normal quit path does), then let termination proceed.
+    private func quitNow() {
+        Task {
+            if reactotronSession.isRunning { await reactotronSession.stopForQuit() }
+            NSApp.reply(toApplicationShouldTerminate: true)
+        }
+    }
+
     // MARK: - Feature running
 
     /// Open or run a feature from a launch surface (launchpad or sidebar),
@@ -573,7 +552,7 @@ final class AppState {
             Task { await run(feature: feature, params: [:]) }
         } else {
             noteFeatureUse(feature.id)
-            selectedFeatureID = feature.id
+            requestFeature(feature.id)
         }
     }
 
@@ -670,25 +649,45 @@ final class AppState {
         ))
     }
 
-    /// Install one or more APKs on the given device serials, one toast per APK.
-    /// Shared by the Install App screen and the Finder-drop device picker.
-    func installAPKs(_ urls: [URL], onSerials serials: [String]) {
-        guard !urls.isEmpty, !serials.isEmpty else { return }
-        Task {
-            await CommandLog.userInitiated(feature: "install-app") {
-                for url in urls {
-                    let name = url.lastPathComponent
-                    var ok = 0
-                    var failures: [(serial: String, result: FeatureResult)] = []
-                    for serial in serials {
-                        let result = (try? await env.engine.appInstall.install(apkPath: url.path, serial: serial))
-                            ?? FeatureResult(ok: false, message: "adb not found")
-                        if result.ok { ok += 1 } else { failures.append((serial, result)) }
-                    }
-                    showToast(Self.installToast(name: name, ok: ok, total: serials.count, failures: failures))
+    /// Route APKs opened from Finder to the Install App feature: surface the main
+    /// window, stage the files there, and select the feature so the user confirms
+    /// the target device and installs.
+    func openAPKs(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        pendingInstallAPKs = urls
+        activateMainWindow()
+        // Route through the leave guard like every other feature switch: opening
+        // an APK from Finder mid-recording (or with unsaved edits) must raise the
+        // confirmation, not silently abandon that work. The staged APKs wait in
+        // `pendingInstallAPKs` and are consumed once Install App actually appears.
+        requestFeature("install-app")
+    }
+
+    /// Install one or more APKs on the given device serials, one toast per APK
+    /// (failures keep the full adb output in the toast's copyText). Returns a
+    /// short multi-line summary for inline display. Shared by the Install App
+    /// screen's drop zone, the file picker, and APKs opened from Finder.
+    @discardableResult
+    func installAPKs(_ urls: [URL], onSerials serials: [String]) async -> String {
+        guard !urls.isEmpty, !serials.isEmpty else { return "" }
+        var report: [String] = []
+        await CommandLog.userInitiated(feature: "install-app") {
+            for url in urls {
+                let name = url.lastPathComponent
+                var ok = 0
+                var failures: [(serial: String, result: FeatureResult)] = []
+                for serial in serials {
+                    let result = (try? await env.engine.appInstall.install(apkPath: url.path, serial: serial))
+                        ?? FeatureResult(ok: false, message: "adb not found")
+                    if result.ok { ok += 1 } else { failures.append((serial, result)) }
                 }
+                showToast(Self.installToast(name: name, ok: ok, total: serials.count, failures: failures))
+                report.append(ok == serials.count
+                    ? "Installed \(name)"
+                    : "Installed \(name) on \(ok) of \(serials.count) devices")
             }
         }
+        return report.joined(separator: "\n")
     }
 
     /// A short install headline for the toast; on failure the full adb output is
@@ -777,150 +776,11 @@ final class AppState {
         layout.selectedRole.flatMap(UserRole.init(rawValue:))
     }
 
-    // MARK: - Layout (catalog customization)
-
-    func setFeatureEnabled(_ featureID: String, enabled: Bool) {
-        var ids = layout.effectiveEnabledIDs
-        if enabled {
-            ids.insert(featureID)
-        } else {
-            ids.remove(featureID)
-        }
-        layout.enabledIds = FeatureRegistry.all.map(\.id).filter { ids.contains($0) }
-        persistLayout()
-    }
-
-    /// Reorder a displayed list of features — a grouped-sidebar/catalog section
-    /// or the flat sidebar — writing the result back into the global
-    /// `sidebarOrder` so the other groups keep their positions. `displayed` is
-    /// exactly the list the reordered `ForEach` showed.
-    func reorderFeatures(_ displayed: [FeatureDef], from source: IndexSet, to destination: Int) {
-        layout.sidebarOrder = SidebarOrdering.reorder(
-            displayed: displayed.map(\.id), from: source, to: destination,
-            within: ordered(FeatureRegistry.all).map(\.id)
-        )
-        persistLayout()
-    }
-
-    /// Reorder the flat (ungrouped) sidebar. `displayed` is the whole flat list,
-    /// so the moved sequence is stored verbatim as the independent `flatOrder` —
-    /// leaving the grouped order (`sidebarOrder`/`categoryOrder`) untouched.
-    func reorderFlatFeatures(_ displayed: [FeatureDef], from source: IndexSet, to destination: Int) {
-        let ids = displayed.map(\.id)
-        layout.flatOrder = SidebarOrdering.reorder(displayed: ids, from: source, to: destination, within: ids)
-        persistLayout()
-    }
-
-    /// Move a feature to `toIndex` within its group (sidebar drag-and-drop).
-    /// `toIndex` is the insertion position in the group's enabled-feature list
-    /// (0 = top, count = end).
-    func moveFeature(_ id: String, toIndex: Int, in category: FeatureCategory) {
-        let group = enabledFeatures(in: category)
-        guard let from = group.firstIndex(where: { $0.id == id }) else { return }
-        reorderFeatures(group, from: IndexSet(integer: from), to: toIndex)
-    }
-
-    /// Move a feature to `toIndex` within the flat (ungrouped) sidebar, writing
-    /// the independent `flatOrder`. `toIndex` is the insertion position in the
-    /// flat list (0 = top, count = end).
-    func moveFlatFeature(_ id: String, toIndex: Int) {
-        let flat = orderedEnabledFeatures
-        guard let from = flat.firstIndex(where: { $0.id == id }) else { return }
-        reorderFlatFeatures(flat, from: IndexSet(integer: from), to: toIndex)
-    }
-
-    /// Move a whole group before `targetRawValue` (nil = to the end).
-    func moveGroup(_ rawValue: String, before targetRawValue: String?) {
-        let full = orderedCategories.map(\.rawValue)
-        layout.categoryOrder = targetRawValue.map { SidebarOrdering.move(rawValue, before: $0, in: full) }
-            ?? SidebarOrdering.moveToEnd(rawValue, in: full)
-        persistLayout()
-    }
-
-    // MARK: - Group enable/disable
-
-    /// Toggleable features in a category — excludes hub members (managed from
-    /// their hub) and system features (can't be disabled).
-    private func toggleableFeatures(in category: FeatureCategory) -> [FeatureDef] {
-        FeatureRegistry.all.filter {
-            $0.category == category && !$0.isAbsorbedByHub && $0.kind != .system
-        }
-    }
-
-    /// Whether a category has any feature the user can enable/disable — the
-    /// group toggle is hidden for groups that don't (e.g. a system-only group).
-    func canToggleGroup(_ category: FeatureCategory) -> Bool {
-        !toggleableFeatures(in: category).isEmpty
-    }
-
-    /// True when at least one toggleable feature in the category is enabled —
-    /// the group's "disable all" affordance is offered while this holds.
-    func isGroupEnabled(_ category: FeatureCategory) -> Bool {
-        toggleableFeatures(in: category).contains { layout.effectiveEnabledIDs.contains($0.id) }
-    }
-
-    /// Enable or disable every toggleable feature in the category at once.
-    func setGroupEnabled(_ category: FeatureCategory, enabled: Bool) {
-        var ids = layout.effectiveEnabledIDs
-        for feature in toggleableFeatures(in: category) {
-            if enabled { ids.insert(feature.id) } else { ids.remove(feature.id) }
-        }
-        layout.enabledIds = FeatureRegistry.all.map(\.id).filter { ids.contains($0) }
-        persistLayout()
-    }
-
-    func toggleFavorite(_ featureID: String) {
-        if let index = layout.favorites.firstIndex(of: featureID) {
-            layout.favorites.remove(at: index)
-        } else {
-            layout.favorites.append(featureID)
-        }
-        persistLayout()
-    }
-
-    func persistLayout() {
-        let snapshot = layout
-        Task {
-            try? await env.stores.layout.save(snapshot)
-        }
-    }
-
     private func persistUsage() {
         let snapshot = usageStats
         Task {
             try? await env.stores.usage.save(snapshot)
         }
-    }
-
-    // MARK: - Menu bar
-
-    /// Features shown in the menu-bar menu: the user's explicit choice, else
-    /// pinned features, else the enabled instant actions (excluding the two
-    /// always-on quick actions).
-    var menuBarFeatures: [FeatureDef] {
-        if let chosen = layout.menuBarItems, !chosen.isEmpty {
-            return chosen.compactMap { FeatureRegistry.byID[$0] }
-        }
-        let favorites = layout.favorites.compactMap { FeatureRegistry.byID[$0] }
-        if !favorites.isEmpty { return favorites }
-        return enabledFeatures.filter {
-            $0.kind == .instantAction && $0.id != "screenshot" && $0.id != "scrcpy"
-        }
-    }
-
-    func isInMenuBar(_ featureID: String) -> Bool {
-        layout.menuBarItems?.contains(featureID) ?? false
-    }
-
-    func setMenuBarItem(_ featureID: String, included: Bool) {
-        var items = layout.menuBarItems ?? []
-        if included {
-            if !items.contains(featureID) { items.append(featureID) }
-        } else {
-            items.removeAll { $0 == featureID }
-        }
-        layout.menuBarItems = items
-        persistLayout()
     }
 
     // MARK: - Bundles

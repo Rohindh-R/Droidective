@@ -28,6 +28,10 @@ public enum AdbError: Error, LocalizedError, Sendable {
 /// cached until `clearCache()` (e.g. after a tool install).
 public actor ToolLocator {
     private var cache: [Tool: String?] = [:]
+    /// Separate cache for aapt2 — resolved from the SDK build-tools, not the
+    /// `Tool` enum, so it stays out of the Doctor's tool report. Outer optional
+    /// = resolved-yet, inner = found-or-not.
+    private var aapt2Cache: String??
     private let runner: any ProcessRunning
     private let environment: [String: String]
     private let fileManager = FileManager.default
@@ -59,6 +63,28 @@ public actor ToolLocator {
 
     public func clearCache() {
         cache.removeAll()
+        aapt2Cache = nil
+    }
+
+    /// Resolve the newest `aapt2` from the SDK build-tools (it ships there, not
+    /// via Homebrew), or nil when no build-tools are installed. Cached; cleared
+    /// by `clearCache`. Used to read a local APK's badging before install.
+    public func aapt2Path() async -> String? {
+        if let cached = aapt2Cache { return cached }
+        var resolved: String?
+        search: for root in sdkRoots {
+            let buildTools = "\(root)/build-tools"
+            guard let versions = try? fileManager.contentsOfDirectory(atPath: buildTools) else { continue }
+            for version in versions.sorted(by: { $0.localizedStandardCompare($1) == .orderedDescending }) {
+                let candidate = "\(buildTools)/\(version)/aapt2"
+                if fileManager.isExecutableFile(atPath: candidate) {
+                    resolved = candidate
+                    break search
+                }
+            }
+        }
+        aapt2Cache = .some(resolved)
+        return resolved
     }
 
     /// Pre-populate the cache with a known path (tests, or a user-pinned
@@ -73,14 +99,18 @@ public actor ToolLocator {
         return path
     }
 
-    private func candidatePaths(for tool: Tool) -> [String] {
+    /// SDK roots to probe, from the environment then the default install path.
+    private var sdkRoots: [String] {
         let home = fileManager.homeDirectoryForCurrentUser.path
-        let brewPrefixes = ["/opt/homebrew/bin", "/usr/local/bin"]
-        let sdkRoots = [
+        return [
             environment["ANDROID_HOME"],
             environment["ANDROID_SDK_ROOT"],
             "\(home)/Library/Android/sdk",
         ].compactMap(\.self)
+    }
+
+    private func candidatePaths(for tool: Tool) -> [String] {
+        let brewPrefixes = ["/opt/homebrew/bin", "/usr/local/bin"]
 
         switch tool {
         case .adb:

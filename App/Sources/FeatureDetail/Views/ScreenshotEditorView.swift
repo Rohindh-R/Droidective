@@ -53,6 +53,10 @@ struct ScreenshotEditorView: View {
     @State private var fillOpacity: Double = 1
     /// The text annotation currently being re-edited (nil = placing new text).
     @State private var editingTextID: Annotation.ID?
+    /// Identifies this view's leave guard so a stale clear can't wipe another's.
+    @State private var exitGuardID = UUID()
+    /// Unsaved markup/edits exist — drives the leave prompt. Reset on save/copy.
+    @State private var dirty = false
 
     private static let palette: [Color] = [.red, .orange, .yellow, .green, .blue, .purple, .black, .white]
     private static let widths: [(String, CGFloat)] = [("Thin", 3), ("Medium", 6), ("Thick", 12)]
@@ -142,6 +146,17 @@ struct ScreenshotEditorView: View {
         // Delete / Backspace removes the selected annotation. Skipped while a text
         // label is being edited so the field's own deletion keeps working.
         .onDeleteCommand { if editingTextID == nil { deleteSelected() } }
+        .onChange(of: dirty) { _, isDirty in
+            if isDirty {
+                state.setExitGuard(.init(
+                    id: exitGuardID, style: .edits,
+                    title: "Unsaved screenshot",
+                    message: "Your annotations and edits haven’t been saved. Leaving discards them."))
+            } else {
+                state.clearExitGuard(exitGuardID)
+            }
+        }
+        .onDisappear { state.clearExitGuard(exitGuardID) }
     }
 
     /// Undo/redo are unavailable while a text label is being typed, so ⌘Z falls
@@ -787,6 +802,7 @@ struct ScreenshotEditorView: View {
             undoStack.removeFirst(undoStack.count - Self.maxUndo)
         }
         redoStack.removeAll()
+        dirty = true
     }
 
     private func undo() {
@@ -891,6 +907,7 @@ struct ScreenshotEditorView: View {
         guard let flat = flattened() else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.writeObjects([flat])
+        dirty = false
         state.showToast(Toast(message: "Screenshot copied", ok: true))
     }
 
@@ -903,6 +920,7 @@ struct ScreenshotEditorView: View {
         do {
             try data.write(to: dest)
             lastSavedURL = dest
+            dirty = false
             state.showToast(Toast(message: "Screenshot saved", ok: true, revealPath: dest.path))
         } catch {
             state.showToast(Toast(message: error.localizedDescription, ok: false))

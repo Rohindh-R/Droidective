@@ -72,4 +72,16 @@ import Testing
         }
         #expect(payload.count == 4)
     }
+
+    @Test func haltsOnOversizedPacketSize() {
+        // "raw" codec + a packet header whose size is an absurd 0xFFFFFFFF.
+        var bytes: [UInt8] = [0x00, 0x72, 0x61, 0x77]
+        bytes += [0, 0, 0, 0, 0, 0, 0, 0]    // ptsFlags
+        bytes += [0xFF, 0xFF, 0xFF, 0xFF]    // absurd size
+        bytes += [0x01, 0x02, 0x03]
+        var decoder = ScrcpyAudioStreamDecoder()
+        let events = decoder.consume(Data(bytes))
+        #expect(!events.contains { if case .packet = $0 { true } else { false } })
+        #expect(decoder.consume(Data([UInt8](repeating: 0xAB, count: 4096))).isEmpty)
+    }
 }

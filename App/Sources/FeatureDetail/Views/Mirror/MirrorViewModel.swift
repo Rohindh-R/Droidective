@@ -239,6 +239,16 @@ final class MirrorViewModel {
         if let url = try? await recorder.stop() { pendingRecording = url }
     }
 
+    /// Stop recording for a "Stop & save" leave and return the finished file
+    /// without raising the Discard/Save/Edit prompt — the caller saves it.
+    func finishRecordingForLeave() async -> URL? {
+        guard let recorder = screenRecorder else { return nil }
+        screenRecorder = nil
+        isRecording = false
+        isPaused = false
+        return try? await recorder.stop()
+    }
+
     func pauseRecording() async {
         guard let recorder = screenRecorder, !recordBusy, !isPaused else { return }
         recordBusy = true

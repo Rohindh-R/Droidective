@@ -23,7 +23,7 @@ public enum FeatureRegistry {
     public static let all: [FeatureDef] = [
         // ── Input & Clipboard ────────────────────────────────────────────
         FeatureDef(
-            id: "send-text", num: 1, title: "Send Text",
+            id: "send-text", title: "Send Text",
             subtitle: "Type text, URLs, or symbols on the device",
             keywords: ["type", "paste", "input", "keyboard", "url"],
             category: .input, icon: "keyboard", kind: .formAction,
@@ -32,7 +32,7 @@ public enum FeatureRegistry {
             ]
         ),
         FeatureDef(
-            id: "get-ip", num: 2, title: "Copy Device IP",
+            id: "get-ip", title: "Copy Device IP",
             subtitle: "Get the Wi-Fi IP address and copy it",
             keywords: ["ip", "address", "wifi", "network", "clipboard"],
             category: .connection, icon: "globe", kind: .instantAction
@@ -40,7 +40,7 @@ public enum FeatureRegistry {
 
         // ── Connection ───────────────────────────────────────────────────
         FeatureDef(
-            id: "connection", num: 49, title: "Connection",
+            id: "connection", title: "Connection",
             subtitle: "Copy IP, reverse port, disconnect, DNS & wireless setup",
             keywords: [
                 "connection", "network", "reverse port", "reverse", "port", "8081",
@@ -51,7 +51,7 @@ public enum FeatureRegistry {
             category: .connection, icon: "network", kind: .view, needsDevice: false
         ),
         FeatureDef(
-            id: "reverse-port", num: 3, title: "Reverse Port",
+            id: "reverse-port", title: "Reverse Port",
             subtitle: "Forward a device port to your machine (Metro 8081)",
             keywords: ["reverse", "port", "8081", "metro", "tcp", "forward"],
             category: .connection, icon: "arrow.left.arrow.right", kind: .formAction,
@@ -60,19 +60,19 @@ public enum FeatureRegistry {
             ]
         ),
         FeatureDef(
-            id: "wireless-adb", num: 4, title: "Wireless ADB",
+            id: "wireless-adb", title: "Wireless ADB",
             subtitle: "Connect over Wi-Fi (tcpip + Android 11 pairing)",
             keywords: ["wireless", "wifi", "tcpip", "pair", "connect", "untethered"],
             category: .connection, icon: "wifi", kind: .view, needsDevice: false
         ),
         FeatureDef(
-            id: "emulators", num: 40, title: "Emulators",
+            id: "emulators", title: "Emulators",
             subtitle: "List, launch, and stop Android emulators",
             keywords: ["emulator", "avd", "virtual", "simulator", "launch", "boot"],
             category: .connection, icon: "play.display", kind: .view, needsDevice: false
         ),
         FeatureDef(
-            id: "network-speed", num: 41, title: "Network Speed",
+            id: "network-speed", title: "Network Speed",
             subtitle: "Live download & upload throughput with recording",
             keywords: [
                 "network", "speed", "bandwidth", "throughput", "upload", "download",
@@ -81,7 +81,7 @@ public enum FeatureRegistry {
             category: .connection, icon: "speedometer", kind: .view
         ),
         FeatureDef(
-            id: "wifi", num: 43, title: "Wi-Fi",
+            id: "wifi", title: "Wi-Fi",
             subtitle: "Connection details, toggle, saved networks & passwords",
             keywords: [
                 "wifi", "wi-fi", "wlan", "ssid", "password", "saved", "network",
@@ -90,7 +90,7 @@ public enum FeatureRegistry {
             category: .connection, icon: "wifi", kind: .view
         ),
         FeatureDef(
-            id: "private-dns", num: 45, title: "Private DNS",
+            id: "private-dns", title: "Private DNS",
             subtitle: "Off, automatic, or a DNS-over-TLS provider",
             keywords: ["dns", "private dns", "dot", "dns-over-tls", "hostname", "resolver", "doh", "edit dns"],
             category: .connection, icon: "lock.shield", kind: .view
@@ -98,7 +98,7 @@ public enum FeatureRegistry {
 
         // ── React Native ─────────────────────────────────────────────────
         FeatureDef(
-            id: "react-native", num: 47, title: "React Native",
+            id: "react-native", title: "React Native",
             subtitle: "Dev menu, reload, deep links, dev server, process death",
             keywords: [
                 "react native", "rn", "metro", "expo", "dev menu", "reload",
@@ -109,31 +109,31 @@ public enum FeatureRegistry {
             category: .reactNative, icon: "atom", kind: .view, needsDevice: false
         ),
         FeatureDef(
-            id: "open-dev-menu", num: 7, title: "Open Dev Menu",
+            id: "open-dev-menu", title: "Open Dev Menu",
             subtitle: "Open the React Native developer menu",
             keywords: ["dev", "menu", "82", "react native", "shake"],
             category: .reactNative, icon: "filemenu.and.selection", kind: .instantAction
         ),
         FeatureDef(
-            id: "reload-js", num: 8, title: "Reload JS",
+            id: "reload-js", title: "Reload JS",
             subtitle: "Reload the JS bundle (double-tap R)",
             keywords: ["reload", "refresh", "js", "bundle", "rr"],
             category: .reactNative, icon: "arrow.clockwise", kind: .instantAction
         ),
         FeatureDef(
-            id: "deep-link", num: 10, title: "Deep Links",
+            id: "deep-link", title: "Deep Links",
             subtitle: "Launch and save deep links per app",
             keywords: ["deep link", "url", "intent", "scheme", "universal"],
             category: .reactNative, icon: "link", kind: .view, needsBundle: true
         ),
         FeatureDef(
-            id: "process-death", num: 11, title: "Simulate Process Death",
+            id: "process-death", title: "Simulate Process Death",
             subtitle: "Background then kill the app to test restoration",
             keywords: ["process death", "kill", "restore", "state", "background"],
             category: .reactNative, icon: "xmark.octagon", kind: .instantAction, needsBundle: true
         ),
         FeatureDef(
-            id: "rn-dev-host", num: 12, title: "Set Dev Server Host",
+            id: "rn-dev-host", title: "Set Dev Server Host",
             subtitle: "Point the app at a different Metro host",
             keywords: ["dev host", "bundle host", "metro", "ip", "debug server"],
             category: .reactNative, icon: "network", kind: .formAction,
@@ -142,7 +142,7 @@ public enum FeatureRegistry {
             ]
         ),
         FeatureDef(
-            id: "reactotron", num: 51, title: "Reactotron",
+            id: "reactotron", title: "Reactotron",
             subtitle: "Live React Native inspector — logs, network, state, custom display",
             keywords: [
                 "reactotron", "inspector", "timeline", "redux", "mst", "state",
@@ -154,32 +154,32 @@ public enum FeatureRegistry {
 
         // ── Screen & Capture ─────────────────────────────────────────────
         FeatureDef(
-            id: "scrcpy", num: 13, title: "Mirror Screen",
+            id: "scrcpy", title: "Mirror Screen",
             subtitle: "Mirror and control the device with scrcpy",
             keywords: ["scrcpy", "mirror", "screen", "cast", "control", "record", "bitrate", "fps"],
             category: .screen, icon: "display", kind: .view, needsScrcpy: true
         ),
         FeatureDef(
-            id: "screenshot", num: 14, title: "Screenshot",
+            id: "screenshot", title: "Screenshot",
             subtitle: "Capture the screen and save it to your Mac",
             keywords: ["screenshot", "capture", "screencap", "png", "image"],
             category: .screen, icon: "camera", kind: .instantAction
         ),
         FeatureDef(
-            id: "screen-record", num: 15, title: "Screen Record",
+            id: "screen-record", title: "Screen Record",
             subtitle: "Record via scrcpy — no time limit, with audio",
             keywords: ["record", "video", "screen", "scrcpy", "audio", "screenrecord", "capture"],
             category: .screen, icon: "video", kind: .view, needsScrcpy: true
         ),
         FeatureDef(
-            id: "video-editor", num: 50, title: "Video Editor",
+            id: "video-editor", title: "Video Editor",
             subtitle: "Trim, rotate, crop, convert & compress video",
             keywords: ["video", "edit", "editor", "trim", "rotate", "crop", "convert",
                        "compress", "gif", "mp4", "mov", "speed"],
             category: .screen, icon: "film", kind: .view, needsDevice: false, needsFfmpeg: true
         ),
         FeatureDef(
-            id: "demo-mode", num: 16, title: "Demo Mode",
+            id: "demo-mode", title: "Demo Mode",
             subtitle: "Clean status bar for store screenshots",
             keywords: ["demo", "status bar", "clean", "screenshot", "store"],
             category: .screen, icon: "wand.and.stars", kind: .toggleAction,
@@ -189,25 +189,25 @@ public enum FeatureRegistry {
 
         // ── Device Info & State Simulation ───────────────────────────────
         FeatureDef(
-            id: "file-explorer", num: 38, title: "File Explorer",
+            id: "file-explorer", title: "File Explorer",
             subtitle: "Browse device storage — copy, move, delete, pull",
             keywords: ["files", "storage", "sdcard", "browse", "folder", "explorer", "copy", "paste"],
             category: .deviceState, icon: "externaldrive", kind: .view
         ),
         FeatureDef(
-            id: "device-info", num: 17, title: "Device Info",
+            id: "device-info", title: "Device Info",
             subtitle: "Browse and search every device property",
             keywords: ["info", "getprop", "android version", "model", "serial", "ram"],
             category: .deviceState, icon: "info.circle", kind: .view
         ),
         FeatureDef(
-            id: "root-status", num: 42, title: "Root Status",
+            id: "root-status", title: "Root Status",
             subtitle: "Check whether the device is rooted, and how",
             keywords: ["root", "rooted", "su", "magisk", "superuser", "selinux", "test-keys", "jailbreak"],
             category: .logs, icon: "checkmark.shield", kind: .view
         ),
         FeatureDef(
-            id: "system-restrictions", num: 46, title: "System Restrictions",
+            id: "system-restrictions", title: "System Restrictions",
             subtitle: "Dev toggles — verifier, hidden APIs, SELinux (root)",
             keywords: [
                 "restriction", "bypass", "verifier", "package verifier", "hidden api",
@@ -216,7 +216,7 @@ public enum FeatureRegistry {
             category: .deviceState, icon: "lock.open", kind: .view
         ),
         FeatureDef(
-            id: "simulate", num: 48, title: "Simulate",
+            id: "simulate", title: "Simulate",
             subtitle: "Fake battery, appearance, locale, network & proxy",
             keywords: [
                 "simulate", "device state", "override", "battery", "fake", "unplugged",
@@ -229,7 +229,7 @@ public enum FeatureRegistry {
             category: .deviceState, icon: "slider.horizontal.3", kind: .view, needsDevice: false
         ),
         FeatureDef(
-            id: "fake-battery", num: 18, title: "Fake Battery",
+            id: "fake-battery", title: "Fake Battery",
             subtitle: "Set a fake battery level and unplugged state",
             keywords: ["battery", "fake", "level", "unplugged", "charge"],
             category: .deviceState, icon: "battery.25percent", kind: .formAction,
@@ -243,7 +243,7 @@ public enum FeatureRegistry {
             ]
         ),
         FeatureDef(
-            id: "dark-mode", num: 19, title: "Dark Mode",
+            id: "dark-mode", title: "Dark Mode",
             subtitle: "Toggle system dark mode",
             keywords: ["dark", "light", "theme", "night", "ui mode"],
             category: .deviceState, icon: "moon", kind: .toggleAction,
@@ -251,7 +251,7 @@ public enum FeatureRegistry {
             toggleOnLabel: "Dark", toggleOffLabel: "Light"
         ),
         FeatureDef(
-            id: "layout-overrides", num: 20, title: "Font & Density",
+            id: "layout-overrides", title: "Font & Density",
             subtitle: "Override font scale and display density",
             keywords: ["font scale", "density", "dpi", "responsive", "layout", "text size"],
             category: .deviceState, icon: "ruler", kind: .formAction,
@@ -268,7 +268,7 @@ public enum FeatureRegistry {
             ]
         ),
         FeatureDef(
-            id: "animation-scale", num: 21, title: "Animation Scale",
+            id: "animation-scale", title: "Animation Scale",
             subtitle: "Set animation scales to 0× or 1×",
             keywords: ["animation", "scale", "0x", "speed", "transition", "animator"],
             category: .deviceState, icon: "speedometer", kind: .toggleAction,
@@ -276,7 +276,7 @@ public enum FeatureRegistry {
             toggleOnLabel: "Animations off (0×)", toggleOffLabel: "Animations on (1×)"
         ),
         FeatureDef(
-            id: "locale", num: 22, title: "Change Locale",
+            id: "locale", title: "Change Locale",
             subtitle: "Switch device language for i18n testing",
             keywords: ["locale", "language", "i18n", "rtl", "translation"],
             category: .deviceState, icon: "character.bubble", kind: .formAction,
@@ -289,7 +289,7 @@ public enum FeatureRegistry {
             ]
         ),
         FeatureDef(
-            id: "network-toggles", num: 23, title: "Network Toggles",
+            id: "network-toggles", title: "Network Toggles",
             subtitle: "Toggle Wi-Fi, mobile data, and airplane mode",
             keywords: ["wifi", "data", "airplane", "network", "radio", "offline"],
             category: .deviceState, icon: "antenna.radiowaves.left.and.right", kind: .formAction,
@@ -300,7 +300,7 @@ public enum FeatureRegistry {
             ]
         ),
         FeatureDef(
-            id: "http-proxy", num: 24, title: "HTTP Proxy",
+            id: "http-proxy", title: "HTTP Proxy",
             subtitle: "Set or clear the global proxy (Charles, Proxyman)",
             keywords: ["proxy", "charles", "proxyman", "mitmproxy", "http", "debug"],
             category: .deviceState, icon: "point.3.connected.trianglepath.dotted", kind: .formAction,
@@ -315,7 +315,7 @@ public enum FeatureRegistry {
 
         // ── App Management ───────────────────────────────────────────────
         FeatureDef(
-            id: "apps", num: 39, title: "Apps",
+            id: "apps", title: "Apps",
             subtitle: "All installed & system apps — manage, permissions, info",
             keywords: [
                 "apps", "applications", "packages", "installed", "system", "explore",
@@ -326,7 +326,7 @@ public enum FeatureRegistry {
             category: .appManagement, icon: "square.grid.3x3", kind: .view
         ),
         FeatureDef(
-            id: "install-app", num: 50, title: "Install App",
+            id: "install-app", title: "Install App",
             subtitle: "Install an APK — drag and drop or pick a file",
             keywords: [
                 "install", "apk", "sideload", "side load", "drag", "drop",
@@ -335,49 +335,49 @@ public enum FeatureRegistry {
             category: .appManagement, icon: "arrow.down.app", kind: .view
         ),
         FeatureDef(
-            id: "app-management", num: 25, title: "Manage App",
+            id: "app-management", title: "Manage App",
             subtitle: "Open, stop, clear, or uninstall an app",
             keywords: ["open", "close", "force stop", "clear data", "uninstall", "cache"],
             category: .appManagement, icon: "macwindow", kind: .view, needsBundle: true
         ),
         FeatureDef(
-            id: "permissions", num: 26, title: "Permissions",
+            id: "permissions", title: "Permissions",
             subtitle: "Grant or revoke runtime permissions",
             keywords: ["permission", "grant", "revoke", "runtime", "checklist"],
             category: .appManagement, icon: "checkmark.shield", kind: .view, needsBundle: true
         ),
         FeatureDef(
-            id: "app-info", num: 27, title: "App Info",
+            id: "app-info", title: "App Info",
             subtitle: "Version, target SDK, size — and pull the APK",
             keywords: ["version", "version code", "sdk", "apk", "install date", "size"],
             category: .appManagement, icon: "shippingbox", kind: .view, needsBundle: true
         ),
         FeatureDef(
-            id: "current-activity", num: 28, title: "Copy Current Activity",
+            id: "current-activity", title: "Copy Current Activity",
             subtitle: "Show the foreground Activity right now",
             keywords: ["activity", "foreground", "screen", "resumed", "dumpsys", "copy"],
             category: .appManagement, icon: "square.stack.3d.up", kind: .instantAction
         ),
         FeatureDef(
-            id: "foreground-package", num: 37, title: "Copy Foreground Bundle ID",
+            id: "foreground-package", title: "Copy Foreground Bundle ID",
             subtitle: "Get the package id of the app on screen now",
             keywords: ["package", "bundle id", "foreground", "current app", "which app"],
             category: .appManagement, icon: "scope", kind: .instantAction
         ),
         FeatureDef(
-            id: "meminfo", num: 29, title: "Memory Usage",
+            id: "meminfo", title: "Memory Usage",
             subtitle: "Live memory usage for an app",
             keywords: ["memory", "meminfo", "ram", "pss", "heap"],
             category: .appManagement, icon: "memorychip", kind: .view, needsBundle: true
         ),
         FeatureDef(
-            id: "sandbox-browser", num: 30, title: "Sandbox Browser",
+            id: "sandbox-browser", title: "Sandbox Browser",
             subtitle: "Browse and pull app files (debug builds)",
             keywords: ["sandbox", "files", "run-as", "sqlite", "shared prefs", "mmkv"],
             category: .appManagement, icon: "folder", kind: .view, needsBundle: true
         ),
         FeatureDef(
-            id: "monkey", num: 31, title: "Monkey Test",
+            id: "monkey", title: "Monkey Test",
             subtitle: "Fire random events to hunt for crashes",
             keywords: ["monkey", "stress", "random", "fuzz", "crash"],
             category: .appManagement, icon: "die.face.5", kind: .formAction, needsBundle: true,
@@ -391,25 +391,25 @@ public enum FeatureRegistry {
 
         // ── Logs & Diagnostics ───────────────────────────────────────────
         FeatureDef(
-            id: "logcat", num: 32, title: "Logcat",
+            id: "logcat", title: "Logcat",
             subtitle: "Live log stream with search and filters",
             keywords: ["logcat", "logs", "stream", "filter", "tag", "level"],
             category: .logs, icon: "scroll", kind: .view
         ),
         FeatureDef(
-            id: "crash-catcher", num: 33, title: "Crash Catcher",
+            id: "crash-catcher", title: "Crash Catcher",
             subtitle: "Filtered crashes + copy-last-crash for Slack/Jira",
             keywords: ["crash", "fatal", "exception", "androidruntime", "reactnativejs"],
             category: .logs, icon: "exclamationmark.triangle", kind: .view
         ),
         FeatureDef(
-            id: "bug-report", num: 34, title: "Bug Report",
+            id: "bug-report", title: "Bug Report",
             subtitle: "Zip screenshot + logs + device info + version",
             keywords: ["bug report", "zip", "bundle", "diagnostics", "export"],
             category: .logs, icon: "doc.zipper", kind: .view
         ),
         FeatureDef(
-            id: "performance", num: 35, title: "Performance Monitor",
+            id: "performance", title: "Performance Monitor",
             subtitle: "Live CPU, RAM & FPS with recording and export",
             keywords: [
                 "performance", "perf", "cpu", "core", "ram", "memory", "fps",
@@ -421,7 +421,7 @@ public enum FeatureRegistry {
 
         // ── Tool UX (system) ─────────────────────────────────────────────
         FeatureDef(
-            id: "custom-commands", num: 36, title: "Custom Commands",
+            id: "custom-commands", title: "Custom Commands",
             subtitle: "Define your own adb actions with {bundleId}",
             keywords: ["custom", "command", "palette", "adb", "macro", "shortcut"],
             category: .toolUX, icon: "terminal", kind: .system, needsDevice: false

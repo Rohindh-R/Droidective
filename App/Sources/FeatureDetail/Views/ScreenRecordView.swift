@@ -20,6 +20,8 @@ struct ScreenRecordView: View {
     @State private var decisionURL: URL?
     @State private var showAdvanced = false
     @State private var limitTask: Task<Void, Never>?
+    /// Identifies this view's leave guard so a stale clear can't wipe another's.
+    @State private var exitGuardID = UUID()
 
     @AppStorage("recMaxSize") private var maxSize = 0
     @AppStorage("recBitRate") private var bitRateMbps = 0
@@ -47,8 +49,13 @@ struct ScreenRecordView: View {
             }
         }
         .recordingDecision(url: $decisionURL) { recordedURL = $0 }
+        .onChange(of: state.pendingExit?.saving) { _, saving in
+            if saving == true, isRecording { Task { await saveRecordingForLeave() } }
+        }
         .onDisappear {
             limitTask?.cancel()
+            state.recordingActive = false
+            state.clearExitGuard(exitGuardID)
             if isRecording, let recorder { Task { await recorder.abort() } }
             if let url = recordedURL { try? FileManager.default.removeItem(at: url) }
         }
@@ -222,6 +229,15 @@ struct ScreenRecordView: View {
             isRecording = true
             isPaused = false
             startedAt = Date()
+            // Lock the device/bundle pickers for the duration, as the
+            // performance/network recorders do. A recording targets one device;
+            // switching it mid-capture would strand this recorder (the view stays
+            // mounted on a device switch, so .onDisappear never fires to abort it).
+            state.recordingActive = true
+            state.setExitGuard(.init(
+                id: exitGuardID, style: .recording,
+                title: "Recording in progress",
+                message: "Leaving will stop the screen recording. Save it first, or discard it."))
             scheduleTimeLimit(options.timeLimitSeconds)
         } catch {
             state.showToast(Toast(message: error.localizedDescription, ok: false))
@@ -278,5 +294,33 @@ struct ScreenRecordView: View {
         isStopping = false
         startedAt = nil
         self.recorder = nil
+        state.recordingActive = false
+        state.clearExitGuard(exitGuardID)
+    }
+
+    /// "Stop & save" from the leave prompt: finalize the recording straight into
+    /// the capture folder (skipping the Discard/Save/Edit sheet), then let the
+    /// navigation proceed.
+    private func saveRecordingForLeave() async {
+        limitTask?.cancel()
+        // Cleared here, not only in .onDisappear: a Stop & Save that resolves a
+        // device switch keeps this view mounted, so onDisappear wouldn't fire to
+        // unlock the device/bundle pickers.
+        state.recordingActive = false
+        guard let recorder else { state.finishExitSave(); return }
+        self.recorder = nil
+        isRecording = false
+        isPaused = false
+        startedAt = nil
+        do {
+            let temp = try await recorder.stop()
+            let dir = try ScreenCaptureService.ensureCaptureDir()
+            let dest = dir.appendingPathComponent("recording_\(ScreenCaptureService.stamp()).mp4")
+            try FileManager.default.moveItem(at: temp, to: dest)
+            state.showToast(Toast(message: "Recording saved", ok: true, revealPath: dest.path))
+        } catch {
+            state.showToast(Toast(message: "Couldn’t save recording: \(error.localizedDescription)", ok: false))
+        }
+        state.finishExitSave()
     }
 }

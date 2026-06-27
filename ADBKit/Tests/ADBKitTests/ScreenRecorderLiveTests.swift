@@ -113,9 +113,9 @@ import Testing
             arguments: VideoEditing.thumbnailArguments(input: url.path, output: out.path),
             timeout: .seconds(20), maxOutputBytes: 1_000_000)
         let size = (try? FileManager.default.attributesOfItem(atPath: out.path)[.size] as? Int) ?? 0
-        print("THUMB FFMPEG: exit=\(result.exitCode) size=\(size ?? 0)")
+        print("THUMB FFMPEG: exit=\(result.exitCode ?? -1) size=\(size)")
         #expect(result.exitCode == 0)
-        #expect((size ?? 0) > 0)
+        #expect(size > 0)
     }
 }
 

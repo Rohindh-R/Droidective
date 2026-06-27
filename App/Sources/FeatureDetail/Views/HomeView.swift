@@ -143,7 +143,7 @@ struct HomeView: View {
                     }
                 }
                 .padding(.top, 10)
-                Button("Manage all features…") { state.selectedFeatureID = "catalog" }
+                Button("Manage all features…") { state.requestFeature("catalog") }
                     .buttonStyle(.link)
                     .font(.callout)
                     .padding(.top, 8)
@@ -259,7 +259,7 @@ struct HomeView: View {
             step(2, "In **Developer options**, turn on **USB debugging**.")
             step(3, "Plug in via USB and tap **Allow** on the debugging prompt — or connect over Wi-Fi.")
             HStack(spacing: 10) {
-                Button { state.selectedFeatureID = "wireless-adb" } label: {
+                Button { state.requestFeature("wireless-adb") } label: {
                     Label("Connect wirelessly", systemImage: "wifi")
                 }
                 Button { state.refreshDevices() } label: {
