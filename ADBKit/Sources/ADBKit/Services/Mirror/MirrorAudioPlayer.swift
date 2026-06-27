@@ -11,7 +11,8 @@ import Foundation
 /// each stream just plays as fast as it arrives.
 ///
 /// `AVAudioEngine` isn't `Sendable`, so this is boxed `@unchecked` and every
-/// call is funnelled through the owning `@MainActor` view model.
+/// call is funnelled through the view model's single audio task (built and
+/// driven off the main thread — its construction blocks on Core Audio XPC).
 public final class MirrorAudioPlayer: @unchecked Sendable {
     public static let sampleRate: Double = 48_000
     public static let channelCount: AVAudioChannelCount = 2

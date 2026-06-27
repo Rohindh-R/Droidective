@@ -679,18 +679,38 @@ final class AppState {
                 for url in urls {
                     let name = url.lastPathComponent
                     var ok = 0
+                    var failures: [(serial: String, result: FeatureResult)] = []
                     for serial in serials {
                         let result = (try? await env.engine.appInstall.install(apkPath: url.path, serial: serial))
                             ?? FeatureResult(ok: false, message: "adb not found")
-                        if result.ok { ok += 1 }
+                        if result.ok { ok += 1 } else { failures.append((serial, result)) }
                     }
-                    let message = serials.count == 1
-                        ? (ok == 1 ? "Installed \(name)" : "Couldn't install \(name)")
-                        : "Installed \(name) on \(ok)/\(serials.count) devices"
-                    showToast(Toast(message: message, ok: ok > 0))
+                    showToast(Self.installToast(name: name, ok: ok, total: serials.count, failures: failures))
                 }
             }
         }
+    }
+
+    /// A short install headline for the toast; on failure the full adb output is
+    /// kept in `copyText` so the notifications panel carries the detail without
+    /// dumping it into the transient toast.
+    private static func installToast(
+        name: String, ok: Int, total: Int, failures: [(serial: String, result: FeatureResult)]
+    ) -> Toast {
+        if failures.isEmpty {
+            let message = total == 1 ? "Installed \(name)" : "Installed \(name) on \(total) devices"
+            return Toast(message: message, ok: true)
+        }
+        let message = total == 1
+            ? "Couldn't install \(name) — \(failures[0].result.message)"
+            : "Installed \(name) on \(ok)/\(total) devices — \(failures.count) failed"
+        let detail = failures
+            .map { failure in
+                let body = failure.result.copyText ?? failure.result.message
+                return total == 1 ? body : "\(failure.serial): \(body)"
+            }
+            .joined(separator: "\n\n")
+        return Toast(message: message, ok: false, copyText: detail.isEmpty ? nil : detail)
     }
 
     func showToast(_ toast: Toast) {
@@ -729,6 +749,10 @@ final class AppState {
 
     func dismissNotification(_ id: UUID) {
         notifications.removeAll { $0.id == id }
+    }
+
+    func dismissToast(_ id: UUID) {
+        toasts.removeAll { $0.id == id }
     }
 
     // MARK: - Role

@@ -63,7 +63,7 @@ targets:
         NSHumanReadableCopyright: ""
         SentryDSN: $(SENTRY_DSN)
         PostHogKey: $(POSTHOG_KEY)
-        SUFeedURL: https://droidective.github.io/Droidective/appcast.xml
+        SUFeedURL: https://droidective.com/appcast.xml
         SUPublicEDKey: "ma0kTe35r55/PKmemQOEBX7n6SuZPZjOBo973SdJqJ8="
         SUEnableAutomaticChecks: true
         UTImportedTypeDeclarations:
@@ -86,7 +86,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.rohindh.droidective
         SENTRY_DSN: ""
         POSTHOG_KEY: ""
-        MARKETING_VERSION: "2.6.0"
+        MARKETING_VERSION: "2.6.1"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete

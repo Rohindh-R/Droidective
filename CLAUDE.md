@@ -22,7 +22,7 @@ When adding a feature: logic + a parser test go in ADBKit; the view goes in
 ## Build / test / run
 
 ```
-make test          # ADBKit unit tests (cd ADBKit && swift test) — 186 tests, keep green
+make test          # ADBKit unit tests (cd ADBKit && swift test) — 320 tests, keep green
 make build         # xcodegen generate + xcodebuild Debug
 make run           # build + open the .app
 ```
@@ -168,8 +168,9 @@ feature for existing users via `knownIds`.
 ## Status
 
 Feature-complete across all planned milestones plus several UX rounds (latest:
-**v2.2.0** — theme/hub overhaul, screenshot annotation editor, all-features-on
-default, live memory graph); 186 tests green; builds clean with zero warnings.
+**v2.6.1** — bug-fix batch across Reactotron, crash catcher, app install,
+notifications, mirroring, and the welcome screen, plus a custom-command preset
+library); 320 tests green; builds clean with zero warnings.
 Verified live against a physical device and an Android emulator. Release builds
 are Developer ID-signed + notarized and bundle scrcpy/ffmpeg
 (see `RELEASING.md`). Open gaps: the Apps list/detail divider isn't

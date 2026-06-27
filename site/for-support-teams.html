@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Android Support &amp; Diagnostics Tool for macOS — Droidective</title>
+  <meta name="description" content="Droidective is a free, open-source Android support and diagnostics tool for macOS: screen mirroring, one-click bug reports and log pulls, device health, and file retrieval — no terminal, so any support engineer can use it." />
+  <meta name="keywords" content="android support tool, android diagnostics mac, pull android logs mac, android screen mirroring support, adb gui support" />
+  <meta name="author" content="Rohindh R" />
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#0d0f0e" />
+  <link rel="canonical" href="https://droidective.com/for-support-teams.html" />
+  <link rel="icon" type="image/png" href="assets/icon.png" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" type="image/png" href="assets/icon-light.png" media="(prefers-color-scheme: light)" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Droidective" />
+  <meta property="og:title" content="Android Support & Diagnostics Tool for macOS — Droidective" />
+  <meta property="og:description" content="Screen mirroring, one-click bug reports and log pulls, device health, and file retrieval — no terminal." />
+  <meta property="og:url" content="https://droidective.com/for-support-teams.html" />
+  <meta property="og:image" content="https://droidective.com/assets/screenshot-home.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet" />
+  <script src="/analytics.js"></script>
+  <style>
+    :root {
+      --ink-900: #0a0c0b; --ink-850: #0d0f0e; --ink-800: #121514; --ink-700: #16191a;
+      --line: rgba(231, 234, 229, 0.08); --line-2: rgba(231, 234, 229, 0.14);
+      --green: #9be021; --green-bright: #b6f24a; --glow: rgba(155, 224, 33, 0.30);
+      --text: #e7eae5; --muted: #99a39a; --faint: #69716a;
+      --maxw: 960px; --radius: 16px;
+      --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--sans); color: var(--text); background: var(--ink-850); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+    a { color: inherit; text-decoration: none; }
+    header { border-bottom: 1px solid var(--line); padding: 18px 0; position: sticky; top: 0; background: rgba(13, 15, 14, 0.72); backdrop-filter: blur(10px); z-index: 10; }
+    header .wrap { display: flex; align-items: center; justify-content: space-between; }
+    .brand { display: inline-flex; align-items: center; gap: 9px; font-weight: 700; }
+    .brand img { width: 26px; height: 26px; }
+    .nav a { color: var(--muted); font-size: 14px; margin-left: 22px; }
+    .nav a:hover { color: var(--text); }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 11px; font-weight: 700; font-size: 15px; }
+    .btn-primary { background: var(--green); color: var(--ink-900); }
+    .btn-primary:hover { background: var(--green-bright); }
+    .btn-ghost { border: 1px solid var(--line-2); color: var(--text); }
+    .crumb { color: var(--faint); font-family: var(--mono); font-size: 12.5px; margin: 36px 0 0; }
+    .crumb a:hover { color: var(--muted); }
+    .kicker { display: inline-block; font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--green); margin: 14px 0 6px; }
+    h1 { font-size: clamp(32px, 5.5vw, 52px); line-height: 1.05; letter-spacing: -0.03em; margin: 0 0 16px; }
+    h1 .hl { color: var(--green); }
+    .lede { font-size: clamp(17px, 1.6vw, 20px); color: var(--muted); max-width: 60ch; margin: 0 0 30px; }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
+    .note { color: var(--faint); font-size: 13px; font-family: var(--mono); }
+    .shot { width: 100%; border: 1px solid var(--line-2); border-radius: var(--radius); margin: 40px 0; display: block; }
+    h2 { font-size: clamp(22px, 3vw, 30px); letter-spacing: -0.02em; margin: 56px 0 22px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
+    .card { background: var(--ink-800); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
+    .card h3 { margin: 0 0 8px; font-size: 17px; }
+    .card p { margin: 0; color: var(--muted); font-size: 15px; }
+    .card code { font-family: var(--mono); font-size: 0.88em; color: var(--green-bright); }
+    .closer { text-align: center; background: var(--ink-800); border: 1px solid var(--line); border-radius: var(--radius); padding: 44px 24px; margin: 64px 0; }
+    .closer h2 { margin: 0 0 18px; }
+    .related { display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; margin-top: 10px; }
+    .related a { color: var(--green); font-size: 14px; }
+    .related a:hover { text-decoration: underline; }
+    footer { border-top: 1px solid var(--line); padding: 28px 0; color: var(--faint); font-size: 13px; }
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <a class="brand" href="/"><img src="assets/icon.png" alt="" /> Droidective</a>
+      <nav class="nav">
+        <a href="/">Home</a>
+        <a href="/for-android-developers.html">For developers</a>
+        <a href="https://github.com/Droidective/Droidective">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p class="crumb"><a href="/">Droidective</a> / For support teams</p>
+    <span class="kicker">For support &amp; field engineers</span>
+    <h1>See the device, pull the <span class="hl">diagnostics</span>, close the ticket</h1>
+    <p class="lede">Droidective gives support teams a no-terminal way to diagnose Android devices on a Mac. Mirror the screen to see exactly what the user sees, pull a bug report and logs in one click, and check device health — no adb knowledge required.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" data-dl="support" href="https://github.com/Droidective/Droidective/releases/latest">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Droidective/Droidective">View on GitHub</a>
+    </div>
+    <p class="note">Free &amp; open source · Apple Developer ID-signed &amp; notarized · macOS 14+</p>
+
+    <img class="shot" src="assets/screenshot-home.png" alt="Droidective device overview and diagnostics on macOS" loading="lazy" />
+
+    <h2>Diagnose without the command line</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Screen mirroring</h3>
+        <p>Mirror the connected device live to reproduce what the user is reporting — over USB or Wi-Fi, scrcpy bundled in.</p>
+      </div>
+      <div class="card">
+        <h3>One-click bug report</h3>
+        <p>Capture a full Android bug report and device state in a click to attach to the case — no copy-pasting from a shell.</p>
+      </div>
+      <div class="card">
+        <h3>Device health</h3>
+        <p>Battery, storage, RAM, CPU, build, and root status in one overview, so you can triage hardware vs. software fast.</p>
+      </div>
+      <div class="card">
+        <h3>Pull the problem file</h3>
+        <p>Grab a log, database, or config off the device with the file explorer — real progress, no sync-protocol guesswork.</p>
+      </div>
+      <div class="card">
+        <h3>Logcat with filters</h3>
+        <p>Tail and filter logs to confirm an error reproduces, then export it straight into the ticket.</p>
+      </div>
+      <div class="card">
+        <h3>No terminal required</h3>
+        <p>Everything is a click. Anyone on the team can run it — no adb commands, no SDK setup, just the app.</p>
+      </div>
+    </div>
+
+    <div class="closer">
+      <h2>Faster triage, happier users</h2>
+      <a class="btn btn-primary" data-dl="support" href="https://github.com/Droidective/Droidective/releases/latest">Download for macOS</a>
+      <div class="related">
+        <a href="/for-qa-and-testers.html">For QA &amp; testers →</a>
+        <a href="/for-android-developers.html">For Android developers →</a>
+        <a href="/">All 48 tools →</a>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">© 2026 Rohindh R · <a href="/">droidective.com</a> · <a href="/privacy.html">Privacy</a></div>
+  </footer>
+</body>
+</html>

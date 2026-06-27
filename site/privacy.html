@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy — Droidective</title>
+  <meta name="description" content="What Droidective collects, why, and how to turn it off. Anonymous crash reporting and usage analytics, on by default and opt-out in Settings → Privacy." />
+  <link rel="canonical" href="https://droidective.com/privacy.html" />
+  <meta name="theme-color" content="#0d0f0e" />
+  <link rel="icon" type="image/png" href="assets/icon.png" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" type="image/png" href="assets/icon-light.png" media="(prefers-color-scheme: light)" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink-900: #0a0c0b; --ink-850: #0d0f0e; --ink-800: #121514; --ink-700: #16191a;
+      --line: rgba(231, 234, 229, 0.08); --line-2: rgba(231, 234, 229, 0.14);
+      --green: #9be021; --glow: rgba(155, 224, 33, 0.30);
+      --text: #e7eae5; --muted: #99a39a; --faint: #69716a;
+      --maxw: 760px; --radius: 16px;
+      --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--sans); color: var(--text); background: var(--ink-850); line-height: 1.65; -webkit-font-smoothing: antialiased; }
+    .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+    a { color: var(--green); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    header { border-bottom: 1px solid var(--line); padding: 20px 0; position: sticky; top: 0; background: rgba(13, 15, 14, 0.72); backdrop-filter: blur(10px); }
+    header .wrap { display: flex; align-items: center; justify-content: space-between; }
+    .brand { display: inline-flex; align-items: center; gap: 9px; color: var(--text); font-weight: 700; }
+    .brand img { width: 26px; height: 26px; }
+    .back { color: var(--muted); font-size: 14px; }
+    main { padding: 56px 0 80px; }
+    h1 { font-size: clamp(30px, 5vw, 42px); margin: 0 0 6px; letter-spacing: -0.02em; }
+    .updated { color: var(--faint); font-family: var(--mono); font-size: 13px; margin: 0 0 40px; }
+    h2 { font-size: 21px; margin: 44px 0 12px; letter-spacing: -0.01em; }
+    p, li { color: #cdd3cd; }
+    .muted { color: var(--muted); }
+    ul { padding-left: 20px; }
+    li { margin: 6px 0; }
+    code { font-family: var(--mono); font-size: 0.9em; background: var(--ink-700); padding: 2px 6px; border-radius: 6px; color: var(--text); }
+    .card { background: var(--ink-800); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; margin: 18px 0; color: #cdd3cd; }
+    .tldr { border-left: 3px solid var(--green); }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14.5px; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; color: #cdd3cd; }
+    th { color: var(--muted); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+    footer { border-top: 1px solid var(--line); padding: 30px 0; color: var(--faint); font-size: 13px; }
+    footer a { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <a class="brand" href="/"><img src="assets/icon.png" alt="" /> Droidective</a>
+      <a class="back" href="/">← Back to site</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <h1>Privacy</h1>
+      <p class="updated">Last updated 27 June 2026</p>
+
+      <div class="card tldr">
+        <strong>In short:</strong> Droidective collects a small amount of <em>anonymous</em> diagnostics to fix crashes and see which features get used. No device serials, file paths, IP addresses, or command contents ever leave your machine. You can turn it all off in <code>Settings → Privacy</code>, and this website honours “Do Not Track”.
+      </div>
+
+      <h2>The app</h2>
+      <p>Droidective collects two kinds of anonymous data, both <strong>on by default</strong> and switchable off any time in <code>Settings → Privacy</code> (a first-run notice explains this):</p>
+      <table>
+        <tr><th>What</th><th>Tool</th><th>Why</th></tr>
+        <tr><td>Crash &amp; error reports</td><td>Sentry</td><td>Find and fix crashes</td></tr>
+        <tr><td>Feature-usage events</td><td>PostHog</td><td>See which tools are used so the app improves</td></tr>
+      </table>
+      <p><strong>“Anonymous” means it:</strong></p>
+      <ul>
+        <li>never creates a profile or identifies you — PostHog person profiles are disabled;</li>
+        <li>never sends device serial numbers, package or app IDs, file paths, IP addresses, or the contents of any command — only <em>which</em> tool or feature was used;</li>
+        <li>sends no personal information to Sentry (<code>sendDefaultPii</code> is off).</li>
+      </ul>
+
+      <h2>The website</h2>
+      <p>This site (<code>droidective.com</code>) uses <strong>PostHog</strong> to understand how visitors use the page — pages viewed and interactions, captured automatically — purely to improve the site. It is anonymous (no person profiles), and it respects your browser’s <strong>Do Not Track</strong> setting. PostHog may store a random, non-identifying ID in your browser to tell sessions apart; no personal information is collected, and nothing is sold or shared for advertising.</p>
+
+      <h2>Where the data goes</h2>
+      <p class="muted">Analytics are processed by <a href="https://posthog.com/privacy" rel="noopener">PostHog</a> and crash reports by <a href="https://sentry.io/privacy/" rel="noopener">Sentry</a>, used only for the purposes above.</p>
+
+      <h2>Turning it off</h2>
+      <ul>
+        <li><strong>App:</strong> <code>Settings → Privacy</code> — toggle off crash reporting and/or analytics.</li>
+        <li><strong>Website:</strong> enable “Do Not Track” in your browser, or use any content blocker.</li>
+      </ul>
+
+      <h2>Contact</h2>
+      <p>Questions about privacy? <a href="https://github.com/Droidective/Droidective/issues/new/choose" rel="noopener">Open an issue</a> on GitHub.</p>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">© 2026 Rohindh R · <a href="/">droidective.com</a></div>
+  </footer>
+</body>
+</html>

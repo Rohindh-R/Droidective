@@ -2,13 +2,13 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
     <title>Droidective</title>
-    <link>https://droidective.github.io/Droidective/appcast.xml</link>
+    <link>https://droidective.com/appcast.xml</link>
     <description>Most recent Droidective updates.</description>
     <language>en</language>
     <item>
-      <title>Droidective 2.6.0</title>
-      <sparkle:version>104</sparkle:version>
-      <sparkle:shortVersionString>2.6.0</sparkle:shortVersionString>
+      <title>Droidective 2.6.1</title>
+      <sparkle:version>144</sparkle:version>
+      <sparkle:shortVersionString>2.6.1</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
       <description><![CDATA[
 <style>
@@ -24,37 +24,57 @@ pre { background: color-mix(in srgb, currentColor 8%, transparent); padding: .6e
 pre code { background: none; padding: 0; }
 a { color: #2f9e44; }
 </style>
+<p>A bug-fix release that polishes the v2.6.0 features — Reactotron, the crash
+catcher, app install, notifications, and mirroring — and adds a preset library
+to custom commands.</p>
 <h3>New features</h3>
 <ul>
 <li>
-<strong>Reactotron</strong> — a built-in Reactotron debugger for React Native apps, with no
-desktop app required: Droidective runs the Reactotron server itself on :9090
-and auto-reverses the port. A live timeline of logs, API calls (with cURL
-export), state changes, and images; a store browser with live subscriptions,
-action dispatch, and snapshots; custom commands; and a REPL. Switches between
-multiple connected apps, and can keep the connection alive as you move around
-the app.</li>
-<li>
-<strong>Install App</strong> — install an APK onto your device(s) by dragging it onto the
-new Install App screen or picking a file (reinstalls keep app data, and it
-installs on every selected device). Double-clicking an <code>.apk</code> in Finder opens
-Droidective and asks which device to install onto.</li>
+<strong>Custom command presets</strong> — start from a curated library of common adb
+commands (force-stop, clear data, launch, list packages, key events, toggle
+animations, battery, clear logcat, reboot, and more) instead of a blank
+editor; add one and run or edit it.</li>
 </ul>
 <h3>Improvements</h3>
 <ul>
 <li>
-<strong>Dark by default</strong> — new installs start in dark mode. Light mode is now marked
-<strong>Beta</strong> in Settings → Appearance while a few screens are tuned for it; Auto and
-your own choice still work as before.</li>
+<strong>Reactotron</strong> — copy-as-cURL no longer turns a GET request into a POST (the
+method is stated explicitly when a body is attached, and empty bodies aren't
+sent); export now writes only the items currently shown in a pane after its
+search and category filters, with the export action moved into each pane; the
+connection stays alive when you switch features, with no "Keep Reactotron
+running?" prompt; and the timeline search reads as search, with a magnifying
+glass and clear button matching the other searches.</li>
 <li>
-<strong>Emulators in the dev roles</strong> — the Android and React Native roles now include
-the Emulators feature, and existing users on those roles pick it up
-automatically (no need to re-pick your role).</li>
+<strong>adb install failures</strong> show a plain-English reason (e.g. "Not enough storage
+on the device.") instead of a raw error code; the full adb output stays on the
+Copy button in the toast and the notifications panel.</li>
+<li>
+<strong>Notifications</strong> — the flowing toast now has a dismiss (×) button, and the
+panel's bulk action reads "Clear all" and appears only when there's more than
+one notification.</li>
+<li>
+<strong>Mirroring survives device rotation</strong> — the view refreshes its dimensions and
+re-primes the renderer on the new orientation, so taps stay accurate after a
+rotate.</li>
+<li>
+<strong>Welcome screen</strong> no longer collapses one letter per line in a narrow detail
+pane; the header is responsive and the window's minimum width grows with the
+side panels.</li>
+</ul>
+<h3>Bug fixes</h3>
+<ul>
+<li>
+<strong>Crash Catcher</strong> bounds the fetched crash (caps the logcat dump and keeps the
+diagnostic head plus the most recent lines) so a large log can't freeze the UI
+while rendering.</li>
+<li>The <strong>mirror audio engine</strong> is built off the main thread, fixing an app hang
+on first use.</li>
 </ul>
 <p>Installed copies update in place via Sparkle.</p>
 ]]></description>
-      <pubDate>Fri, 26 Jun 2026 04:53:40 +0000</pubDate>
-      <enclosure url="https://github.com/Droidective/Droidective/releases/download/v2.6.0/Droidective-v2.6.0.dmg" sparkle:edSignature="+eQnE+NO+sc43iFyitKCkY9snyGmcSr0omqeW/rIBVfWCXfCZUbaxR9ZDl4FIhkvm0yyWHCCt+tH5UI+17mhCA==" length="45606039" type="application/octet-stream" />
+      <pubDate>Sat, 27 Jun 2026 11:12:26 +0000</pubDate>
+      <enclosure url="https://github.com/Droidective/Droidective/releases/download/v2.6.1/Droidective-v2.6.1.dmg" sparkle:edSignature="7RWJLp0hV2XFqOPp3Zxvl6//+UKkkMDeCcJPIwXevwJ0H2SMnQq6JDOoBoGff/V035ld9mqzGBmv5bnVtFs0Bg==" length="45336785" type="application/octet-stream" />
     </item>
   </channel>
 </rss>

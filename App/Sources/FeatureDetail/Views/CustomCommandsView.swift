@@ -7,6 +7,7 @@ struct CustomCommandsView: View {
     @State private var commands: [CustomCommand] = []
     @State private var editing: CustomCommand?
     @State private var showEditor = false
+    @State private var showPresets = false
     @State private var draftName = ""
     @State private var draftCommand = ""
     @State private var draftNeedsBundle = false
@@ -21,6 +22,10 @@ struct CustomCommandsView: View {
                         .foregroundStyle(.textMuted)
                 }
                 Spacer()
+                Button { showPresets = true } label: {
+                    Label("Presets", systemImage: "square.grid.2x2")
+                }
+                .controlSize(.small)
                 Button {
                     editing = nil
                     draftName = ""
@@ -86,6 +91,7 @@ struct CustomCommandsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .task { commands = await state.env.stores.customCommands.load() }
         .sheet(isPresented: $showEditor) { editor }
+        .sheet(isPresented: $showPresets) { presetLibrary }
     }
 
     private var editor: some View {
@@ -152,5 +158,68 @@ struct CustomCommandsView: View {
                 state.showToast(Toast(message: result.message, ok: result.ok))
             }
         }
+    }
+
+    // MARK: - Presets
+
+    private var presetLibrary: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Preset Commands").font(.headline)
+                Spacer()
+                Button("Done") { showPresets = false }
+            }
+            Text("Common adb commands. Add one to your list, then run or edit it.")
+                .font(.footnote)
+                .foregroundStyle(.textMuted)
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(CommandPreset.library) { preset in
+                        presetRow(preset)
+                        Divider()
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .frame(width: 520, height: 460)
+    }
+
+    private func presetRow(_ preset: CommandPreset) -> some View {
+        let added = commands.contains { $0.name == preset.name }
+        return HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(preset.name)
+                Text("adb \(preset.command)")
+                    .font(.system(.footnote, design: .monospaced))
+                    .foregroundStyle(.textMuted)
+                Text(preset.detail)
+                    .font(.caption)
+                    .foregroundStyle(.textMuted)
+            }
+            Spacer(minLength: 8)
+            if added {
+                Label("Added", systemImage: "checkmark")
+                    .font(.caption)
+                    .foregroundStyle(.textMuted)
+            } else {
+                Button("Add") { add(preset) }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
+        }
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func add(_ preset: CommandPreset) {
+        guard !commands.contains(where: { $0.name == preset.name }) else { return }
+        commands.append(CustomCommand(
+            name: preset.name,
+            command: preset.command,
+            needsBundle: preset.needsBundle,
+            createdAt: Date().timeIntervalSince1970 * 1000
+        ))
+        persist()
     }
 }

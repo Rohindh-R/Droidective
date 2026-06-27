@@ -36,6 +36,21 @@ struct ADTApp: App {
     @State private var appState: AppState
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @AppStorage("showMenuBarExtra") private var showMenuBarExtra = true
+    @AppStorage("sidebarWidth") private var sidebarWidth = 300.0
+
+    /// The sidebar and notifications panel are fixed-width, so opening the
+    /// notifications panel on a narrow window would otherwise crush the detail
+    /// pane to uselessness (the welcome title wrapping one letter per line).
+    /// Grow the window's minimum width with whichever side panels are showing,
+    /// so the detail pane always keeps at least `detailMinWidth`.
+    private var minWindowWidth: CGFloat {
+        let detailMinWidth: CGFloat = 360
+        let notifications: CGFloat = appState.showNotifications ? 321 : 0
+        let sidebar: CGFloat = appState.sidebarVisible
+            ? CGFloat(min(max(sidebarWidth, 300), 460))
+            : 0
+        return max(760, sidebar + detailMinWidth + notifications)
+    }
 
     init() {
         // HotkeyManager.install is deferred to RootView.onAppear — Carbon
@@ -54,7 +69,7 @@ struct ADTApp: App {
         WindowGroup(id: "main") {
             RootView()
                 .environment(appState)
-                .frame(minWidth: 760, minHeight: 480)
+                .frame(minWidth: minWindowWidth, minHeight: 480)
                 // Force the brand accent on standard controls (prominent
                 // buttons, switches, sliders) so they stay green regardless of
                 // the Mac's system accent color, which otherwise overrides the

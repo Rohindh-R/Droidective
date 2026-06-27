@@ -44,7 +44,9 @@ final class MirrorViewModel {
     private var displayTask: Task<Void, Never>?
     private var clipboardTask: Task<Void, Never>?
     private var audioTask: Task<Void, Never>?
-    private let audioPlayer = MirrorAudioPlayer()
+    /// Built off the main thread on the first audio packet — see `start()`. nil
+    /// until then so audio-less devices never touch Core Audio.
+    private var audioPlayer: MirrorAudioPlayer?
     /// The bundled scrcpy server, resolved at start — reused to spin up a
     /// recording session.
     private var server: ScrcpyServerInfo?
@@ -100,17 +102,24 @@ final class MirrorViewModel {
         }
 
         let audio = await session.audioPCM()
-        audioTask = Task { @MainActor [weak self] in
-            guard let self, let audio else { return }
-            var started = false
+        audioTask = Task { [weak self] in
+            guard let audio else { return }
+            // Build and start the AVAudioEngine graph OFF the main thread. Creating
+            // AVAudioPlayerNode / attaching nodes makes a synchronous XPC round-trip
+            // to the audio-component registrar that can block for seconds on first
+            // use, freezing the UI (Sentry DROIDECTIVE-MAC-5). Built lazily on the
+            // first packet, so audio-less devices (Android < 11) never reach here.
+            // MirrorAudioPlayer is @unchecked Sendable and only ever touched here.
+            let player = await Task.detached(priority: .userInitiated) { () -> MirrorAudioPlayer? in
+                let player = MirrorAudioPlayer()
+                do { try player.start() } catch { return nil }
+                return player
+            }.value
+            guard let player else { return }
+            await MainActor.run { [weak self] in self?.audioPlayer = player }
+            defer { player.stop() }
             for await pcm in audio {
-                // Start the engine lazily on the first packet — devices without
-                // audio (Android < 11) never get here, so we don't touch Core Audio.
-                if !started {
-                    do { try self.audioPlayer.start() } catch { return }
-                    started = true
-                }
-                self.audioPlayer.enqueue(pcmS16LE: pcm)
+                player.enqueue(pcmS16LE: pcm)
             }
         }
 
@@ -118,16 +127,19 @@ final class MirrorViewModel {
             do {
                 for try await sample in stream {
                     guard let self else { break }
-                    self.renderer.enqueue(sample.sampleBuffer)
+                    self.renderer.enqueue(sample.sampleBuffer, width: sample.width, height: sample.height)
+                    // Track the live frame size so taps map correctly and the aspect
+                    // rect stays right across rotation, not only at the first frame.
+                    if sample.width > 0, sample.height > 0 {
+                        let size = CGSize(width: sample.width, height: sample.height)
+                        if self.videoSize != size { self.videoSize = size }
+                    }
                     if self.status == .connecting {
                         self.status = .streaming
                         // The transport (incl. the control socket) is connected
                         // once frames flow — fetch the control sender now, not
                         // right after start() when it isn't wired yet.
                         self.sendControl = await self.session?.controlSender()
-                        if let dimensions = await self.session?.currentDimensions() {
-                            self.videoSize = CGSize(width: dimensions.width, height: dimensions.height)
-                        }
                     }
                 }
                 self?.status = .stopped
@@ -146,7 +158,8 @@ final class MirrorViewModel {
         clipboardTask = nil
         audioTask?.cancel()
         audioTask = nil
-        audioPlayer.stop()
+        audioPlayer?.stop()
+        audioPlayer = nil
         if let recorder = screenRecorder { await recorder.abort() }
         screenRecorder = nil
         await session?.stop()

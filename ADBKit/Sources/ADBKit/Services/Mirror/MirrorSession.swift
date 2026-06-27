@@ -16,6 +16,8 @@ import Foundation
 public actor MirrorSession {
     public struct DisplaySample: @unchecked Sendable {
         public let sampleBuffer: CMSampleBuffer
+        public let width: Int
+        public let height: Int
     }
 
     public struct Snapshot: @unchecked Sendable {
@@ -210,6 +212,11 @@ public actor MirrorSession {
                    let format = H264Format.formatDescription(sps: sets.sps, pps: sets.pps) {
                     formatDescription = format
                     decoder.setFormat(format)
+                    // A config packet also arrives on rotation, carrying the new
+                    // SPS; scrcpy doesn't resend the stream header, so refresh the
+                    // dimensions from the format here to track orientation changes.
+                    let size = CMVideoFormatDescriptionGetDimensions(format)
+                    dimensions = (Int(size.width), Int(size.height))
                     // Arm a pending recording now so the key frame that follows
                     // this config packet is the recording's first sample.
                     if let url = pendingRecordURL, recorder == nil {
@@ -224,7 +231,10 @@ public actor MirrorSession {
             guard let sampleBuffer = H264Format.sampleBuffer(
                 avcc: avcc, formatDescription: formatDescription, pts: pts) else { return }
 
-            continuation.yield(DisplaySample(sampleBuffer: sampleBuffer))
+            continuation.yield(DisplaySample(
+                sampleBuffer: sampleBuffer,
+                width: dimensions?.width ?? 0,
+                height: dimensions?.height ?? 0))
             decoder.decode(sampleBuffer)
 
             if let recorder {

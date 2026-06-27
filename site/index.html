@@ -10,7 +10,7 @@
   <meta name="author" content="Rohindh R" />
   <meta name="robots" content="index, follow" />
   <meta name="theme-color" content="#0d0f0e" />
-  <link rel="canonical" href="https://droidective.github.io/Droidective/" />
+  <link rel="canonical" href="https://droidective.com/" />
 
   <link rel="icon" type="image/png" href="assets/icon.png" media="(prefers-color-scheme: dark)" />
   <link rel="icon" type="image/png" href="assets/icon-light.png" media="(prefers-color-scheme: light)" />
@@ -21,14 +21,14 @@
   <meta property="og:site_name" content="Droidective" />
   <meta property="og:title" content="Droidective — All-in-One Android & React Native Debugging Tool for macOS" />
   <meta property="og:description" content="A Raycast-style command palette for Android & React Native debugging over adb. Mirror screens, tail logcat, browse files, monitor performance — 48 tools, one keystroke away." />
-  <meta property="og:url" content="https://droidective.github.io/Droidective/" />
-  <meta property="og:image" content="https://droidective.github.io/Droidective/assets/screenshot-home.png" />
+  <meta property="og:url" content="https://droidective.com/" />
+  <meta property="og:image" content="https://droidective.com/assets/screenshot-home.png" />
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Droidective — All-in-One Android & React Native Debugging Tool for macOS" />
   <meta name="twitter:description" content="A Raycast-style command palette for Android & React Native debugging over adb. 48 tools, one keystroke away. Free & open source." />
-  <meta name="twitter:image" content="https://droidective.github.io/Droidective/assets/screenshot-home.png" />
+  <meta name="twitter:image" content="https://droidective.com/assets/screenshot-home.png" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -42,15 +42,33 @@
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": "macOS 14.0 or later",
     "description": "A free, open-source macOS command palette for Android & React Native debugging over adb: screen mirroring, logcat, file explorer, performance monitoring, app management — 48 tools in all.",
-    "url": "https://droidective.github.io/Droidective/",
+    "url": "https://droidective.com/",
     "downloadUrl": "https://github.com/Droidective/Droidective/releases/latest",
-    "softwareVersion": "2.6.0",
-    "screenshot": "https://droidective.github.io/Droidective/assets/screenshot-home.png",
+    "softwareVersion": "2.6.1",
+    "screenshot": "https://droidective.com/assets/screenshot-home.png",
     "license": "https://github.com/Droidective/Droidective/blob/main/LICENSE",
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
     "author": { "@type": "Person", "name": "Rohindh R", "url": "https://github.com/Rohindh-R" }
   }
   </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "Is it really free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Droidective is MIT-licensed and fully open source — no account, no paywall, no pro tier. Star it, fork it, ship it." } },
+      { "@type": "Question", "name": "Is it signed and safe to open?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Release builds are signed with an Apple Developer ID and notarized by Apple, so they open with a normal double-click — no Gatekeeper workaround needed. Everything is open source, and you can build from source if you prefer." } },
+      { "@type": "Question", "name": "Do I need a rooted device?", "acceptedAnswer": { "@type": "Answer", "text": "No. Everything works on a normal device. A few extras — full-filesystem browsing, saved Wi-Fi passwords, SELinux mode and read-write remount — unlock automatically when root is available." } },
+      { "@type": "Question", "name": "What do I need installed?", "acceptedAnswer": { "@type": "Answer", "text": "Just Android adb. Droidective finds it via ANDROID_HOME, the default SDK path, or Homebrew, and offers a one-click install if it is missing. scrcpy and ffmpeg ship inside the app, so mirroring, recording, and video export work out of the box — only the Android emulator is optional, for AVD management." } },
+      { "@type": "Question", "name": "Does it send my data anywhere?", "acceptedAnswer": { "@type": "Answer", "text": "Anonymous crash reports and usage analytics are on by default (opt-out) — both disclosed on first launch and controlled in Settings → Privacy. Device serials, file paths, and command contents are never sent." } },
+      { "@type": "Question", "name": "Does it work with React Native?", "acceptedAnswer": { "@type": "Answer", "text": "Yes — there is a dedicated React Native hub: open the dev menu, reload the JS bundle, reverse the Metro port, save deep links per app, and set the dev-server host." } },
+      { "@type": "Question", "name": "Apple Silicon or Intel?", "acceptedAnswer": { "@type": "Answer", "text": "Both. Droidective runs on any Mac with macOS 14 Sonoma or later." } }
+    ]
+  }
+  </script>
+
+  <script src="/analytics.js"></script>
 
   <style>
     :root {
@@ -468,7 +486,7 @@
           <a class="btn btn-primary" data-dl-latest href="https://github.com/Droidective/Droidective/releases/latest"><svg class="ic"><use href="#ic-dl"/></svg> Download for macOS</a>
           <a class="btn btn-ghost" href="https://github.com/Droidective/Droidective"><svg class="ic"><use href="#ic-star"/></svg> Star on GitHub</a>
         </div>
-        <p class="fineprint">$ <span>requires Android adb · auto-updates via Sparkle · v2.6.0</span></p>
+        <p class="fineprint">$ <span>requires Android adb · auto-updates via Sparkle · v2.6.1</span></p>
       </div>
 
       <div class="palette reveal" aria-hidden="true">
@@ -648,11 +666,15 @@ Pixel 8     device</pre>
     <div class="section-head center reveal">
       <span class="eyebrow">changelog</span>
       <h2>Shipped, and still moving.</h2>
-      <p>Ten releases since the first public build — automatic in-app updates since v2.1.0, and Apple-notarized builds since v2.4.0.</p>
+      <p>Eleven releases since the first public build — automatic in-app updates since v2.1.0, and Apple-notarized builds since v2.4.0.</p>
     </div>
     <div class="timeline reveal">
       <div class="rel latest">
-        <div class="rel-head"><span class="rel-ver">v2.6.0</span><span class="rel-tag">latest</span><span class="rel-date">Jun 2026</span></div>
+        <div class="rel-head"><span class="rel-ver">v2.6.1</span><span class="rel-tag">latest</span><span class="rel-date">Jun 2026</span></div>
+        <p><b>Custom command presets</b> — a library of common adb commands to add and run — plus a round of polish: Reactotron copy-as-cURL, per-pane export, and a search affordance; plain-English <b>install errors</b>; a dismissable toast; and <b>mirroring that survives device rotation</b>.</p>
+      </div>
+      <div class="rel">
+        <div class="rel-head"><span class="rel-ver">v2.6.0</span><span class="rel-date">Jun 2026</span></div>
         <p><b>Reactotron</b> built in — no desktop app, with a live timeline, store browser, custom commands, and a REPL — plus an <b>Install App</b> screen (drag in an APK), and <b>dark mode by default</b>.</p>
       </div>
       <div class="rel">
@@ -713,7 +735,7 @@ Pixel 8     device</pre>
       </details>
       <details class="qa">
         <summary>Does it send my data anywhere?<span class="plus"></span></summary>
-        <div class="a">Anonymous crash reports are on by default (opt-out) and usage analytics are opt-in — both disclosed on first launch and controlled in Settings → Privacy. Device serials, file paths, and command contents are never sent.</div>
+        <div class="a">Anonymous crash reports and usage analytics are on by default (opt-out) — both disclosed on first launch and controlled in Settings → Privacy. Device serials, file paths, and command contents are never sent. See the <a href="/privacy.html">privacy page</a> for details.</div>
       </details>
       <details class="qa">
         <summary>Does it work with React Native?<span class="plus"></span></summary>
@@ -775,6 +797,12 @@ Pixel 8     device</pre>
           <a href="#changelog">Changelog</a>
           <a href="https://github.com/Droidective/Droidective/issues">Issues</a>
           <a href="https://github.com/Droidective/Droidective/blob/main/LICENSE">License</a>
+          <a href="/privacy.html">Privacy</a>
+          <a href="/for-android-developers.html">For Android developers</a>
+          <a href="/for-qa-and-testers.html">For QA &amp; testers</a>
+          <a href="/for-support-teams.html">For support teams</a>
+          <a href="/react-native-debugger.html">React Native debugger</a>
+          <a href="/scrcpy-gui-mac.html">scrcpy GUI for Mac</a>
         </div>
       </div>
       <p class="disclaimer">
