@@ -19,16 +19,23 @@ struct RootView: View {
     @State private var pickerIsFirstRun = false
     @Environment(\.colorScheme) private var colorScheme
 
-    /// Launches to allow before the first-run privacy disclosure appears.
-    /// Telemetry is anonymous and on by default in the meantime (opt-out in
-    /// Settings → Privacy); the modal then lets the user confirm or opt out.
+    /// Temporary toggle: flip to `true` to surface the privacy disclosure on the
+    /// first launch (after the welcome flow) instead of deferring it. Left
+    /// `false` for now to keep current behavior. Telemetry stays anonymous and
+    /// on by default either way (opt-out in Settings → Privacy). Remove this
+    /// (and the deferral below) when switching to ask-on-first-launch for good.
+    private let askConsentOnFirstLaunch = false
+
+    /// Launches to allow before the first-run privacy disclosure appears, when
+    /// `askConsentOnFirstLaunch` is false.
     private let consentPromptAfterLaunches = 5
 
     /// Launches before the one-time GitHub-star nudge (shown after consent).
     private let starPromptAfterLaunches = 10
 
     private var shouldPromptConsent: Bool {
-        !consentAsked && launchCount >= consentPromptAfterLaunches
+        guard !consentAsked else { return false }
+        return askConsentOnFirstLaunch || launchCount >= consentPromptAfterLaunches
     }
 
     private var shouldPromptStar: Bool {
