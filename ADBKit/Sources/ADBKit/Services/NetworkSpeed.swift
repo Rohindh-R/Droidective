@@ -59,18 +59,20 @@ public actor NetworkSpeedService {
         var totalUp = 0.0
         for interface in current {
             let priorBytes = prior.interfaces[interface.name]
-            // &- guards a counter reset; a brand-new interface (no prior) reads 0.
-            let down = Double(interface.rxBytes &- (priorBytes?.rx ?? interface.rxBytes)) / elapsed
-            let up = Double(interface.txBytes &- (priorBytes?.tx ?? interface.txBytes)) / elapsed
-            let clampedDown = max(0, down)
-            let clampedUp = max(0, up)
-            totalDown += clampedDown
-            totalUp += clampedUp
-            if priorBytes != nil || clampedDown > 0 || clampedUp > 0 {
+            // A brand-new interface (no prior) and a counter that went backwards
+            // (a reboot/reset) both read 0. Subtracting only when the counter
+            // advanced avoids the wrapping `&-` turning a reset into a huge spike.
+            let priorRx = priorBytes?.rx ?? interface.rxBytes
+            let priorTx = priorBytes?.tx ?? interface.txBytes
+            let down = interface.rxBytes > priorRx ? Double(interface.rxBytes - priorRx) / elapsed : 0
+            let up = interface.txBytes > priorTx ? Double(interface.txBytes - priorTx) / elapsed : 0
+            totalDown += down
+            totalUp += up
+            if priorBytes != nil || down > 0 || up > 0 {
                 speeds.append(InterfaceSpeed(
                     name: interface.name,
-                    downloadBytesPerSec: clampedDown,
-                    uploadBytesPerSec: clampedUp,
+                    downloadBytesPerSec: down,
+                    uploadBytesPerSec: up,
                     rxBytes: interface.rxBytes,
                     txBytes: interface.txBytes
                 ))
