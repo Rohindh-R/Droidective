@@ -1,3 +1,48 @@
+## Droidective v2.6.1
+
+A bug-fix release that polishes the v2.6.0 features — Reactotron, the crash
+catcher, app install, notifications, and mirroring — and adds a preset library
+to custom commands.
+
+### New features
+
+- **Custom command presets** — start from a curated library of common adb
+  commands (force-stop, clear data, launch, list packages, key events, toggle
+  animations, battery, clear logcat, reboot, and more) instead of a blank
+  editor; add one and run or edit it.
+
+### Improvements
+
+- **Reactotron** — copy-as-cURL no longer turns a GET request into a POST (the
+  method is stated explicitly when a body is attached, and empty bodies aren't
+  sent); export now writes only the items currently shown in a pane after its
+  search and category filters, with the export action moved into each pane; the
+  connection stays alive when you switch features, with no "Keep Reactotron
+  running?" prompt; and the timeline search reads as search, with a magnifying
+  glass and clear button matching the other searches.
+- **adb install failures** show a plain-English reason (e.g. "Not enough storage
+  on the device.") instead of a raw error code; the full adb output stays on the
+  Copy button in the toast and the notifications panel.
+- **Notifications** — the flowing toast now has a dismiss (×) button, and the
+  panel's bulk action reads "Clear all" and appears only when there's more than
+  one notification.
+- **Mirroring survives device rotation** — the view refreshes its dimensions and
+  re-primes the renderer on the new orientation, so taps stay accurate after a
+  rotate.
+- **Welcome screen** no longer collapses one letter per line in a narrow detail
+  pane; the header is responsive and the window's minimum width grows with the
+  side panels.
+
+### Bug fixes
+
+- **Crash Catcher** bounds the fetched crash (caps the logcat dump and keeps the
+  diagnostic head plus the most recent lines) so a large log can't freeze the UI
+  while rendering.
+- The **mirror audio engine** is built off the main thread, fixing an app hang
+  on first use.
+
+Installed copies update in place via Sparkle.
+
 ## Droidective v2.6.0
 
 ### New features
