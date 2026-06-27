@@ -160,34 +160,13 @@ struct EmulatorsView: View {
     /// emulators running. Falls back to any emulator if the lookup misses.
     private func focus(serial: String) {
         Task {
-            let pid = await Self.consolePortPID(serial: serial)
+            let pid = await state.env.engine.emulators.consolePID(serial: serial)
             if let pid, let app = NSRunningApplication(processIdentifier: pid) {
                 app.activate(options: .activateAllWindows)
             } else {
                 for app in emulatorApps() { app.activate(options: .activateAllWindows) }
             }
         }
-    }
-
-    /// pid of the process listening on the emulator's console port. Runs `lsof`
-    /// off the main actor so the tap handler never blocks.
-    nonisolated private static func consolePortPID(serial: String) async -> pid_t? {
-        guard let port = serial.split(separator: "-").last.flatMap({ Int($0) }) else { return nil }
-        return await Task.detached {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
-            task.arguments = ["-nP", "-iTCP:\(port)", "-sTCP:LISTEN", "-t"]
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            task.standardError = FileHandle.nullDevice
-            do { try task.run() } catch { return nil }
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            task.waitUntilExit()
-            return String(data: data, encoding: .utf8)?
-                .split(whereSeparator: \.isNewline)
-                .compactMap { pid_t($0.trimmingCharacters(in: .whitespaces)) }
-                .first
-        }.value
     }
 
     /// The emulator window appears a few seconds after launch — poll briefly and

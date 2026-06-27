@@ -129,6 +129,13 @@ import Testing
     @Test func parsesAvdListWithCrlf() {
         #expect(EmulatorService.parseAvdList("Pixel_7\r\nMedium_Tablet\r\n") == ["Pixel_7", "Medium_Tablet"])
     }
+
+    @Test func parsesLsofPidTakingFirstLine() {
+        #expect(EmulatorService.parseLsofPID("12345\n") == 12345)
+        #expect(EmulatorService.parseLsofPID("12345\r\n67890\r\n") == 12345)
+        #expect(EmulatorService.parseLsofPID("") == nil)
+        #expect(EmulatorService.parseLsofPID("not-a-pid") == nil)
+    }
 }
 
 @Suite struct AppsExplorerParsingTests {
