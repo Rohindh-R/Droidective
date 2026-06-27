@@ -68,6 +68,8 @@ public struct ScrcpyStreamDecoder: Sendable {
         case sessionMeta
         case packetHeader
         case packetPayload(ScrcpyPacketHeader)
+        /// Unrecoverable desync (an absurd packet size): swallow trailing bytes.
+        case halted
     }
 
     private let sendsDeviceName: Bool
@@ -75,6 +77,12 @@ public struct ScrcpyStreamDecoder: Sendable {
     private var buffer: [UInt8] = []
     private var cursor = 0
     private var pendingCodecRaw: UInt32 = 0
+
+    /// Sanity ceiling for a packet's declared payload size. A single encoded
+    /// frame is at most a few MB even at high resolution/bitrate; a larger value
+    /// is a corrupt/desynced length, so the decoder halts rather than buffer
+    /// toward the ~4 GB a UInt32 could claim.
+    private static let maxPayloadSize = 64 * 1024 * 1024
 
     /// - Parameters:
     ///   - tunnelForward: in forward mode the server writes one leading dummy
@@ -127,6 +135,9 @@ public struct ScrcpyStreamDecoder: Sendable {
                 guard available >= ScrcpyPacketHeader.byteCount else { break parse }
                 let ptsFlags = readU64BE()
                 let size = Int(readU32BE())
+                // A corrupt/desynced length would otherwise buffer toward a
+                // payload that never coheres; a binary stream can't resync, so halt.
+                guard size <= Self.maxPayloadSize else { phase = .halted; break }
                 phase = .packetPayload(ScrcpyPacketHeader(ptsFlags: ptsFlags, payloadSize: size))
             case let .packetPayload(header):
                 guard available >= header.payloadSize else { break parse }
@@ -134,6 +145,9 @@ public struct ScrcpyStreamDecoder: Sendable {
                 cursor += header.payloadSize
                 events.append(.packet(header, payload: payload))
                 phase = .packetHeader
+            case .halted:
+                cursor = buffer.count
+                break parse
             }
         }
         compact()

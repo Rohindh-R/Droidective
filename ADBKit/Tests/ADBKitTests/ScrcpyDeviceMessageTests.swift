@@ -35,4 +35,12 @@ import Testing
         }
         #expect(messages == [.clipboard("abc")])
     }
+
+    @Test func dropsOnOversizedClipboardLength() {
+        var decoder = ScrcpyDeviceMessageDecoder()
+        // type 0 (clipboard), length 0xFFFFFFFF — dropped, not buffered toward 4 GB.
+        #expect(decoder.consume(Data([0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x68, 0x69])).isEmpty)
+        // The decoder recovered to a clean state and parses the next valid message.
+        #expect(decoder.consume(Data([0x00, 0, 0, 0, 1, 0x41])) == [.clipboard("A")])
+    }
 }

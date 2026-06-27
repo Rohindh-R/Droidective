@@ -32,6 +32,10 @@ public struct ScrcpyAudioStreamDecoder: Sendable {
     private var buffer: [UInt8] = []
     private var cursor = 0
 
+    /// Sanity ceiling for a packet's declared payload size; past this is a
+    /// corrupt/desynced length, so halt rather than buffer toward ~4 GB.
+    private static let maxPayloadSize = 64 * 1024 * 1024
+
     public init() {}
 
     private var available: Int { buffer.count - cursor }
@@ -51,6 +55,7 @@ public struct ScrcpyAudioStreamDecoder: Sendable {
                 guard available >= ScrcpyPacketHeader.byteCount else { break parse }
                 let ptsFlags = readU64BE()
                 let size = Int(readU32BE())
+                guard size <= Self.maxPayloadSize else { phase = .halted; break }
                 phase = .packetPayload(ScrcpyPacketHeader(ptsFlags: ptsFlags, payloadSize: size))
             case let .packetPayload(header):
                 guard available >= header.payloadSize else { break parse }
