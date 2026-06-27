@@ -159,9 +159,14 @@ public struct FileExplorerService: Sendable {
     }
 
     private func verdict(_ result: AdbResult, success: String, fallback: String) -> FeatureResult {
-        if result.succeeded && result.stderr.isEmpty {
-            return FeatureResult(ok: true, message: success)
+        guard result.succeeded else {
+            return FeatureResult(ok: false, message: friendlyAdbError(result, fallback: fallback))
         }
-        return FeatureResult(ok: false, message: friendlyAdbError(result, fallback: fallback))
+        // Some toybox utilities print a warning to stderr (e.g. `cp -r` skipping
+        // an unreadable sub-entry, or an `su` banner) while still exiting 0 and
+        // doing the work. Trust the exit code and surface any warning text rather
+        // than misreporting a completed operation as failed.
+        let warning = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+        return FeatureResult(ok: true, message: warning.isEmpty ? success : "\(success) (with warnings)")
     }
 }
