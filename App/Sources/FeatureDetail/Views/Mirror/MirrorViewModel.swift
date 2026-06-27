@@ -127,16 +127,19 @@ final class MirrorViewModel {
             do {
                 for try await sample in stream {
                     guard let self else { break }
-                    self.renderer.enqueue(sample.sampleBuffer)
+                    self.renderer.enqueue(sample.sampleBuffer, width: sample.width, height: sample.height)
+                    // Track the live frame size so taps map correctly and the aspect
+                    // rect stays right across rotation, not only at the first frame.
+                    if sample.width > 0, sample.height > 0 {
+                        let size = CGSize(width: sample.width, height: sample.height)
+                        if self.videoSize != size { self.videoSize = size }
+                    }
                     if self.status == .connecting {
                         self.status = .streaming
                         // The transport (incl. the control socket) is connected
                         // once frames flow — fetch the control sender now, not
                         // right after start() when it isn't wired yet.
                         self.sendControl = await self.session?.controlSender()
-                        if let dimensions = await self.session?.currentDimensions() {
-                            self.videoSize = CGSize(width: dimensions.width, height: dimensions.height)
-                        }
                     }
                 }
                 self?.status = .stopped
