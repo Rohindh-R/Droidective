@@ -8,12 +8,19 @@ import SwiftUI
     let displayLayer = AVSampleBufferDisplayLayer()
 
     private var renderer: AVSampleBufferVideoRenderer { displayLayer.sampleBufferRenderer }
+    private var lastDimensions: (width: Int, height: Int)?
 
     init() {
         displayLayer.videoGravity = .resizeAspect
     }
 
-    func enqueue(_ sampleBuffer: CMSampleBuffer) {
+    func enqueue(_ sampleBuffer: CMSampleBuffer, width: Int, height: Int) {
+        // A resolution change (device rotation) needs a flush, or the renderer can
+        // stall on the old format instead of re-priming on the incoming key frame.
+        if let last = lastDimensions, last != (width, height) {
+            renderer.flush()
+        }
+        lastDimensions = (width, height)
         // A failed renderer won't recover until flushed; the next key frame re-primes it.
         if renderer.status == .failed { renderer.flush() }
         renderer.enqueue(sampleBuffer)
@@ -21,6 +28,7 @@ import SwiftUI
 
     func clear() {
         renderer.flush()
+        lastDimensions = nil
     }
 }
 
