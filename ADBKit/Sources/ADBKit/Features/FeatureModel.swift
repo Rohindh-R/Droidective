@@ -196,8 +196,6 @@ public struct FieldDef: Sendable {
 
 public struct FeatureDef: Sendable, Identifiable {
     public let id: String
-    /// Spec feature number (registry order; 1–49, with gaps from removed features).
-    public let num: Int
     public let title: String
     public let subtitle: String?
     public let keywords: [String]
@@ -224,7 +222,6 @@ public struct FeatureDef: Sendable, Identifiable {
 
     public init(
         id: String,
-        num: Int,
         title: String,
         subtitle: String? = nil,
         keywords: [String] = [],
@@ -244,7 +241,6 @@ public struct FeatureDef: Sendable, Identifiable {
         confirmLabel: String? = nil
     ) {
         self.id = id
-        self.num = num
         self.title = title
         self.subtitle = subtitle
         self.keywords = keywords
