@@ -280,9 +280,11 @@ final class AppState {
         await refreshToolStatus()
 
         deviceStreamTask = Task { [weak self, monitor = env.monitor] in
+            // This Task inherits AppState's @MainActor isolation, so the loop
+            // body already runs on the main actor — no extra hop needed.
             for await devices in await monitor.updates() {
                 guard let self else { break }
-                await MainActor.run { self.devicesChanged(devices) }
+                self.devicesChanged(devices)
             }
         }
     }
