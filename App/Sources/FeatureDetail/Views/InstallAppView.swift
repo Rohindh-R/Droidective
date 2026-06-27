@@ -11,6 +11,9 @@ struct InstallAppView: View {
     @State private var dropTargeted = false
     @State private var installing = false
     @State private var lastResult: String?
+    /// APK(s) opened from Finder (double-click / Open With), staged for an
+    /// explicit Install rather than installing on arrival.
+    @State private var staged: [URL] = []
 
     private var targets: [Device] {
         state.devices.filter { state.targetSerials.contains($0.serial) }
@@ -18,7 +21,11 @@ struct InstallAppView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            dropZone
+            if staged.isEmpty {
+                dropZone
+            } else {
+                stagedCard
+            }
             targetSummary
             if let lastResult {
                 Text(lastResult)
@@ -30,6 +37,49 @@ struct InstallAppView: View {
         .padding(24)
         .frame(maxWidth: 600, maxHeight: .infinity, alignment: .top)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear { consumePending() }
+        .onChange(of: state.pendingInstallAPKs) { _, _ in consumePending() }
+    }
+
+    /// An APK opened from Finder, staged and awaiting an explicit Install (the
+    /// target is the device bar's current selection).
+    private var stagedCard: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "arrow.down.app.fill")
+                .font(.system(size: 46))
+                .foregroundStyle(.brandAccent)
+            VStack(spacing: 4) {
+                Text(staged.count == 1 ? "Ready to install" : "Ready to install \(staged.count) APKs")
+                    .font(.title3.weight(.medium))
+                ForEach(staged, id: \.self) { url in
+                    Text(url.lastPathComponent)
+                        .font(.callout)
+                        .foregroundStyle(.textMuted)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+            HStack(spacing: 10) {
+                Button("Clear") { staged = [] }
+                    .disabled(installing)
+                Button(installing ? "Installing…" : "Install") { install(staged) }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(installing || targets.isEmpty)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 240)
+        .padding(.horizontal, 16)
+        .background(.bgSurface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(.brandAccent, lineWidth: 2)
+        }
+    }
+
+    private func consumePending() {
+        guard !state.pendingInstallAPKs.isEmpty else { return }
+        staged = state.pendingInstallAPKs
+        state.pendingInstallAPKs = []
     }
 
     private var dropZone: some View {
@@ -53,7 +103,7 @@ struct InstallAppView: View {
         }
         .dropDestination(for: URL.self) { urls, _ in
             guard let apk = urls.first(where: { $0.pathExtension.lowercased() == "apk" }) else { return false }
-            install(apk)
+            install([apk])
             return true
         } isTargeted: { dropTargeted = $0 }
     }
@@ -76,36 +126,21 @@ struct InstallAppView: View {
         panel.allowedContentTypes = [UTType(filenameExtension: "apk") ?? .data]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        if panel.runModal() == .OK, let url = panel.url { install(url) }
+        if panel.runModal() == .OK, let url = panel.url { install([url]) }
     }
 
-    private func install(_ url: URL) {
+    private func install(_ urls: [URL]) {
         let serials = targets.map(\.serial)
-        guard !serials.isEmpty else {
+        guard !urls.isEmpty, !serials.isEmpty else {
             state.showToast(Toast(message: "Connect a device first", ok: false))
             return
         }
         installing = true
-        let name = url.lastPathComponent
         Task {
-            await CommandLog.userInitiated(feature: "install-app") {
-                var ok = 0
-                for serial in serials {
-                    let result = (try? await state.env.engine.appInstall.install(apkPath: url.path, serial: serial))
-                        ?? FeatureResult(ok: false, message: "adb not found")
-                    if result.ok { ok += 1 }
-                    if serials.count == 1 {
-                        state.showToast(Toast(message: result.message, ok: result.ok))
-                    }
-                }
-                if serials.count > 1 {
-                    state.showToast(Toast(message: "Installed \(name) on \(ok)/\(serials.count) devices", ok: ok > 0))
-                }
-                lastResult = ok == serials.count
-                    ? "Installed \(name)"
-                    : "Installed \(name) on \(ok) of \(serials.count) devices"
-            }
+            let summary = await state.installAPKs(urls, onSerials: serials)
+            lastResult = summary.isEmpty ? nil : summary
             installing = false
+            staged = []
         }
     }
 }

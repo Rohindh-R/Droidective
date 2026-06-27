@@ -137,6 +137,10 @@ final class AppState {
     var selectedBundleId: String?
     var adbStatus: ToolStatus?
     var installingTool: Tool?
+    /// APKs opened from Finder (double-click / Open With), handed to the Install
+    /// App feature to stage for an explicit install. The view consumes (clears)
+    /// it once shown.
+    var pendingInstallAPKs: [URL] = []
     /// Set by RootView so hotkeys/menu bar can reopen a closed main window.
     var openMainWindow: (() -> Void)?
     /// Set by RootView; opens the floating ⌘K search palette.
@@ -787,25 +791,41 @@ final class AppState {
         ))
     }
 
-    /// Install one or more APKs on the given device serials, one toast per APK.
-    /// Shared by the Install App screen and the Finder-drop device picker.
-    func installAPKs(_ urls: [URL], onSerials serials: [String]) {
-        guard !urls.isEmpty, !serials.isEmpty else { return }
-        Task {
-            await CommandLog.userInitiated(feature: "install-app") {
-                for url in urls {
-                    let name = url.lastPathComponent
-                    var ok = 0
-                    var failures: [(serial: String, result: FeatureResult)] = []
-                    for serial in serials {
-                        let result = (try? await env.engine.appInstall.install(apkPath: url.path, serial: serial))
-                            ?? FeatureResult(ok: false, message: "adb not found")
-                        if result.ok { ok += 1 } else { failures.append((serial, result)) }
-                    }
-                    showToast(Self.installToast(name: name, ok: ok, total: serials.count, failures: failures))
+    /// Route APKs opened from Finder to the Install App feature: surface the main
+    /// window, stage the files there, and select the feature so the user confirms
+    /// the target device and installs.
+    func openAPKs(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        pendingInstallAPKs = urls
+        activateMainWindow()
+        selectedFeatureID = "install-app"
+    }
+
+    /// Install one or more APKs on the given device serials, one toast per APK
+    /// (failures keep the full adb output in the toast's copyText). Returns a
+    /// short multi-line summary for inline display. Shared by the Install App
+    /// screen's drop zone, the file picker, and APKs opened from Finder.
+    @discardableResult
+    func installAPKs(_ urls: [URL], onSerials serials: [String]) async -> String {
+        guard !urls.isEmpty, !serials.isEmpty else { return "" }
+        var report: [String] = []
+        await CommandLog.userInitiated(feature: "install-app") {
+            for url in urls {
+                let name = url.lastPathComponent
+                var ok = 0
+                var failures: [(serial: String, result: FeatureResult)] = []
+                for serial in serials {
+                    let result = (try? await env.engine.appInstall.install(apkPath: url.path, serial: serial))
+                        ?? FeatureResult(ok: false, message: "adb not found")
+                    if result.ok { ok += 1 } else { failures.append((serial, result)) }
                 }
+                showToast(Self.installToast(name: name, ok: ok, total: serials.count, failures: failures))
+                report.append(ok == serials.count
+                    ? "Installed \(name)"
+                    : "Installed \(name) on \(ok) of \(serials.count) devices")
             }
         }
+        return report.joined(separator: "\n")
     }
 
     /// A short install headline for the toast; on failure the full adb output is
