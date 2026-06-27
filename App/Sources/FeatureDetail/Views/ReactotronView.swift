@@ -244,15 +244,15 @@ final class ReactotronSession {
     func clearTimeline() { items.removeAll() }
     fileprivate func deleteSnapshot(_ snapshot: Snapshot) { snapshots.removeAll { $0.id == snapshot.id } }
 
-    func export() {
+    fileprivate func export(_ itemsToExport: [RtItem]) {
         guard let file = app?.askSaveLocation(
             suggestedName: "reactotron_\(ScreenCaptureService.stamp()).json"
         ) else { return }
         do {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-            try encoder.encode(items.map(\.command)).write(to: file)
-            app?.showToast(Toast(message: "Exported \(items.count) events", ok: true, revealPath: file.path))
+            try encoder.encode(itemsToExport.map(\.command)).write(to: file)
+            app?.showToast(Toast(message: "Exported \(itemsToExport.count) events", ok: true, revealPath: file.path))
         } catch {
             app?.showToast(Toast(message: "Export failed: \(error.localizedDescription)", ok: false))
         }
@@ -465,14 +465,6 @@ struct ReactotronView: View {
             .help(split ? "Back to a single pane" : "Split into two panes")
 
             Button {
-                session.export()
-            } label: {
-                Image(systemName: "square.and.arrow.up")
-            }
-            .help("Export timeline to JSON")
-            .disabled(session.items.isEmpty)
-
-            Button {
                 session.clearTimeline()
             } label: {
                 Image(systemName: "trash")
@@ -503,7 +495,8 @@ struct ReactotronView: View {
             items: session.displayedItems,
             targetEmpty: state.targetSerials.isEmpty,
             connection: session.connection,
-            showOnboarding: showOnboarding
+            showOnboarding: showOnboarding,
+            onExport: { session.export($0) }
         )
     }
 
@@ -898,6 +891,7 @@ private struct TimelinePane: View {
     let targetEmpty: Bool
     let connection: RtConnection
     let showOnboarding: Bool
+    let onExport: ([RtItem]) -> Void
 
     @State private var search = ""
     @State private var filter: RtFilter = .all
@@ -921,8 +915,7 @@ private struct TimelinePane: View {
             .labelsHidden()
             .frame(width: 110)
 
-            TextField("Search…", text: $search)
-                .brandField()
+            SearchField(prompt: "Search…", text: $search)
                 .frame(maxWidth: 200)
 
             Spacer()
@@ -932,6 +925,14 @@ private struct TimelinePane: View {
                     .font(.caption)
                     .foregroundStyle(.textMuted)
             }
+
+            Button {
+                onExport(visibleItems)
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+            }
+            .help("Export this pane's filtered timeline to JSON")
+            .disabled(visibleItems.isEmpty)
 
             Button {
                 newestFirst.toggle()
@@ -1134,7 +1135,7 @@ private struct RtRow: View {
             HStack {
                 Spacer()
                 CopyButton(label: "Copy as cURL", icon: "terminal") {
-                    curlCommand(method: method, url: url, request: request)
+                    ReactotronCurl.command(method: method, url: url, request: request)
                 }
             }
             Picker("", selection: $apiTab) {
@@ -1218,36 +1219,6 @@ private struct RtRow: View {
               let data = text.data(using: .utf8),
               let parsed = try? JSONDecoder().decode(JSONValue.self, from: data) else { return nil }
         return parsed
-    }
-
-    /// Reproduce the request as a copy-pasteable curl command.
-    private func curlCommand(method: String, url: String, request: JSONValue?) -> String {
-        var parts: [String] = ["curl"]
-        let verb = method.uppercased()
-        if verb != "GET" { parts.append("-X \(verb)") }
-        parts.append(shellQuote(url))
-        if let headers = request?["headers"]?.objectValue {
-            for (key, value) in headers.sorted(by: { $0.key < $1.key }) {
-                let rendered = value.stringValue ?? rawJSON(value)
-                parts.append("-H \(shellQuote("\(key): \(rendered)"))")
-            }
-        }
-        if let data = request?["data"], !data.isNull {
-            let body = data.stringValue ?? rawJSON(data)
-            if !body.isEmpty { parts.append("--data \(shellQuote(body))") }
-        }
-        return parts.joined(separator: " \\\n  ")
-    }
-
-    /// Raw (non-marker-repaired) JSON — for curl bodies that must stay valid.
-    private func rawJSON(_ value: JSONValue) -> String {
-        guard let data = try? JSONEncoder().encode(value),
-              let text = String(data: data, encoding: .utf8) else { return "" }
-        return text
-    }
-
-    private func shellQuote(_ string: String) -> String {
-        "'" + string.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     private func formatMs(_ ms: Double) -> String {

@@ -11,6 +11,8 @@ struct HomeView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var showMore = false
 
+    private static let welcomeTitle = "Welcome to Droidective"
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 30) {
@@ -32,21 +34,45 @@ struct HomeView: View {
 
     // MARK: - Header
 
+    /// Responsive so a narrow detail pane (e.g. sidebar + notifications panel
+    /// open on a small window) never starves the title into per-character
+    /// wrapping. `ViewThatFits` keeps the role badge inline when there's room
+    /// and wraps it below the title when there isn't; the title scales rather
+    /// than breaking mid-word at the extreme. The subtitle always sits on its
+    /// own full-width line so it wraps cleanly and doesn't skew the fit.
     private var header: some View {
-        HStack(spacing: 16) {
-            Image(colorScheme == .dark ? "AppLogoDark" : "AppLogoLight")
-                .resizable()
-                .frame(width: 60, height: 60)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Welcome to Droidective")
-                    .font(.largeTitle.bold())
-                Text("An Android & React Native debugging command palette, driven over adb.")
-                    .font(.title3)
-                    .foregroundStyle(.textMuted)
+        VStack(alignment: .leading, spacing: 10) {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 16) {
+                    logo
+                    Text(Self.welcomeTitle)
+                        .font(.largeTitle.bold())
+                        .fixedSize()
+                    Spacer(minLength: 12)
+                    roleBadge
+                }
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .center, spacing: 12) {
+                        logo
+                        Text(Self.welcomeTitle)
+                            .font(.largeTitle.bold())
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.6)
+                    }
+                    roleBadge
+                }
             }
-            Spacer(minLength: 12)
-            roleBadge
+            Text("An Android & React Native debugging command palette, driven over adb.")
+                .font(.title3)
+                .foregroundStyle(.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private var logo: some View {
+        Image(colorScheme == .dark ? "AppLogoDark" : "AppLogoLight")
+            .resizable()
+            .frame(width: 60, height: 60)
     }
 
     /// Current role as a pill that opens the picker — the "change this anytime"

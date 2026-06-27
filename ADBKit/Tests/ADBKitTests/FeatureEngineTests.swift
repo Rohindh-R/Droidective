@@ -223,7 +223,9 @@ import Testing
             stdout: "", stderr: "adb: failed to install app.apk: Failure [INSTALL_FAILED_INSUFFICIENT_STORAGE]",
             exitCode: 1, timedOut: false))
         #expect(!failure.ok)
-        #expect(failure.message.contains("INSTALL_FAILED_INSUFFICIENT_STORAGE"))
+        // parse now returns a plain-English reason; the raw code stays in copyText.
+        #expect(failure.message == "Not enough storage on the device.")
+        #expect(failure.copyText?.contains("INSTALL_FAILED_INSUFFICIENT_STORAGE") == true)
     }
 
     @Test func multiWordSearchMatchesNonContiguousTokens() {

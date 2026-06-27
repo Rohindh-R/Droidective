@@ -19,6 +19,7 @@ struct ToastOverlay: View {
 }
 
 private struct ToastView: View {
+    @Environment(AppState.self) private var state
     let toast: Toast
 
     var body: some View {
@@ -47,6 +48,15 @@ private struct ToastView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
             }
+
+            Button { state.dismissToast(toast.id) } label: {
+                Image(systemName: "xmark")
+                    .font(.caption)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.textMuted)
+            .help("Dismiss")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
