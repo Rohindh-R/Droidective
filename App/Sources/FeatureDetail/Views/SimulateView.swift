@@ -18,6 +18,13 @@ struct SimulateView: View {
     @State private var proxy = ""
 
     var body: some View {
+        if state.targetSerials.isEmpty {
+            ContentUnavailableView(
+                "No device connected", systemImage: "iphone.slash",
+                description: Text("Connect a device to simulate its state.")
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
         HubColumn {
             if !state.activeOverrides.isEmpty {
                 Button("Reset all overrides", role: .destructive) { state.resetAllOverrides() }
@@ -107,15 +114,7 @@ struct SimulateView: View {
                 }
             }
         }
-        .disabled(state.targetSerials.isEmpty)
-        .overlay {
-            if state.targetSerials.isEmpty {
-                ContentUnavailableView(
-                    "No device connected", systemImage: "iphone.slash",
-                    description: Text("Connect a device to simulate its state.")
-                )
-            }
-        }
+        } // else
     }
 
     private var localeOptions: [FieldOption] {

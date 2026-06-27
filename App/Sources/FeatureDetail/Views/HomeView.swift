@@ -93,7 +93,8 @@ struct HomeView: View {
             .overlay(Capsule().strokeBorder(Color.borderSubtle, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .fixedSize()
+        .fixedSize(horizontal: true, vertical: true)
+        .layoutPriority(-1)
         .help("Your role decides which tools start here — change it anytime")
     }
 
@@ -244,7 +245,7 @@ struct HomeView: View {
             Spacer(minLength: 0)
         }
         .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.borderSubtle, lineWidth: 1))
     }

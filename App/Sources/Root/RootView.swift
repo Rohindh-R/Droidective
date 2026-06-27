@@ -164,21 +164,23 @@ struct RootView: View {
                         OperationProgressStrip(operation: operation)
                     }
                 }
-                HStack(spacing: 0) {
-                    FeatureDetailView(featureID: state.selectedFeatureID)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .overlay(alignment: .topTrailing) { ToastOverlay() }
-                    if state.showNotifications {
+                FeatureDetailView(featureID: state.selectedFeatureID)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .overlay(alignment: .topTrailing) { ToastOverlay() }
+            }
+            .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
+            .background(.bgRoot)
+            .overlay(alignment: .trailing) {
+                if state.showNotifications {
+                    HStack(spacing: 0) {
                         Divider()
                         NotificationPanelView()
                             .frame(width: 320)
-                            .transition(.move(edge: .trailing).combined(with: .opacity))
                     }
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(.bgRoot)
             .animation(.spring(duration: 0.28), value: state.showNotifications)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
