@@ -105,8 +105,22 @@ jobs:
             MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             SENTRY_DSN="$SENTRY_DSN" POSTHOG_KEY="$POSTHOG_KEY" \
             CODE_SIGN_IDENTITY="$SIGN_IDENTITY" DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_STYLE=Manual ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS="--timestamp"
+            CODE_SIGN_STYLE=Manual ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS="--timestamp" \
+            DEBUG_INFORMATION_FORMAT=dwarf-with-dsym
           SIGN_IDENTITY="$SIGN_IDENTITY" ./scripts/package-dmg.sh "${GITHUB_REF_NAME}"
+      # Upload dSYMs so Sentry can symbolicate first-party frames in crash/app-hang
+      # reports. Without this, our own frames show as <unknown>. Skips cleanly if
+      # the SENTRY_AUTH_TOKEN secret is absent (e.g. forks).
+      - name: Upload dSYMs to Sentry
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ro-is
+          SENTRY_PROJECT: droidective-mac
+          SENTRY_URL: https://de.sentry.io
+        run: |
+          [[ -n "${SENTRY_AUTH_TOKEN:-}" ]] || { echo "no SENTRY_AUTH_TOKEN secret — skipping dSYM upload"; exit 0; }
+          brew install getsentry/tools/sentry-cli
+          sentry-cli debug-files upload --wait DerivedData/Build/Products/Release
       - name: Notarize and staple
         env:
           AC_API_KEY_P8: ${{ secrets.AC_API_KEY_P8 }}
