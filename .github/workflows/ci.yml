@@ -16,7 +16,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Run ADBKit tests
-        run: cd ADBKit && swift test
+        run: cd ADBKit && swift test -Xswiftc -warnings-as-errors
 
   build:
     runs-on: macos-15

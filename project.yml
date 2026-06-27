@@ -90,6 +90,9 @@ targets:
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete
+        # Enforce the zero-warnings policy for first-party App code. Scoped to
+        # this target's sources — SPM dependencies build with their own settings.
+        SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_STYLE: Manual
         ENABLE_HARDENED_RUNTIME: NO
