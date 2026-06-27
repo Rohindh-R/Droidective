@@ -59,9 +59,10 @@ jobs:
           mkdir -p _site
           cp -R site/. _site/
           # Reuse the app's PostHog key (a public client-side token) so the site
-          # shares one project; the page no-ops analytics if the secret is unset.
+          # shares one project; analytics no-ops if the secret is unset. Every
+          # page loads the shared analytics.js, so the key is injected once here.
           if [ -n "${POSTHOG_KEY:-}" ]; then
-            sed -i "s|__POSTHOG_KEY__|${POSTHOG_KEY}|g" _site/index.html
+            sed -i "s|__POSTHOG_KEY__|${POSTHOG_KEY}|g" _site/analytics.js
           fi
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0
         with:
