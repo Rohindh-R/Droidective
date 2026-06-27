@@ -915,8 +915,7 @@ private struct TimelinePane: View {
             .labelsHidden()
             .frame(width: 110)
 
-            TextField("Search…", text: $search)
-                .brandField()
+            SearchField(prompt: "Search…", text: $search)
                 .frame(maxWidth: 200)
 
             Spacer()
