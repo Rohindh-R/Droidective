@@ -201,7 +201,19 @@ final class ReactotronSession {
 
     func takeSnapshot() {
         pendingSnapshot = true
-        Task { await sendToTarget(type: "state.backup.request", payload: .object([:])) }
+        Task {
+            await sendToTarget(type: "state.backup.request", payload: .object([:]))
+            // Mirror loadStateTree: if no store plugin replies, clear the pending
+            // flag and report it — otherwise it stays pending forever and the next
+            // unrelated backup response is silently captured as the snapshot.
+            try? await Task.sleep(for: .seconds(4))
+            guard pendingSnapshot else { return }
+            pendingSnapshot = false
+            app?.showToast(Toast(
+                message: "No snapshot received — wire reactotron-redux or reactotron-mst into your store to snapshot it.",
+                ok: false
+            ))
+        }
     }
 
     fileprivate func restore(_ snapshot: Snapshot) {
