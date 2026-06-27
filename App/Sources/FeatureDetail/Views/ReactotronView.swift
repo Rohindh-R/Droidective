@@ -1134,7 +1134,7 @@ private struct RtRow: View {
             HStack {
                 Spacer()
                 CopyButton(label: "Copy as cURL", icon: "terminal") {
-                    curlCommand(method: method, url: url, request: request)
+                    ReactotronCurl.command(method: method, url: url, request: request)
                 }
             }
             Picker("", selection: $apiTab) {
@@ -1218,36 +1218,6 @@ private struct RtRow: View {
               let data = text.data(using: .utf8),
               let parsed = try? JSONDecoder().decode(JSONValue.self, from: data) else { return nil }
         return parsed
-    }
-
-    /// Reproduce the request as a copy-pasteable curl command.
-    private func curlCommand(method: String, url: String, request: JSONValue?) -> String {
-        var parts: [String] = ["curl"]
-        let verb = method.uppercased()
-        if verb != "GET" { parts.append("-X \(verb)") }
-        parts.append(shellQuote(url))
-        if let headers = request?["headers"]?.objectValue {
-            for (key, value) in headers.sorted(by: { $0.key < $1.key }) {
-                let rendered = value.stringValue ?? rawJSON(value)
-                parts.append("-H \(shellQuote("\(key): \(rendered)"))")
-            }
-        }
-        if let data = request?["data"], !data.isNull {
-            let body = data.stringValue ?? rawJSON(data)
-            if !body.isEmpty { parts.append("--data \(shellQuote(body))") }
-        }
-        return parts.joined(separator: " \\\n  ")
-    }
-
-    /// Raw (non-marker-repaired) JSON — for curl bodies that must stay valid.
-    private func rawJSON(_ value: JSONValue) -> String {
-        guard let data = try? JSONEncoder().encode(value),
-              let text = String(data: data, encoding: .utf8) else { return "" }
-        return text
-    }
-
-    private func shellQuote(_ string: String) -> String {
-        "'" + string.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     private func formatMs(_ ms: Double) -> String {
