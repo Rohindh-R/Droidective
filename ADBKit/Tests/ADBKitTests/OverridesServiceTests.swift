@@ -125,4 +125,31 @@ import Testing
             $0.arguments == ["-s", "S1", "shell", "am", "broadcast", "-a", "com.android.systemui.demo", "-e", "command", "exit"]
         })
     }
+
+    @Test func proxyValueIsShellQuotedAgainstInjection() async throws {
+        // A proxy carrying shell metacharacters must reach the device as one
+        // quoted argument, not as `settings put … ; reboot`.
+        let runner = MockProcessRunner()
+        runner.script(argsPrefix: ["-s"], stdout: "")
+        let service = await makeService(runner)
+        _ = try await service.applyProxy(serial: "S1", proxy: "10.0.0.5; reboot:8888")
+        #expect(runner.invocations.contains {
+            $0.arguments == [
+                "-s", "S1", "shell", "settings", "put", "global", "http_proxy", "'10.0.0.5; reboot:8888'",
+            ]
+        })
+    }
+
+    @Test func localeValueIsShellQuotedAgainstInjection() async throws {
+        let runner = MockProcessRunner()
+        runner.script(argsPrefix: ["-s"], stdout: "")
+        let service = await makeService(runner)
+        _ = try await service.applyLocale(serial: "S1", locale: "fr-FR; rm -rf /")
+        #expect(runner.invocations.contains {
+            $0.arguments == [
+                "-s", "S1", "shell", "am", "broadcast", "-a", "android.intent.action.LOCALE_CHANGED",
+                "--es", "locale", "'fr-FR; rm -rf /'",
+            ]
+        })
+    }
 }

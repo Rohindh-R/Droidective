@@ -47,7 +47,7 @@ public struct OverridesService: Sendable {
     // MARK: - Apply
 
     public func applyProxy(serial: String, proxy: String) async throws(AdbError) -> String {
-        _ = try await client.run(on: serial, ["shell", "settings", "put", "global", "http_proxy", proxy])
+        _ = try await client.run(on: serial, ["shell", "settings", "put", "global", "http_proxy", shellQuote(proxy)])
         await record(serial: serial, kind: .proxy, value: proxy)
         return proxy
     }
@@ -98,7 +98,7 @@ public struct OverridesService: Sendable {
     /// the broadcast path many ROMs honor; record so the user can reset.
     public func applyLocale(serial: String, locale: String) async throws(AdbError) -> String {
         _ = try await client.run(on: serial, [
-            "shell", "am", "broadcast", "-a", "android.intent.action.LOCALE_CHANGED", "--es", "locale", locale,
+            "shell", "am", "broadcast", "-a", "android.intent.action.LOCALE_CHANGED", "--es", "locale", shellQuote(locale),
         ])
         await record(serial: serial, kind: .locale, value: locale)
         return locale
