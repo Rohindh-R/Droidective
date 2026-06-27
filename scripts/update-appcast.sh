@@ -67,7 +67,7 @@ cat >"$APPCAST" <<XML
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
     <title>Droidective</title>
-    <link>https://droidective.github.io/Droidective/appcast.xml</link>
+    <link>https://droidective.com/appcast.xml</link>
     <description>Most recent Droidective updates.</description>
     <language>en</language>
     <item>

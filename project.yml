@@ -63,7 +63,7 @@ targets:
         NSHumanReadableCopyright: ""
         SentryDSN: $(SENTRY_DSN)
         PostHogKey: $(POSTHOG_KEY)
-        SUFeedURL: https://droidective.github.io/Droidective/appcast.xml
+        SUFeedURL: https://droidective.com/appcast.xml
         SUPublicEDKey: "ma0kTe35r55/PKmemQOEBX7n6SuZPZjOBo973SdJqJ8="
         SUEnableAutomaticChecks: true
         UTImportedTypeDeclarations:
