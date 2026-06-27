@@ -36,17 +36,31 @@ public struct DeviceOverview: Sendable, Equatable {
     public static func parseDf(_ output: String) -> (total: Int?, used: Int?, available: Int?) {
         let lines = output.split(whereSeparator: \.isNewline)
         guard lines.count >= 2 else { return (nil, nil, nil) }
-        // Split on any whitespace (incl. a trailing CR on CRLF output) so the
-        // last numeric column parses cleanly.
-        let fields = lines[1].split(whereSeparator: \.isWhitespace)
-        guard fields.count >= 4 else { return (nil, nil, nil) }
-        return (Int(fields[1]), Int(fields[2]), Int(fields[3]))
+        // Gather tokens from every line after the header. On dynamic-partition
+        // devices (Pixel, most Android 11+) `df` wraps a long filesystem name
+        // onto its own line, pushing the numbers to the next physical line —
+        // joining the tokens keeps them reachable. Whitespace splitting also
+        // drops a trailing CR on CRLF output.
+        let tokens = lines.dropFirst().flatMap { $0.split(whereSeparator: \.isWhitespace) }
+        guard tokens.count >= 3 else { return (nil, nil, nil) }
+        // df -k columns are: Filesystem 1K-blocks Used Available Use% Mounted.
+        // The first run of three consecutive integers is (total, used,
+        // available); Use% carries a '%' so it never parses as an Int.
+        for i in 0...(tokens.count - 3) {
+            if let total = Int(tokens[i]), let used = Int(tokens[i + 1]), let available = Int(tokens[i + 2]) {
+                return (total, used, available)
+            }
+        }
+        return (nil, nil, nil)
     }
 
     /// `dumpsys battery` → (level, health label, cycle count).
     public static func parseBattery(_ output: String) -> (level: Int?, health: String?, cycles: Int?) {
-        let level = output.firstMatch(of: /level:\s*(\d+)/).flatMap { Int($0.1) }
-        let healthCode = output.firstMatch(of: /health:\s*(\d+)/).flatMap { Int($0.1) }
+        // Anchor to the start of a line (multiline) so a decoy such as
+        // "Max charging level: 80" on some ROMs can't be matched ahead of the
+        // canonical "  level: 55".
+        let level = output.firstMatch(of: /(?m)^\s*level:\s*(\d+)/).flatMap { Int($0.1) }
+        let healthCode = output.firstMatch(of: /(?m)^\s*health:\s*(\d+)/).flatMap { Int($0.1) }
         let health: String? = healthCode.map {
             switch $0 {
             case 2: return "Good"
