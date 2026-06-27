@@ -44,7 +44,7 @@
     "description": "A free, open-source macOS command palette for Android & React Native debugging over adb: screen mirroring, logcat, file explorer, performance monitoring, app management — 48 tools in all.",
     "url": "https://droidective.com/",
     "downloadUrl": "https://github.com/Droidective/Droidective/releases/latest",
-    "softwareVersion": "2.6.1",
+    "softwareVersion": "2.6.2",
     "screenshot": "https://droidective.com/assets/screenshot-home.png",
     "license": "https://github.com/Droidective/Droidective/blob/main/LICENSE",
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
@@ -289,6 +289,14 @@
     }
     .card .sh::before { content: "$ "; color: var(--faint); }
 
+    /* ---- Role / guide cards (link cards) ---- */
+    a.role-card { display: flex; flex-direction: column; }
+    .role-card .go {
+      margin-top: auto; padding-top: 6px; font-family: var(--mono); font-size: 12.5px;
+      font-weight: 500; color: var(--green); transition: color .15s;
+    }
+    .role-card:hover .go { color: var(--green-bright); }
+
     /* ---- Watch it work ---- */
     .window {
       border-radius: 16px; overflow: hidden; border: 1px solid var(--line-2);
@@ -464,6 +472,7 @@
         <a href="#features">Features</a>
         <a href="#screenshots">Screens</a>
         <a href="#how">How it works</a>
+        <a href="#for-you">Guides</a>
         <a href="#changelog">Changelog</a>
         <a href="#faq">FAQ</a>
         <a href="https://github.com/Droidective/Droidective">GitHub</a>
@@ -486,7 +495,7 @@
           <a class="btn btn-primary" data-dl-latest href="https://github.com/Droidective/Droidective/releases/latest"><svg class="ic"><use href="#ic-dl"/></svg> Download for macOS</a>
           <a class="btn btn-ghost" href="https://github.com/Droidective/Droidective"><svg class="ic"><use href="#ic-star"/></svg> Star on GitHub</a>
         </div>
-        <p class="fineprint">$ <span>requires Android adb · auto-updates via Sparkle · v2.6.1</span></p>
+        <p class="fineprint">$ <span>requires Android adb · auto-updates via Sparkle · v2.6.2</span></p>
       </div>
 
       <div class="palette reveal" aria-hidden="true">
@@ -511,7 +520,7 @@
         </ul>
         <div class="palette-foot">
           <span><b>↩</b> run</span><span><b>⌘K</b> search</span><span><b>esc</b> close</span>
-          <span style="margin-left:auto"><b>45</b> tools</span>
+          <span style="margin-left:auto"><b>48</b> tools</span>
         </div>
       </div>
     </div>
@@ -519,7 +528,7 @@
 
   <section class="trust">
     <div class="wrap trust-row">
-      <div class="trust-item"><div class="trust-num g">45</div><div class="trust-lbl">built-in tools</div></div>
+      <div class="trust-item"><div class="trust-num g">48</div><div class="trust-lbl">built-in tools</div></div>
       <div class="trust-item"><div class="trust-num">⌘K</div><div class="trust-lbl">command palette</div></div>
       <div class="trust-item"><div class="trust-num">MIT</div><div class="trust-lbl">open source</div></div>
       <div class="trust-item"><div class="trust-num">$0</div><div class="trust-lbl">free, forever</div></div>
@@ -603,7 +612,7 @@
     </div>
 
     <div class="showcase flip reveal">
-      <div class="shot"><img src="assets/screenshot-react.webp" alt="Droidective React Native hub — reload JS, open the dev menu, force process death, and set the Metro dev-server host" width="1600" height="1012" loading="lazy" /></div>
+      <div class="shot"><img src="assets/screenshot-react.webp" alt="Droidective React Native hub — reload JS, open the dev menu, force process death, forward Metro, and set the dev-server host" width="1624" height="1061" loading="lazy" /></div>
       <div>
         <span class="eyebrow">react native</span>
         <h3>Made for React Native</h3>
@@ -662,15 +671,59 @@ Pixel 8     device</pre>
     </div>
   </section>
 
+  <section class="section wrap" id="for-you">
+    <div class="section-head center reveal">
+      <span class="eyebrow">deep dives</span>
+      <h2>Built for the way you work.</h2>
+      <p>Droidective fits a few different workflows. Here's the guide for yours.</p>
+    </div>
+    <div class="feature-grid">
+      <a class="card role-card reveal" href="/react-native-debugger.html">
+        <div class="card-ic"><svg><use href="#ic-react"/></svg></div>
+        <h3>React Native debugging</h3>
+        <p>Built-in Reactotron, the dev menu, JS reload, and Metro port forwarding — one RN hub, no terminal.</p>
+        <span class="go">Open the RN guide →</span>
+      </a>
+      <a class="card role-card reveal" href="/for-android-developers.html">
+        <div class="card-ic"><svg><use href="#ic-search"/></svg></div>
+        <h3>Android developers</h3>
+        <p>Tail logcat, watch performance, browse device files, and drive apps — every adb command behind ⌘K.</p>
+        <span class="go">For Android developers →</span>
+      </a>
+      <a class="card role-card reveal" href="/for-qa-and-testers.html">
+        <div class="card-ic"><svg><use href="#ic-bug"/></svg></div>
+        <h3>QA &amp; testers</h3>
+        <p>Reproduce, capture, and report bugs in minutes — fake state, mark up a screenshot, pull a full bug report.</p>
+        <span class="go">For QA &amp; testers →</span>
+      </a>
+      <a class="card role-card reveal" href="/for-support-teams.html">
+        <div class="card-ic"><svg><use href="#ic-activity"/></svg></div>
+        <h3>Support teams</h3>
+        <p>See the device, pull the diagnostics, close the ticket — mirror the screen and grab logs, no adb needed.</p>
+        <span class="go">For support teams →</span>
+      </a>
+      <a class="card role-card reveal" href="/scrcpy-gui-mac.html">
+        <div class="card-ic"><svg><use href="#ic-cast"/></svg></div>
+        <h3>scrcpy GUI for Mac</h3>
+        <p>A native GUI for scrcpy — mirror, control, and record your Android screen, with ffmpeg bundled in.</p>
+        <span class="go">scrcpy GUI for Mac →</span>
+      </a>
+    </div>
+  </section>
+
   <section class="section wrap" id="changelog">
     <div class="section-head center reveal">
       <span class="eyebrow">changelog</span>
       <h2>Shipped, and still moving.</h2>
-      <p>Eleven releases since the first public build — automatic in-app updates since v2.1.0, and Apple-notarized builds since v2.4.0.</p>
+      <p>Twelve releases since the first public build — automatic in-app updates since v2.1.0, and Apple-notarized builds since v2.4.0.</p>
     </div>
     <div class="timeline reveal">
       <div class="rel latest">
-        <div class="rel-head"><span class="rel-ver">v2.6.1</span><span class="rel-tag">latest</span><span class="rel-date">Jun 2026</span></div>
+        <div class="rel-head"><span class="rel-ver">v2.6.2</span><span class="rel-tag">latest</span><span class="rel-date">Jun 2026</span></div>
+        <p><b>Security &amp; stability hardening</b> — shell-quoted device commands, bounded screen-mirror decoders, and cancelled actions that stop their adb child — plus a <b>leave guard</b> that confirms before discarding an active recording or unsaved edit, and <b>opening an APK from Finder</b> now previews its name, version &amp; SDK before installing.</p>
+      </div>
+      <div class="rel">
+        <div class="rel-head"><span class="rel-ver">v2.6.1</span><span class="rel-date">Jun 2026</span></div>
         <p><b>Custom command presets</b> — a library of common adb commands to add and run — plus a round of polish: Reactotron copy-as-cURL, per-pane export, and a search affordance; plain-English <b>install errors</b>; a dismissable toast; and <b>mirroring that survives device rotation</b>.</p>
       </div>
       <div class="rel">
@@ -756,7 +809,7 @@ Pixel 8     device</pre>
     <div class="contrib">
       <div class="panel reveal">
         <h3>Contribute</h3>
-        <p>All logic lives in a platform-agnostic Swift package (<code class="mono" style="color:var(--green-dim)">ADBKit</code>) with 186 passing tests; the SwiftUI shell stays thin. Bug reports, feature ideas, and PRs are all welcome.</p>
+        <p>All logic lives in a platform-agnostic Swift package (<code class="mono" style="color:var(--green-dim)">ADBKit</code>) with 350 passing tests; the SwiftUI shell stays thin. Bug reports, feature ideas, and PRs are all welcome.</p>
         <pre><span class="c">$</span> brew install xcodegen
 <span class="c">$</span> make test    <span style="color:var(--faint)"># ADBKit unit tests — no device needed</span>
 <span class="c">$</span> make run     <span style="color:var(--faint)"># build &amp; launch</span></pre>
