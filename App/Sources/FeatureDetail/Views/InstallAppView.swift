@@ -14,6 +14,9 @@ struct InstallAppView: View {
     /// APK(s) opened from Finder (double-click / Open With), staged for an
     /// explicit Install rather than installing on arrival.
     @State private var staged: [URL] = []
+    /// aapt2-parsed details per staged APK (app name, version, SDK), shown in the
+    /// card. Populated asynchronously; falls back to file name + size.
+    @State private var apkInfos: [URL: ApkInfo] = [:]
 
     private var targets: [Device] {
         state.devices.filter { state.targetSerials.contains($0.serial) }
@@ -39,6 +42,7 @@ struct InstallAppView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear { consumePending() }
         .onChange(of: state.pendingInstallAPKs) { _, _ in consumePending() }
+        .task(id: staged) { await inspectStaged() }
     }
 
     /// An APK opened from Finder, staged and awaiting an explicit Install (the
@@ -48,15 +52,11 @@ struct InstallAppView: View {
             Image(systemName: "arrow.down.app.fill")
                 .font(.system(size: 46))
                 .foregroundStyle(.brandAccent)
-            VStack(spacing: 4) {
+            VStack(spacing: 6) {
                 Text(staged.count == 1 ? "Ready to install" : "Ready to install \(staged.count) APKs")
                     .font(.title3.weight(.medium))
                 ForEach(staged, id: \.self) { url in
-                    Text(url.lastPathComponent)
-                        .font(.callout)
-                        .foregroundStyle(.textMuted)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                    apkRow(url)
                 }
             }
             HStack(spacing: 10) {
@@ -80,6 +80,45 @@ struct InstallAppView: View {
         guard !state.pendingInstallAPKs.isEmpty else { return }
         staged = state.pendingInstallAPKs
         state.pendingInstallAPKs = []
+    }
+
+    /// Read each staged APK's badging so the card shows what it is. Falls back to
+    /// file name + size when aapt2 (from the SDK build-tools) isn't installed.
+    private func inspectStaged() async {
+        var resolved: [URL: ApkInfo] = [:]
+        for url in staged {
+            resolved[url] = await state.env.engine.appInstall.inspect(apkPath: url.path)
+        }
+        guard !Task.isCancelled else { return }
+        apkInfos = resolved
+    }
+
+    /// One staged APK: app name (or file name) with a package · version · SDK ·
+    /// size subtitle once aapt2 has resolved it.
+    @ViewBuilder private func apkRow(_ url: URL) -> some View {
+        let info = apkInfos[url]
+        VStack(spacing: 1) {
+            Text(info?.label ?? url.lastPathComponent)
+                .font(.callout.weight(.medium))
+                .lineLimit(1)
+                .truncationMode(.middle)
+            if let info {
+                Text(apkSubtitle(info))
+                    .font(.caption)
+                    .foregroundStyle(.textMuted)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+        }
+    }
+
+    private func apkSubtitle(_ info: ApkInfo) -> String {
+        var parts: [String] = []
+        if let package = info.packageName { parts.append(package) }
+        if let version = info.versionName { parts.append("v\(version)") }
+        if let target = info.targetSdk { parts.append("SDK \(target)") }
+        parts.append(ByteCountFormatter.string(fromByteCount: Int64(info.fileSizeBytes), countStyle: .file))
+        return parts.joined(separator: " · ")
     }
 
     private var dropZone: some View {
