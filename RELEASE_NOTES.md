@@ -1,3 +1,49 @@
+## Droidective v2.6.2
+
+A bug-fix release with security, correctness, and stability hardening, plus a
+safer navigation flow and a clearer APK install.
+
+### New features
+
+- **APK pre-install preview** — opening an `.apk` from Finder (double-click, Open
+  With, or drag onto the icon) now stages it in the Install App screen with a card
+  showing the app name, package, version, target SDK, and size (read via the SDK's
+  `aapt2`), so you can see what you're about to install before clicking Install.
+  Falls back to the file name and size when build-tools aren't installed.
+
+### Improvements
+
+- **Leave confirmation** — switching feature or device, or quitting, while an
+  active screen/mirror recording, performance/network capture, or unsaved
+  screenshot/video edit is in flight now asks before discarding it. Recordings
+  offer Stop & Save; editors offer Keep or Discard. Background file pulls and
+  installs continue uninterrupted.
+
+### Bug fixes
+
+- **Video editor** — an applied crop no longer clips away the video and its
+  playback controls; the crop region is shown as an overlay and still applied on
+  export.
+- **Screen mirroring** — the video, audio, and control decoders cap how much they
+  buffer, so a corrupt or desynced stream can no longer grow memory toward a crash.
+- **Network speed** — a `/proc/net/dev` counter that resets on reboot no longer
+  reports a one-off throughput spike.
+- **Reactotron** — "Take snapshot" times out and reports it instead of waiting
+  forever when no store plugin is connected; the built-in server now listens on
+  loopback only (off the local network); state-tree nodes whose key contains a
+  slash no longer collide; and clearing one connection no longer affects another.
+- **Device info** — storage reads correctly on devices with dynamic partitions,
+  and the battery level ignores an unrelated "Max charging level" line.
+- **File Explorer** — an operation that prints a warning but still succeeds is no
+  longer reported as a failure.
+
+### Security
+
+- Proxy and locale values passed to the device shell are quoted, and a cancelled
+  action now terminates its underlying `adb` process instead of leaving it running.
+
+Installed copies update in place via Sparkle.
+
 ## Droidective v2.6.1
 
 A bug-fix release that polishes the v2.6.0 features — Reactotron, the crash

@@ -62,7 +62,7 @@ opening it — verify those by hand.
 ## Build / test / run
 
 ```
-make test          # ADBKit unit tests (cd ADBKit && swift test) — 334 tests, keep green
+make test          # ADBKit unit tests (cd ADBKit && swift test) — 350 tests, keep green
 make build         # xcodegen generate + xcodebuild Debug
 make run           # build + open the .app
 ```
@@ -119,7 +119,7 @@ spawn adb/scrcpy/emulator/brew).
   LayoutState, Presets, OverridesMap, Prefs) in
   `~/Library/Application Support/Droidective/`.
 
-## The 45 features
+## The 48 features
 
 Most `.view` features are full-screen bespoke panels (file-explorer, apps,
 emulators, device-info, logcat, crash-catcher, sandbox-browser, performance,
@@ -140,7 +140,7 @@ Apps hub. They stay hotkey-able (every feature registers a shortcut; the Hotkeys
 tab lists bound members under "Hidden features"). This is a pure display filter —
 no persisted migration — so it also covers a hub that grows later. The rest are generic instant-/form-/toggle-actions
 driven by the registry. The catalog and Home's "All N features" count use
-`catalogFeatureIDs` (27). **Every feature is enabled by default**
+`catalogFeatureIDs` (30). **Every feature is enabled by default**
 (`defaultEnabledIDs == catalogFeatureIDs`); the catalog (Manage features) is for
 turning OFF the ones you don't want, not opting in — there's no Restore button.
 `LayoutState.adoptAllEnabled()` is a one-time migration that turns everything on
@@ -284,10 +284,11 @@ compile or test time* — lean on it instead of manual vigilance.
 ## Status
 
 Feature-complete across all planned milestones plus several UX rounds (latest:
-**v2.6.1** — bug-fix batch across Reactotron, crash catcher, app install,
-notifications, mirroring, and the welcome screen, plus a custom-command preset
-library; v2.6.2 in progress); 334 tests green; builds clean with zero warnings
-(now enforced as errors in CI). Verified live against a physical device and an Android emulator. Release builds
+**v2.6.2** — bug fixes plus security, correctness, and test hardening:
+shell-quoting and process-cancellation audit fixes, scrcpy decoder size caps, a
+navigation leave-guard, opening `.apk` files from Finder with a pre-install
+preview, and the start of an AppState refactor); 350 tests green; builds clean
+with zero warnings (now enforced as errors in CI). Verified live against a physical device and an Android emulator. Release builds
 are Developer ID-signed + notarized and bundle scrcpy/ffmpeg
 (see `RELEASING.md`). Open gaps: the Apps list/detail divider isn't
 drag-resizable.
