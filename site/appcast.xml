@@ -6,9 +6,9 @@
     <description>Most recent Droidective updates.</description>
     <language>en</language>
     <item>
-      <title>Droidective 2.6.1</title>
-      <sparkle:version>144</sparkle:version>
-      <sparkle:shortVersionString>2.6.1</sparkle:shortVersionString>
+      <title>Droidective 2.6.2</title>
+      <sparkle:version>170</sparkle:version>
+      <sparkle:shortVersionString>2.6.2</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
       <description><![CDATA[
 <style>
@@ -24,57 +24,59 @@ pre { background: color-mix(in srgb, currentColor 8%, transparent); padding: .6e
 pre code { background: none; padding: 0; }
 a { color: #2f9e44; }
 </style>
-<p>A bug-fix release that polishes the v2.6.0 features — Reactotron, the crash
-catcher, app install, notifications, and mirroring — and adds a preset library
-to custom commands.</p>
+<p>A bug-fix release with security, correctness, and stability hardening, plus a
+safer navigation flow and a clearer APK install.</p>
 <h3>New features</h3>
 <ul>
 <li>
-<strong>Custom command presets</strong> — start from a curated library of common adb
-commands (force-stop, clear data, launch, list packages, key events, toggle
-animations, battery, clear logcat, reboot, and more) instead of a blank
-editor; add one and run or edit it.</li>
+<strong>APK pre-install preview</strong> — opening an <code>.apk</code> from Finder (double-click, Open
+With, or drag onto the icon) now stages it in the Install App screen with a card
+showing the app name, package, version, target SDK, and size (read via the SDK's
+<code>aapt2</code>), so you can see what you're about to install before clicking Install.
+Falls back to the file name and size when build-tools aren't installed.</li>
 </ul>
 <h3>Improvements</h3>
 <ul>
 <li>
-<strong>Reactotron</strong> — copy-as-cURL no longer turns a GET request into a POST (the
-method is stated explicitly when a body is attached, and empty bodies aren't
-sent); export now writes only the items currently shown in a pane after its
-search and category filters, with the export action moved into each pane; the
-connection stays alive when you switch features, with no "Keep Reactotron
-running?" prompt; and the timeline search reads as search, with a magnifying
-glass and clear button matching the other searches.</li>
-<li>
-<strong>adb install failures</strong> show a plain-English reason (e.g. "Not enough storage
-on the device.") instead of a raw error code; the full adb output stays on the
-Copy button in the toast and the notifications panel.</li>
-<li>
-<strong>Notifications</strong> — the flowing toast now has a dismiss (×) button, and the
-panel's bulk action reads "Clear all" and appears only when there's more than
-one notification.</li>
-<li>
-<strong>Mirroring survives device rotation</strong> — the view refreshes its dimensions and
-re-primes the renderer on the new orientation, so taps stay accurate after a
-rotate.</li>
-<li>
-<strong>Welcome screen</strong> no longer collapses one letter per line in a narrow detail
-pane; the header is responsive and the window's minimum width grows with the
-side panels.</li>
+<strong>Leave confirmation</strong> — switching feature or device, or quitting, while an
+active screen/mirror recording, performance/network capture, or unsaved
+screenshot/video edit is in flight now asks before discarding it. Recordings
+offer Stop &amp; Save; editors offer Keep or Discard. Background file pulls and
+installs continue uninterrupted.</li>
 </ul>
 <h3>Bug fixes</h3>
 <ul>
 <li>
-<strong>Crash Catcher</strong> bounds the fetched crash (caps the logcat dump and keeps the
-diagnostic head plus the most recent lines) so a large log can't freeze the UI
-while rendering.</li>
-<li>The <strong>mirror audio engine</strong> is built off the main thread, fixing an app hang
-on first use.</li>
+<strong>Video editor</strong> — an applied crop no longer clips away the video and its
+playback controls; the crop region is shown as an overlay and still applied on
+export.</li>
+<li>
+<strong>Screen mirroring</strong> — the video, audio, and control decoders cap how much they
+buffer, so a corrupt or desynced stream can no longer grow memory toward a crash.</li>
+<li>
+<strong>Network speed</strong> — a <code>/proc/net/dev</code> counter that resets on reboot no longer
+reports a one-off throughput spike.</li>
+<li>
+<strong>Reactotron</strong> — "Take snapshot" times out and reports it instead of waiting
+forever when no store plugin is connected; the built-in server now listens on
+loopback only (off the local network); state-tree nodes whose key contains a
+slash no longer collide; and clearing one connection no longer affects another.</li>
+<li>
+<strong>Device info</strong> — storage reads correctly on devices with dynamic partitions,
+and the battery level ignores an unrelated "Max charging level" line.</li>
+<li>
+<strong>File Explorer</strong> — an operation that prints a warning but still succeeds is no
+longer reported as a failure.</li>
+</ul>
+<h3>Security</h3>
+<ul>
+<li>Proxy and locale values passed to the device shell are quoted, and a cancelled
+action now terminates its underlying <code>adb</code> process instead of leaving it running.</li>
 </ul>
 <p>Installed copies update in place via Sparkle.</p>
 ]]></description>
-      <pubDate>Sat, 27 Jun 2026 11:12:26 +0000</pubDate>
-      <enclosure url="https://github.com/Droidective/Droidective/releases/download/v2.6.1/Droidective-v2.6.1.dmg" sparkle:edSignature="7RWJLp0hV2XFqOPp3Zxvl6//+UKkkMDeCcJPIwXevwJ0H2SMnQq6JDOoBoGff/V035ld9mqzGBmv5bnVtFs0Bg==" length="45336785" type="application/octet-stream" />
+      <pubDate>Sat, 27 Jun 2026 23:14:26 +0000</pubDate>
+      <enclosure url="https://github.com/Droidective/Droidective/releases/download/v2.6.2/Droidective-v2.6.2.dmg" sparkle:edSignature="olGq6EDSdTbRbGk6FJKLl3xWN9FE4YZ5R2x2uYu8A8IeFWFccD7fF/FO+23ShX8vLVnICeLBBtFoFMH4dTCwDA==" length="45177627" type="application/octet-stream" />
     </item>
   </channel>
 </rss>
