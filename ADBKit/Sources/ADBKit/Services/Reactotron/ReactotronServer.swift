@@ -66,6 +66,11 @@ public actor ReactotronServer {
         }
 
         let parameters = NWParameters.tcp
+        // Bind to loopback only. The device reaches the server through
+        // `adb reverse tcp:9090` (forwarded over loopback), so this is
+        // transparent — and it keeps the debug server off the LAN, where it
+        // would otherwise accept unauthenticated connections from anyone.
+        parameters.requiredInterfaceType = .loopback
         let webSocket = NWProtocolWebSocket.Options()
         webSocket.autoReplyPing = true
         parameters.defaultProtocolStack.applicationProtocols.insert(webSocket, at: 0)
