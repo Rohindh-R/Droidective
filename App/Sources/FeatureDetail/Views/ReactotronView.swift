@@ -244,15 +244,15 @@ final class ReactotronSession {
     func clearTimeline() { items.removeAll() }
     fileprivate func deleteSnapshot(_ snapshot: Snapshot) { snapshots.removeAll { $0.id == snapshot.id } }
 
-    func export() {
+    fileprivate func export(_ itemsToExport: [RtItem]) {
         guard let file = app?.askSaveLocation(
             suggestedName: "reactotron_\(ScreenCaptureService.stamp()).json"
         ) else { return }
         do {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-            try encoder.encode(items.map(\.command)).write(to: file)
-            app?.showToast(Toast(message: "Exported \(items.count) events", ok: true, revealPath: file.path))
+            try encoder.encode(itemsToExport.map(\.command)).write(to: file)
+            app?.showToast(Toast(message: "Exported \(itemsToExport.count) events", ok: true, revealPath: file.path))
         } catch {
             app?.showToast(Toast(message: "Export failed: \(error.localizedDescription)", ok: false))
         }
@@ -465,14 +465,6 @@ struct ReactotronView: View {
             .help(split ? "Back to a single pane" : "Split into two panes")
 
             Button {
-                session.export()
-            } label: {
-                Image(systemName: "square.and.arrow.up")
-            }
-            .help("Export timeline to JSON")
-            .disabled(session.items.isEmpty)
-
-            Button {
                 session.clearTimeline()
             } label: {
                 Image(systemName: "trash")
@@ -503,7 +495,8 @@ struct ReactotronView: View {
             items: session.displayedItems,
             targetEmpty: state.targetSerials.isEmpty,
             connection: session.connection,
-            showOnboarding: showOnboarding
+            showOnboarding: showOnboarding,
+            onExport: { session.export($0) }
         )
     }
 
@@ -898,6 +891,7 @@ private struct TimelinePane: View {
     let targetEmpty: Bool
     let connection: RtConnection
     let showOnboarding: Bool
+    let onExport: ([RtItem]) -> Void
 
     @State private var search = ""
     @State private var filter: RtFilter = .all
@@ -932,6 +926,14 @@ private struct TimelinePane: View {
                     .font(.caption)
                     .foregroundStyle(.textMuted)
             }
+
+            Button {
+                onExport(visibleItems)
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+            }
+            .help("Export this pane's filtered timeline to JSON")
+            .disabled(visibleItems.isEmpty)
 
             Button {
                 newestFirst.toggle()
