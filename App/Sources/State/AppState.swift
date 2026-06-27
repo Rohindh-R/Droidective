@@ -731,6 +731,10 @@ final class AppState {
         notifications.removeAll { $0.id == id }
     }
 
+    func dismissToast(_ id: UUID) {
+        toasts.removeAll { $0.id == id }
+    }
+
     // MARK: - Role
 
     /// Apply the user's role choice (first-run or "Change role"): curate the

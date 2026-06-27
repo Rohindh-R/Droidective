@@ -33,8 +33,8 @@ struct NotificationPanelView: View {
             Text("Notifications")
                 .font(.headline)
             Spacer()
-            if !state.notifications.isEmpty {
-                Button("Clear") { state.clearNotifications() }
+            if state.notifications.count > 1 {
+                Button("Clear all") { state.clearNotifications() }
                     .buttonStyle(.plain)
                     .font(.callout)
                     .foregroundStyle(.textMuted)
