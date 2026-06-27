@@ -40,11 +40,15 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Welcome to Droidective")
                     .font(.largeTitle.bold())
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("An Android & React Native debugging command palette, driven over adb.")
                     .font(.title3)
                     .foregroundStyle(.textMuted)
+                    .lineLimit(3)
             }
-            Spacer(minLength: 12)
+            Spacer(minLength: 0)
             roleBadge
         }
     }
@@ -67,7 +71,8 @@ struct HomeView: View {
             .overlay(Capsule().strokeBorder(Color.borderSubtle, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .fixedSize()
+        .fixedSize(horizontal: true, vertical: true)
+        .layoutPriority(-1)
         .help("Your role decides which tools start here — change it anytime")
     }
 
@@ -218,7 +223,7 @@ struct HomeView: View {
             Spacer(minLength: 0)
         }
         .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color.bgSurface, in: RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.borderSubtle, lineWidth: 1))
     }
