@@ -68,8 +68,14 @@ public struct DecompileService: Sendable {
             arguments = Self.apktoolDecodeArguments(jar: apktool, output: outDir.path, apk: apkPath)
         }
         let result = await runner.run(executable: java, arguments: arguments, timeout: .seconds(600), maxOutputBytes: 8 << 20)
-        guard result.exitCode == 0 else {
-            throw DecompileError.failed(result.stderrText.isEmpty ? result.stdoutText : result.stderrText)
+        // jadx and apktool exit non-zero on per-item errors (a handful of classes
+        // that won't decompile) while still writing all the usable output, so
+        // treat a non-empty output directory as success; only fail when nothing
+        // landed.
+        let produced = (try? FileManager.default.contentsOfDirectory(atPath: outDir.path).isEmpty) == false
+        guard produced else {
+            let message = result.stderrText.isEmpty ? result.stdoutText : result.stderrText
+            throw DecompileError.failed(message.isEmpty ? "Decompilation produced no output." : message)
         }
         return outDir
     }

@@ -61,12 +61,21 @@ struct DecompileBrowserView: View {
         } isTargeted: { dropTargeted = $0 }
     }
 
-    private var progress: some View {
+    @ViewBuilder private var progress: some View {
         VStack(spacing: 12) {
-            ProgressView()
-            Text(status ?? "Working…").foregroundStyle(.textMuted)
+            if busy {
+                ProgressView()
+                Text(status ?? "Decompiling…").foregroundStyle(.textMuted)
+            } else {
+                // Tools ready but no tree and not working = the decompile failed.
+                Image(systemName: "exclamationmark.triangle").font(.system(size: 36)).foregroundStyle(.orange)
+                Text(status ?? "Decompilation failed.")
+                    .foregroundStyle(.textMuted).multilineTextAlignment(.center).frame(maxWidth: 480)
+                Button("Try again") { Task { await runDecompile() } }
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
     }
 
     private var downloadGate: some View {
