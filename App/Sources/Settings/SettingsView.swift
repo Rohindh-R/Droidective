@@ -8,7 +8,11 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             GeneralSettingsView()
-                .tabItem { Label("General", systemImage: "gear") }
+                .tabItem { Label("General", systemImage: "gearshape") }
+            AppearanceSettingsView()
+                .tabItem { Label("Appearance", systemImage: "paintbrush") }
+            PrivacySettingsView()
+                .tabItem { Label("Privacy", systemImage: "hand.raised") }
             DoctorSettingsView()
                 .tabItem { Label("Doctor", systemImage: "stethoscope") }
             ManagedToolsSettingsView()
@@ -16,7 +20,8 @@ struct SettingsView: View {
             HotkeysSettingsView()
                 .tabItem { Label("Hotkeys", systemImage: "keyboard") }
         }
-        .frame(width: 480)
+        .frame(width: 560)
+        .frame(minHeight: 460)
         // Esc closes the Settings window. A zero-opacity button carrying the
         // Cancel (Esc) key equivalent fires regardless of which control holds
         // focus — more reliable here than .onExitCommand.
@@ -43,19 +48,8 @@ func applyStoredTheme() {
 
 struct GeneralSettingsView: View {
     @Environment(AppState.self) private var state
-    @AppStorage("theme") private var theme = "dark"
-    @AppStorage(accentColorDefaultsKey) private var accentHex = ""
-    @AppStorage("showFeatureNotes") private var showFeatureNotes = false
-    @AppStorage(ScreenCaptureService.captureFolderDefaultsKey) private var captureFolderPath = ""
     @AppStorage("showMenuBarExtra") private var showMenuBar = true
-    @State private var showCommandLog = false
     @State private var openAtLoginOn = false
-
-    private var captureFolderDisplay: String {
-        captureFolderPath.isEmpty
-            ? "~/Downloads/Droidective (default)"
-            : (captureFolderPath as NSString).abbreviatingWithTildeInPath
-    }
 
     /// True when the login item is registered (enabled, or pending the user's
     /// approval in System Settings).
@@ -97,48 +91,8 @@ struct GeneralSettingsView: View {
         Binding(get: { state.selectedRole }, set: { state.chooseRole($0) })
     }
 
-    /// The accent ColorPicker reads/writes the stored hex; an empty value shows
-    /// (and resets to) the bundled default.
-    private var accentBinding: Binding<Color> {
-        Binding(
-            get: { Color(hex: accentHex) ?? Color("BrandAccent") },
-            set: { accentHex = $0.hexString ?? "" })
-    }
-
     var body: some View {
         Form {
-            Section("Appearance") {
-                Picker("Theme", selection: $theme) {
-                    Text("Dark").tag("dark")
-                    Text("Auto").tag("auto")
-                    Text("Light (Beta)").tag("light")
-                }
-                .pickerStyle(.segmented)
-                .onChange(of: theme) { applyStoredTheme() }
-                if theme == "light" {
-                    Text("Light mode is in beta — a few screens are still being tuned for it.")
-                        .font(.footnote)
-                        .foregroundStyle(.textMuted)
-                }
-
-                LabeledContent("Accent color") {
-                    HStack(spacing: 8) {
-                        ColorPicker("", selection: accentBinding, supportsOpacity: false).labelsHidden()
-                        if !accentHex.isEmpty {
-                            Button("Reset") { accentHex = "" }
-                        }
-                    }
-                }
-                Text("Recolors buttons, toggles, selection, and active icons across the app.")
-                    .font(.footnote)
-                    .foregroundStyle(.textMuted)
-
-                Toggle("Show how-it-works notes", isOn: $showFeatureNotes)
-                Text("The info text beneath each feature, above the command bar.")
-                    .font(.footnote)
-                    .foregroundStyle(.textMuted)
-            }
-
             Section("Role") {
                 Picker("Role", selection: roleBinding) {
                     Text("All features").tag(Optional<UserRole>.none)
@@ -191,7 +145,83 @@ struct GeneralSettingsView: View {
                 }
             }
 
-            Section("Privacy") {
+        }
+        .formStyle(.grouped)
+        .onAppear { openAtLoginOn = loginItemRegistered() }
+    }
+}
+
+/// Theme, accent color, and the inline how-it-works notes.
+struct AppearanceSettingsView: View {
+    @AppStorage("theme") private var theme = "dark"
+    @AppStorage(accentColorDefaultsKey) private var accentHex = ""
+    @AppStorage("showFeatureNotes") private var showFeatureNotes = false
+
+    /// The accent ColorPicker reads/writes the stored hex; an empty value shows
+    /// (and resets to) the bundled default.
+    private var accentBinding: Binding<Color> {
+        Binding(
+            get: { Color(hex: accentHex) ?? Color("BrandAccent") },
+            set: { accentHex = $0.hexString ?? "" })
+    }
+
+    var body: some View {
+        Form {
+            Section("Theme") {
+                Picker("Theme", selection: $theme) {
+                    Text("Dark").tag("dark")
+                    Text("Auto").tag("auto")
+                    Text("Light (Beta)").tag("light")
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: theme) { applyStoredTheme() }
+                if theme == "light" {
+                    Text("Light mode is in beta — a few screens are still being tuned for it.")
+                        .font(.footnote)
+                        .foregroundStyle(.textMuted)
+                }
+            }
+
+            Section("Accent") {
+                LabeledContent("Accent color") {
+                    HStack(spacing: 8) {
+                        ColorPicker("", selection: accentBinding, supportsOpacity: false).labelsHidden()
+                        if !accentHex.isEmpty {
+                            Button("Reset") { accentHex = "" }
+                        }
+                    }
+                }
+                Text("Recolors buttons, toggles, selection, and active icons across the app.")
+                    .font(.footnote)
+                    .foregroundStyle(.textMuted)
+            }
+
+            Section("Feature notes") {
+                Toggle("Show how-it-works notes", isOn: $showFeatureNotes)
+                Text("The info text beneath each feature, above the command bar.")
+                    .font(.footnote)
+                    .foregroundStyle(.textMuted)
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+/// Telemetry consent plus where local captures and the command log live.
+struct PrivacySettingsView: View {
+    @Environment(AppState.self) private var state
+    @AppStorage(ScreenCaptureService.captureFolderDefaultsKey) private var captureFolderPath = ""
+    @State private var showCommandLog = false
+
+    private var captureFolderDisplay: String {
+        captureFolderPath.isEmpty
+            ? "~/Downloads/Droidective (default)"
+            : (captureFolderPath as NSString).abbreviatingWithTildeInPath
+    }
+
+    var body: some View {
+        Form {
+            Section("Telemetry") {
                 Toggle("Send anonymous crash reports", isOn: Binding(
                     get: { Telemetry.shared.crashReportingEnabled },
                     set: { Telemetry.shared.setCrashReporting($0) }
@@ -239,7 +269,6 @@ struct GeneralSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .onAppear { openAtLoginOn = loginItemRegistered() }
         .sheet(isPresented: $showCommandLog) {
             CommandLogView()
         }
