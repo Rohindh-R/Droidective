@@ -357,7 +357,7 @@ struct DecompileBrowserView: View {
         defer { busy = false }
         do {
             let dir = try await state.env.engine.decompile.decompile(
-                apkPath: apkURL.path, mode: mode, into: Self.outputRoot())
+                apkPath: apkURL.path, mode: mode, into: AppPaths.decompiledCacheDir)
             guard !Task.isCancelled else { return }
             root = DecompileService.tree(at: dir)
             status = nil
@@ -428,9 +428,4 @@ struct DecompileBrowserView: View {
         return kept.isEmpty ? nil : FileNode(name: node.name, path: node.path, children: kept)
     }
 
-    private static func outputRoot() -> URL {
-        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        return caches.appendingPathComponent("Droidective/decompiled", isDirectory: true)
-    }
 }

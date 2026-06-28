@@ -3,6 +3,25 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+enum ApkStudioTab: String, CaseIterable, Identifiable {
+    case inspect = "Inspect"
+    case decompile = "Decompile"
+    case recompile = "Recompile"
+    case sign = "Sign"
+    var id: String { rawValue }
+}
+
+/// APK Studio's loaded-APK session, owned by `AppState`. In-memory, so reopening
+/// the studio resumes the same APK and tab within a run, and it's gone when the
+/// app quits (along with the decompiled cache).
+@MainActor @Observable final class ApkStudioSession {
+    var apk: URL?
+    /// A rebuilt APK from the Recompile tab — what the Sign tab signs instead of
+    /// the originally loaded APK.
+    var signInput: URL?
+    var tab: ApkStudioTab = .inspect
+}
+
 /// One workspace over a single loaded APK: inspect it, decompile it (jadx or
 /// apktool), recompile an edited apktool tree, and sign the result. The three
 /// standalone APK tools (APK Inspector, Decompile, Sign) are folded in here via
@@ -10,24 +29,13 @@ import UniformTypeIdentifiers
 /// this view embeds them, sharing the loaded APK, and adds the Recompile step.
 struct ApkStudioView: View {
     @Environment(AppState.self) private var state
-    @State private var apkURL: URL?
-    @State private var tab: Tab = .inspect
-    /// A rebuilt APK from the Recompile tab — what the Sign tab signs instead of
-    /// the originally loaded APK.
-    @State private var signInput: URL?
     @State private var dropTargeted = false
 
-    enum Tab: String, CaseIterable, Identifiable {
-        case inspect = "Inspect"
-        case decompile = "Decompile"
-        case recompile = "Recompile"
-        case sign = "Sign"
-        var id: String { rawValue }
-    }
+    private var session: ApkStudioSession { state.apkStudio }
 
     var body: some View {
         Group {
-            if let apkURL { workspace(apkURL) } else { picker }
+            if let apk = session.apk { workspace(apk) } else { picker }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -44,9 +52,10 @@ struct ApkStudioView: View {
     }
 
     private func header(_ apk: URL) -> some View {
-        HStack(spacing: 12) {
-            Picker("", selection: $tab) {
-                ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
+        @Bindable var session = session
+        return HStack(spacing: 12) {
+            Picker("", selection: $session.tab) {
+                ForEach(ApkStudioTab.allCases) { Text($0.rawValue).tag($0) }
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -60,18 +69,18 @@ struct ApkStudioView: View {
     }
 
     @ViewBuilder private func content(_ apk: URL) -> some View {
-        switch tab {
+        switch session.tab {
         case .inspect:
             ApkInspectorView(apkURL: apk).id(apk)
         case .decompile:
             DecompileBrowserView(apkURL: apk).id(apk)
         case .recompile:
             RecompileTab(apkURL: apk) { rebuilt in
-                signInput = rebuilt
-                tab = .sign
+                session.signInput = rebuilt
+                session.tab = .sign
             }
         case .sign:
-            ApkSignView(input: signInput ?? apk).id(signInput ?? apk)
+            ApkSignView(input: session.signInput ?? apk).id(session.signInput ?? apk)
         }
     }
 
@@ -105,9 +114,9 @@ struct ApkStudioView: View {
     // MARK: - Actions
 
     private func open(_ url: URL?) {
-        apkURL = url
-        signInput = nil
-        tab = .inspect
+        session.apk = url
+        session.signInput = nil
+        session.tab = .inspect
     }
 
     private func choose() {
@@ -122,6 +131,8 @@ struct ApkStudioView: View {
 /// Rebuild an edited apktool tree back into an APK, then hand it to the Sign tab.
 /// Decoding (`apktool d`) and rebuilding (`apktool b`) run through the shared
 /// `DecompileService`; the decoded sources are revealed in Finder for editing.
+/// The rebuilt APK is written to ~/Downloads/Droidective (a durable, visible
+/// location), not the throwaway decompiled cache.
 private struct RecompileTab: View {
     @Environment(AppState.self) private var state
     let apkURL: URL
@@ -188,7 +199,7 @@ private struct RecompileTab: View {
         defer { busy = false }
         do {
             sourceDir = try await state.env.engine.decompile.decompile(
-                apkPath: apkURL.path, mode: .apktool, into: Self.outputRoot())
+                apkPath: apkURL.path, mode: .apktool, into: AppPaths.decompiledCacheDir)
         } catch {
             status = error.localizedDescription
             failed = true
@@ -203,20 +214,15 @@ private struct RecompileTab: View {
         rebuiltURL = nil
         defer { busy = false }
         let name = apkURL.deletingPathExtension().lastPathComponent
-        let output = Self.outputRoot().appendingPathComponent("\(name)-rebuilt.apk").path
         do {
+            let output = try ScreenCaptureService.ensureCaptureDir()
+                .appendingPathComponent("\(name)-rebuilt.apk").path
             try await state.env.engine.decompile.rebuild(sourceDir: sourceDir.path, to: output)
             rebuiltURL = URL(fileURLWithPath: output)
-            status = "Rebuilt — sign it before installing."
+            status = "Rebuilt to Downloads/Droidective — sign it before installing."
         } catch {
             status = error.localizedDescription
             failed = true
         }
-    }
-
-    private static func outputRoot() -> URL {
-        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        return caches.appendingPathComponent("Droidective/decompiled", isDirectory: true)
     }
 }

@@ -31,6 +31,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return .terminateLater
         }
     }
+
+    /// On quit, wipe the decompiled cache. The APK Studio session is in-memory
+    /// (gone with the process) and its decompiled output is regenerable, so it
+    /// shouldn't linger in ~/Library/Caches between runs. Downloaded tools live
+    /// in Application Support and are kept — they're expensive to re-fetch.
+    func applicationWillTerminate(_ notification: Notification) {
+        try? FileManager.default.removeItem(at: AppPaths.decompiledCacheDir)
+    }
 }
 
 @main

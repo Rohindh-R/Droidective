@@ -1,4 +1,5 @@
 import ADBKit
+import AppKit
 import SwiftUI
 
 /// Lists the tools Droidective downloads from GitHub releases (jadx, apktool,
@@ -13,6 +14,7 @@ struct ManagedToolsSettingsView: View {
     @State private var checking = false
     @State private var error: String?
     @State private var download = DownloadState()
+    @State private var cacheSize: Int64 = 0
 
     private struct Item {
         let tool: ManagedTool
@@ -47,9 +49,24 @@ struct ManagedToolsSettingsView: View {
                 .disabled(checking || busy != nil)
                 if let error { Text(error).font(.footnote).foregroundStyle(.orange) }
             }
+            Section("Decompiled cache") {
+                LabeledContent("Size", value: ByteCountFormatter.string(fromByteCount: cacheSize, countStyle: .file))
+                HStack {
+                    Button("Clear now") { clearCache() }.disabled(cacheSize == 0)
+                    Button("Reveal in Finder") {
+                        NSWorkspace.shared.activateFileViewerSelecting([AppPaths.decompiledCacheDir])
+                    }
+                    .disabled(cacheSize == 0)
+                }
+                Text("jadx/apktool output — reused while the app is open and cleared automatically when you quit. The downloaded tools above are kept.")
+                    .font(.footnote).foregroundStyle(.textMuted)
+            }
         }
         .formStyle(.grouped)
-        .task { await loadVersions() }
+        .task {
+            await loadVersions()
+            cacheSize = await Task.detached { Self.cacheBytes() }.value
+        }
     }
 
     @ViewBuilder private func row(_ item: Item) -> some View {
@@ -116,5 +133,24 @@ struct ManagedToolsSettingsView: View {
         } catch {
             self.error = "Couldn't download \(tool.rawValue): \(error.localizedDescription)"
         }
+    }
+
+    private func clearCache() {
+        try? FileManager.default.removeItem(at: AppPaths.decompiledCacheDir)
+        cacheSize = 0
+    }
+
+    /// Total bytes under the decompiled cache. Pure file I/O — call it off the
+    /// main actor (a deep tree of thousands of files would block the UI).
+    private nonisolated static func cacheBytes() -> Int64 {
+        guard let walker = FileManager.default.enumerator(
+            at: AppPaths.decompiledCacheDir, includingPropertiesForKeys: [.totalFileAllocatedSizeKey, .fileSizeKey]
+        ) else { return 0 }
+        var total: Int64 = 0
+        for case let url as URL in walker {
+            let values = try? url.resourceValues(forKeys: [.totalFileAllocatedSizeKey, .fileSizeKey])
+            total += Int64(values?.totalFileAllocatedSize ?? values?.fileSize ?? 0)
+        }
+        return total
     }
 }

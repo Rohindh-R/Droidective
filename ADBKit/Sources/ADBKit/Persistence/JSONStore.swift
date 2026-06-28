@@ -6,6 +6,15 @@ public enum AppPaths {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Droidective", isDirectory: true)
     }
+
+    /// ~/Library/Caches/Droidective/decompiled — jadx/apktool output. Throwaway:
+    /// regenerable from the APK, reused within a run, and cleared on quit (kept
+    /// out of Application Support so it never competes with the durable tools).
+    public static var decompiledCacheDir: URL {
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        return caches.appendingPathComponent("Droidective/decompiled", isDirectory: true)
+    }
 }
 
 /// One JSON file holding one Codable value, cached in memory and written
