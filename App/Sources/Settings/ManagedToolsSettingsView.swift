@@ -15,6 +15,8 @@ struct ManagedToolsSettingsView: View {
     @State private var error: String?
     @State private var download = DownloadState()
     @State private var cacheSize: Int64 = 0
+    @State private var sizes: [ManagedTool: Int64] = [:]
+    @State private var confirmDelete: ManagedTool?
 
     private struct Item {
         let tool: ManagedTool
@@ -65,38 +67,103 @@ struct ManagedToolsSettingsView: View {
         .formStyle(.grouped)
         .task {
             await loadVersions()
+            await loadSizes()
             cacheSize = await Task.detached { Self.cacheBytes() }.value
+        }
+        .confirmationDialog(
+            "Delete this tool?",
+            isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }),
+            presenting: confirmDelete
+        ) { tool in
+            Button("Delete", role: .destructive) { Task { await delete(tool) } }
+            Button("Cancel", role: .cancel) {}
+        } message: { tool in
+            Text("Removes the downloaded \(tool.rawValue) from disk. You can download it again anytime.")
         }
     }
 
     @ViewBuilder private func row(_ item: Item) -> some View {
         let installed = versions[item.tool]
         LabeledContent {
-            if busy == item.tool {
-                if let fraction = download.fraction {
-                    ProgressView(value: fraction).frame(width: 90)
+            HStack(spacing: 10) {
+                if busy == item.tool {
+                    if let fraction = download.fraction {
+                        ProgressView(value: fraction).frame(width: 90)
+                    } else {
+                        ProgressView().controlSize(.small)
+                    }
+                } else if installed == nil {
+                    Button("Download") { Task { await install(item.tool) } }.disabled(busy != nil)
                 } else {
-                    ProgressView().controlSize(.small)
+                    if let upgrade = upgrades[item.tool] {
+                        Button("Update to \(upgrade)") { Task { await install(item.tool) } }.disabled(busy != nil)
+                    } else {
+                        Text("up to date").font(.caption).foregroundStyle(.textMuted)
+                    }
+                    Menu {
+                        Button("Reveal in Finder") { reveal(item.tool) }
+                        Button("Delete", role: .destructive) { confirmDelete = item.tool }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .disabled(busy != nil)
                 }
-            } else if installed == nil {
-                Button("Download") { Task { await install(item.tool) } }.disabled(busy != nil)
-            } else if let upgrade = upgrades[item.tool] {
-                Button("Update to \(upgrade)") { Task { await install(item.tool) } }.disabled(busy != nil)
-            } else {
-                Text("up to date").font(.caption).foregroundStyle(.textMuted)
             }
         } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.name)
-                Text(installed.map { "Installed \($0)" } ?? item.purpose)
+                Text(subtitle(item))
                     .font(.caption).foregroundStyle(.textMuted)
             }
         }
     }
 
+    private func subtitle(_ item: Item) -> String {
+        guard let version = versions[item.tool] else { return item.purpose }
+        if let size = sizes[item.tool], size > 0 {
+            return "Installed \(version) · \(ByteCountFormatter.string(fromByteCount: size, countStyle: .file))"
+        }
+        return "Installed \(version)"
+    }
+
     private func loadVersions() async {
         for item in Self.items {
             versions[item.tool] = await state.env.engine.managedTools.installedVersion(item.tool)
+        }
+    }
+
+    private func loadSizes() async {
+        for item in Self.items {
+            await refreshSize(item.tool)
+        }
+    }
+
+    private func refreshSize(_ tool: ManagedTool) async {
+        guard let dir = await state.env.engine.managedTools.location(tool) else {
+            sizes[tool] = nil
+            return
+        }
+        sizes[tool] = await Task.detached { ManagedToolStore.size(at: dir) }.value
+    }
+
+    private func reveal(_ tool: ManagedTool) {
+        Task {
+            if let dir = await state.env.engine.managedTools.location(tool) {
+                NSWorkspace.shared.activateFileViewerSelecting([dir])
+            }
+        }
+    }
+
+    private func delete(_ tool: ManagedTool) async {
+        do {
+            try await state.env.engine.managedTools.remove(tool)
+            versions[tool] = nil
+            upgrades[tool] = nil
+            sizes[tool] = nil
+        } catch {
+            self.error = "Couldn't delete \(tool.rawValue): \(error.localizedDescription)"
         }
     }
 
@@ -126,6 +193,7 @@ struct ManagedToolsSettingsView: View {
             let path = try await state.env.engine.managedTools.install(tool, arch: arch(for: tool), onProgress: onProgress)
             versions[tool] = await state.env.engine.managedTools.installedVersion(tool)
             upgrades[tool] = nil
+            await refreshSize(tool)
             if let version = versions[tool] {
                 state.showToast(Toast(
                     message: "Downloaded \(tool.rawValue) \(version)", ok: true, copyText: path, revealPath: path))

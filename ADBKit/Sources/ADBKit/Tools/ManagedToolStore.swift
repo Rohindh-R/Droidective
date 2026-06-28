@@ -167,6 +167,31 @@ public actor ManagedToolStore {
         return runnable(in: versionDir, spec: spec)
     }
 
+    /// The on-disk directory holding `tool` (its versions + marker), or nil when
+    /// it isn't installed.
+    public func location(_ tool: ManagedTool) -> URL? {
+        installedVersion(tool) == nil ? nil : toolRoot(tool)
+    }
+
+    /// Delete `tool` from disk entirely (all versions + the version marker).
+    public func remove(_ tool: ManagedTool) throws {
+        try fileManager.removeItem(at: toolRoot(tool))
+    }
+
+    /// Bytes occupied on disk under `url` (0 when absent). Pure file walk —
+    /// `nonisolated` so a settings panel can size a tool off the actor.
+    public nonisolated static func size(at url: URL) -> Int64 {
+        guard let walker = FileManager.default.enumerator(
+            at: url, includingPropertiesForKeys: [.totalFileAllocatedSizeKey, .fileSizeKey]
+        ) else { return 0 }
+        var total: Int64 = 0
+        for case let item as URL in walker {
+            let values = try? item.resourceValues(forKeys: [.totalFileAllocatedSizeKey, .fileSizeKey])
+            total += Int64(values?.totalFileAllocatedSize ?? values?.fileSize ?? 0)
+        }
+        return total
+    }
+
     /// Newer version tag available for `tool`, or nil when it's current. A tool
     /// that isn't installed yet reports the latest tag as "available".
     public func upgradeAvailable(_ tool: ManagedTool, arch: String = "") async throws -> String? {

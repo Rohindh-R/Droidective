@@ -43,6 +43,20 @@ import Testing
         #expect(FileManager.default.contents(atPath: path) == bytes)
     }
 
+    @Test func locationSizeAndRemoveManageTheInstall() async throws {
+        let bytes = Data("FAKE-JAR-CONTENTS".utf8)
+        let http = MockHTTP(releaseJSON: releaseJSON(tag: "v2.11.0", assetName: "apktool_2.11.0.jar"), assetBytes: bytes)
+        let store = ManagedToolStore(rootDirectory: tempRoot(), http: http)
+        _ = try await store.install(.apktool)
+
+        let dir = try #require(await store.location(.apktool))
+        #expect(ManagedToolStore.size(at: dir) >= Int64(bytes.count))
+
+        try await store.remove(.apktool)
+        #expect(await store.location(.apktool) == nil)
+        #expect(await store.installedVersion(.apktool) == nil)
+    }
+
     @Test func verifiesAssetDigestWhenPresent() async throws {
         let bytes = Data("signed-payload".utf8)
         let sha = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
