@@ -145,15 +145,28 @@ struct ScreenRecordView: View {
             VStack(alignment: .leading, spacing: 14) {
                 labeledRow("Resolution") { resolutionPicker }
                 SwitchRow("Capture audio (Android 11+)", isOn: $captureAudio)
-                DisclosureGroup(isExpanded: $showAdvanced) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) { showAdvanced.toggle() }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.textMuted)
+                            .rotationEffect(.degrees(showAdvanced ? 90 : 0))
+                        Text("Advanced options")
+                            .font(.callout.weight(.medium))
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                if showAdvanced {
                     VStack(alignment: .leading, spacing: 14) {
                         labeledRow("Bit rate") { bitRatePicker }
                         labeledRow("Max FPS") { fpsPicker }
                         labeledRow("Time limit") { timeLimitPicker }
                     }
                     .padding(.top, 12)
-                } label: {
-                    Text("Advanced options").font(.callout.weight(.medium))
                 }
             }
             .padding(10)
