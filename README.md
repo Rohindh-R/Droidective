@@ -13,10 +13,10 @@ actions in a Raycast-style command palette — no terminal required.
 
 <p align="center">
   <a href="https://droidective.com/assets/demo.mp4">
-    <img src="site/assets/demo-poster.webp" width="760" alt="Droidective demo — click to watch">
+    <img src="docs/demo.gif" width="760" alt="Droidective demo">
   </a>
   <br>
-  <em>▶ <a href="https://droidective.com/assets/demo.mp4">Watch the demo</a> · <a href="https://droidective.com/">droidective.com</a></em>
+  <em>▶ <a href="https://droidective.com/assets/demo.mp4">Full-resolution video</a> · <a href="https://droidective.com/">droidective.com</a></em>
 </p>
 
 Built in Swift 6 + SwiftUI, with all logic in a platform-agnostic Swift package
