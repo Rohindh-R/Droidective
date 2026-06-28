@@ -88,7 +88,7 @@ spawn adb/scrcpy/emulator/brew).
 - `Devices/`: `DeviceMonitor` (actor, 2s poll, `AsyncStream<[Device]>`),
   `DeviceListParser`, `DeviceProps` (getprop), `DeviceOverview` (RAM/storage/
   battery/CPU/app counts), `DeviceDetails` (picker enrichment).
-- `Features/`: `FeatureRegistry` (48 `FeatureDef`s, declarative; `absorbedByHub`
+- `Features/`: `FeatureRegistry` (52 `FeatureDef`s, declarative; `absorbedByHub`
   maps a hub screen to the features it gathers, flattened to
   `absorbedFeatureIDs`; `catalogFeatureIDs` is the registry minus those),
   `FeatureModel`,
@@ -118,8 +118,21 @@ spawn adb/scrcpy/emulator/brew).
   files as `.corrupt`), `Stores` (Bundles, DeepLinks, CustomCommands,
   LayoutState, Presets, OverridesMap, Prefs) in
   `~/Library/Application Support/Droidective/`.
+- `Tools/` + APK services: `ManagedTool`/`ManagedToolStore` (actor) download jadx,
+  apktool, uber-apk-signer, frida-server/-gadget, and a Temurin JRE from their
+  GitHub releases into `Application Support/tools`, verify the asset digest,
+  extract (zip/tar.gz/`.xz` via the Compression framework), version-track, and
+  upgrade in place. `ApkToolchain` resolves SDK build-tools (aapt2/apksigner/
+  zipalign — detected, not downloaded) + the managed tools + `java` (a system JDK
+  first, else the managed Temurin). The APK features are services over the
+  toolchain with arg-vector tests: `ApkInspectionService` (aapt2 badging +
+  apksigner certs), `ApkSigningService` (zipalign + apksigner; keystore password
+  via a 0600 temp file, never argv), `DecompileService` (jadx + apktool + a
+  `FileNode` tree), `FridaService` (ABI→arch match + frida-server push/run).
+  Downloads are point-of-use (a gate in the decompile/Frida views) or from
+  Settings ▸ Tools.
 
-## The 48 features
+## The 52 features
 
 Most `.view` features are full-screen bespoke panels (file-explorer, apps,
 emulators, device-info, logcat, crash-catcher, sandbox-browser, performance,
@@ -140,7 +153,7 @@ Apps hub. They stay hotkey-able (every feature registers a shortcut; the Hotkeys
 tab lists bound members under "Hidden features"). This is a pure display filter —
 no persisted migration — so it also covers a hub that grows later. The rest are generic instant-/form-/toggle-actions
 driven by the registry. The catalog and Home's "All N features" count use
-`catalogFeatureIDs` (30). **Every feature is enabled by default**
+`catalogFeatureIDs` (34). **Every feature is enabled by default**
 (`defaultEnabledIDs == catalogFeatureIDs`); the catalog (Manage features) is for
 turning OFF the ones you don't want, not opting in — there's no Restore button.
 `LayoutState.adoptAllEnabled()` is a one-time migration that turns everything on
