@@ -345,6 +345,15 @@ public enum FeatureRegistry {
             category: .appManagement, icon: "doc.text.magnifyingglass", kind: .view
         ),
         FeatureDef(
+            id: "apk-sign", title: "Sign APK",
+            subtitle: "Zipalign and sign an APK — debug key or your keystore",
+            keywords: [
+                "sign", "signing", "apksigner", "zipalign", "keystore", "key", "certificate",
+                "debug key", "release", "resign", "re-sign", "jarsigner", "v2", "apk",
+            ],
+            category: .appManagement, icon: "signature", kind: .view
+        ),
+        FeatureDef(
             id: "app-management", title: "Manage App",
             subtitle: "Open, stop, clear, or uninstall an app",
             keywords: ["open", "close", "force stop", "clear data", "uninstall", "cache"],
@@ -482,7 +491,7 @@ public enum FeatureRegistry {
     public static let featuresByRole: [UserRole: [String]] = [
         .androidDeveloper: [
             "logcat", "crash-catcher", "device-info", "current-activity", "foreground-package",
-            "file-explorer", "sandbox-browser", "apps", "install-app", "apk-inspector", "emulators", "connection", "get-ip",
+            "file-explorer", "sandbox-browser", "apps", "install-app", "apk-inspector", "apk-sign", "emulators", "connection", "get-ip",
             "meminfo", "monkey", "scrcpy", "screenshot", "send-text", "custom-commands",
         ],
         .reactNativeDeveloper: [

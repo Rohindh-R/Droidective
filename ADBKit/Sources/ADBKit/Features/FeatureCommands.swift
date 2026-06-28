@@ -90,6 +90,11 @@ extension FeatureRegistry {
             FeatureCommand("aapt2 dump badging <path.apk>", note: "package, version, SDK, permissions, features"),
             FeatureCommand("apksigner verify -v --print-certs <path.apk>", note: "signing schemes and certificate digests"),
         ],
+        "apk-sign": [
+            FeatureCommand("zipalign -f -p 4 <in.apk> <out.apk>", note: "page-align before signing"),
+            FeatureCommand("apksigner sign --ks <keystore> <out.apk>", note: "sign with a debug or release keystore"),
+            FeatureCommand("apksigner verify -v --print-certs <out.apk>", note: "confirm the signature"),
+        ],
 
         // ── React Native ─────────────────────────────────────────────────
         "react-native": [

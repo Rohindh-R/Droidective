@@ -112,6 +112,8 @@ struct FeatureDetailView: View {
                 InstallAppView()
             case "apk-inspector":
                 ApkInspectorView()
+            case "apk-sign":
+                ApkSignView()
             case "emulators":
                 EmulatorsView()
             case "performance":
