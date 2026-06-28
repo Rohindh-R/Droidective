@@ -558,7 +558,7 @@ struct MonogramIcon: View {
             .overlay(
                 Text(initial)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(color.contrastingForeground)
                     .minimumScaleFactor(0.6)
             )
     }

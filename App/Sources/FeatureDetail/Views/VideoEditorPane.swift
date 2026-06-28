@@ -54,6 +54,8 @@ struct CropIndicator: View {
 
 /// A pill toggle with an obvious filled (on) vs. outlined (off) state.
 struct EditToggleStyle: ToggleStyle {
+    @Environment(\.colorScheme) private var colorScheme
+
     func makeBody(configuration: Configuration) -> some View {
         Button {
             configuration.isOn.toggle()
@@ -63,7 +65,11 @@ struct EditToggleStyle: ToggleStyle {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .background(configuration.isOn ? Color.brandAccent : Color.primary.opacity(0.07))
-                .foregroundStyle(configuration.isOn ? Color.white : Color.primary)
+                .foregroundStyle(
+                    configuration.isOn
+                        ? Color.brandAccent.contrastingForeground(for: colorScheme)
+                        : Color.primary
+                )
                 .clipShape(RoundedRectangle(cornerRadius: 7))
                 .overlay(
                     RoundedRectangle(cornerRadius: 7)

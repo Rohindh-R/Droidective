@@ -8,8 +8,11 @@ import SwiftUI
 /// closes.
 struct PaletteWindowView: View {
     @Environment(AppState.self) private var state
+    @Environment(\.colorScheme) private var colorScheme
 
     let onClose: () -> Void
+
+    private var accentText: Color { Color.brandAccent.contrastingForeground(for: colorScheme) }
 
     @State private var query = ""
     @State private var highlighted = 0
@@ -153,13 +156,13 @@ struct PaletteWindowView: View {
         HStack(spacing: 10) {
             Image(systemName: feature.icon)
                 .frame(width: 22)
-                .foregroundStyle(isHighlighted ? AnyShapeStyle(.white) : AnyShapeStyle(.brandAccent))
+                .foregroundStyle(isHighlighted ? AnyShapeStyle(accentText) : AnyShapeStyle(.brandAccent))
             VStack(alignment: .leading, spacing: 0) {
                 Text(feature.title)
                 if let subtitle = feature.subtitle {
                     Text(subtitle)
                         .font(.caption)
-                        .foregroundStyle(isHighlighted ? .white.opacity(0.75) : .secondary)
+                        .foregroundStyle(isHighlighted ? accentText.opacity(0.75) : .secondary)
                         .lineLimit(1)
                 }
             }
@@ -167,12 +170,12 @@ struct PaletteWindowView: View {
             if state.layout.favorites.contains(feature.id) {
                 Image(systemName: "pin.fill")
                     .font(.caption2)
-                    .foregroundStyle(isHighlighted ? AnyShapeStyle(.white.opacity(0.8)) : AnyShapeStyle(.brandAccent))
+                    .foregroundStyle(isHighlighted ? AnyShapeStyle(accentText.opacity(0.8)) : AnyShapeStyle(.brandAccent))
             }
             if !state.layout.effectiveEnabledIDs.contains(feature.id) {
                 Text("disabled")
                     .font(.caption2)
-                    .foregroundStyle(isHighlighted ? .white.opacity(0.75) : .secondary)
+                    .foregroundStyle(isHighlighted ? accentText.opacity(0.75) : .secondary)
             }
             if index < 8 {
                 KeyHint("⌘\(index + 1)", prominent: isHighlighted)
@@ -184,7 +187,7 @@ struct PaletteWindowView: View {
             isHighlighted ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.clear),
             in: RoundedRectangle(cornerRadius: 8)
         )
-        .foregroundStyle(isHighlighted ? .white : .primary)
+        .foregroundStyle(isHighlighted ? accentText : .primary)
         .contentShape(Rectangle())
     }
 
@@ -222,20 +225,23 @@ struct PaletteWindowView: View {
 struct KeyHint: View {
     let text: String
     var prominent = false
+    @Environment(\.colorScheme) private var colorScheme
 
     init(_ text: String, prominent: Bool = false) {
         self.text = text
         self.prominent = prominent
     }
 
+    private var accentText: Color { Color.brandAccent.contrastingForeground(for: colorScheme) }
+
     var body: some View {
         Text(text)
             .font(.caption2.weight(.medium))
-            .foregroundStyle(prominent ? AnyShapeStyle(.white) : AnyShapeStyle(.textMuted))
+            .foregroundStyle(prominent ? AnyShapeStyle(accentText) : AnyShapeStyle(.textMuted))
             .padding(.horizontal, 5)
             .padding(.vertical, 2)
             .background(
-                prominent ? AnyShapeStyle(.white.opacity(0.22)) : AnyShapeStyle(.quaternary),
+                prominent ? AnyShapeStyle(accentText.opacity(0.22)) : AnyShapeStyle(.quaternary),
                 in: RoundedRectangle(cornerRadius: 4)
             )
     }

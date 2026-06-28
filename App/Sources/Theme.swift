@@ -64,4 +64,26 @@ extension Color {
             Int(round(resolved.greenComponent * 255)),
             Int(round(resolved.blueComponent * 255)))
     }
+
+    /// The foreground color (white or near-black) that provides adequate contrast against
+    /// this background color when rendered in the given color scheme.
+    /// Uses WCAG relative luminance — picks `.white` for dark backgrounds and
+    /// `Color.black.opacity(0.85)` for light ones (threshold: luminance > 0.35).
+    func contrastingForeground(for scheme: ColorScheme) -> Color {
+        guard let appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua) else { return .white }
+        var lum: Double = 0
+        appearance.performAsCurrentDrawingAppearance {
+            guard let nc = NSColor(self).usingColorSpace(.genericRGB) else { return }
+            lum = 0.2126 * nc.redComponent + 0.7152 * nc.greenComponent + 0.0722 * nc.blueComponent
+        }
+        return lum > 0.35 ? Color.black.opacity(0.85) : .white
+    }
+
+    /// The foreground color for a static (non-adaptive) color — same WCAG logic
+    /// without an appearance context. Use for colors built from explicit RGB/HSB values.
+    var contrastingForeground: Color {
+        guard let nc = NSColor(self).usingColorSpace(.genericRGB) else { return .white }
+        let lum = 0.2126 * nc.redComponent + 0.7152 * nc.greenComponent + 0.0722 * nc.blueComponent
+        return lum > 0.35 ? Color.black.opacity(0.85) : .white
+    }
 }
