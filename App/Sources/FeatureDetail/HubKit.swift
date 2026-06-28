@@ -13,6 +13,7 @@ struct HubSection<Content: View, Accessory: View>: View {
     private let subtitle: String?
     @ViewBuilder private let accessory: () -> Accessory
     @ViewBuilder private let content: () -> Content
+    @Environment(\.colorScheme) private var colorScheme
 
     init(_ title: String, subtitle: String? = nil, @ViewBuilder content: @escaping () -> Content)
         where Accessory == EmptyView {
@@ -55,7 +56,14 @@ struct HubSection<Content: View, Accessory: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .background(.bgSurface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.borderSubtle, lineWidth: 1))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(
+                    colorScheme == .light ? Color.black.opacity(0.14) : .borderSubtle,
+                    lineWidth: 1
+                )
+        )
+        .shadow(color: .black.opacity(colorScheme == .light ? 0.12 : 0), radius: 8, x: 0, y: 2)
     }
 }
 
