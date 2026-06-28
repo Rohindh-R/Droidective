@@ -11,6 +11,7 @@ struct RootView: View {
     @AppStorage("telemetryConsentAsked") private var consentAsked = false
     @AppStorage("launchCount") private var launchCount = 0
     @AppStorage("starPromptShown") private var starPromptShown = false
+    @AppStorage("theme") private var theme = "dark"
     @State private var presentConsent = false
     @State private var presentStar = false
     /// True only while the *first-run* role picker is up, so its dismissal
@@ -33,6 +34,19 @@ struct RootView: View {
     /// Launches before the one-time GitHub-star nudge (shown after consent).
     private let starPromptAfterLaunches = 10
 
+    /// Bridges `NSApp.appearance` (native) and SwiftUI's `colorScheme` environment
+    /// (semantic). Setting `NSApp.appearance` changes native control rendering but
+    /// SwiftUI's own color resolution (named assets, `.primary`, etc.) lags until
+    /// the next system-appearance notification. Injecting this explicitly keeps
+    /// SwiftUI in sync as soon as the theme toggle fires.
+    private var injectedColorScheme: ColorScheme {
+        switch theme {
+        case "light": return .light
+        case "auto": return colorScheme
+        default: return .dark
+        }
+    }
+
     private var shouldPromptConsent: Bool {
         LaunchPrompt.consentDue(
             consentAsked: consentAsked, launchCount: launchCount,
@@ -50,6 +64,7 @@ struct RootView: View {
         // (the exitGuard alone is often unchanged), driving the leave dialog.
         let showExitDialog = state.pendingExit.map { !$0.saving } ?? false
         return zoomedContent
+            .environment(\.colorScheme, injectedColorScheme)
             .background(WindowAccessor { window in
                 // Fill the screen's usable area on launch — a regular maximized
                 // window, not a native full-screen Space.
