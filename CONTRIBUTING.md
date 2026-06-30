@@ -40,6 +40,11 @@ empty-state layout). Please skim it before a non-trivial change.
 - Keep commits focused and in imperative mood (e.g. "Add foo", not "added foo").
 - Open the PR against `main` with a short description of what changed and why.
 
+For anything non-trivial, the detail lives in [`docs/`](docs/README.md):
+[opening a PR](docs/PULL_REQUESTS.md) and [reviewing one](docs/CODE_REVIEW.md)
+(architecture, code quality, testing, the known pitfalls, UI/UX, impact
+analysis, security).
+
 ## Reporting bugs
 
 Include your macOS version, the device/emulator and its Android version, the

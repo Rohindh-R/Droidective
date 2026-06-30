@@ -1,3 +1,19 @@
+## Droidective v2.7.1
+
+A bug-fix release: screen mirroring no longer stops when a device can't capture
+audio.
+
+### Fixes
+
+- **Screen mirror on emulators** — scrcpy aborts the whole session (video
+  included) when its audio encoder can't start, which happens on most emulators,
+  where the device can't create an `AudioRecord`. The in-app mirror requested
+  audio unconditionally, so it stopped right after connecting. It now detects an
+  audio-only failure — the session ending before the first video frame — and
+  reconnects once, video-only, so mirroring keeps working.
+
+Installed copies update in place via Sparkle.
+
 ## Droidective v2.7.0
 
 A feature release that adds a full APK toolchain and Frida setup, a custom accent

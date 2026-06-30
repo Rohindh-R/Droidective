@@ -44,7 +44,7 @@
     "description": "A free, open-source macOS command palette for Android & React Native debugging over adb: screen mirroring, logcat, file explorer, performance monitoring, app management — 53 tools in all.",
     "url": "https://droidective.com/",
     "downloadUrl": "https://github.com/Droidective/Droidective/releases/latest",
-    "softwareVersion": "2.6.2",
+    "softwareVersion": "2.7.1",
     "screenshot": "https://droidective.com/assets/screenshot-home.png",
     "license": "https://github.com/Droidective/Droidective/blob/main/LICENSE",
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
@@ -495,7 +495,7 @@
           <a class="btn btn-primary" data-dl-latest href="https://github.com/Droidective/Droidective/releases/latest"><svg class="ic"><use href="#ic-dl"/></svg> Download for macOS</a>
           <a class="btn btn-ghost" href="https://github.com/Droidective/Droidective"><svg class="ic"><use href="#ic-star"/></svg> Star on GitHub</a>
         </div>
-        <p class="fineprint">$ <span>requires Android adb · auto-updates via Sparkle · v2.6.2</span></p>
+        <p class="fineprint">$ <span>requires Android adb · auto-updates via Sparkle · v2.7.1</span></p>
       </div>
 
       <div class="palette reveal" aria-hidden="true">
@@ -719,7 +719,15 @@ Pixel 8     device</pre>
     </div>
     <div class="timeline reveal">
       <div class="rel latest">
-        <div class="rel-head"><span class="rel-ver">v2.6.2</span><span class="rel-tag">latest</span><span class="rel-date">Jun 2026</span></div>
+        <div class="rel-head"><span class="rel-ver">v2.7.1</span><span class="rel-tag">latest</span><span class="rel-date">Jun 2026</span></div>
+        <p><b>Screen mirroring on emulators</b> — scrcpy aborted the whole mirror (video included) when a device couldn't capture audio, which is most emulators; the in-app mirror now detects that and reconnects video-only, so it keeps working.</p>
+      </div>
+      <div class="rel">
+        <div class="rel-head"><span class="rel-ver">v2.7.0</span><span class="rel-date">Jun 2026</span></div>
+        <p><b>APK Studio</b> — inspect, decompile (jadx/apktool with an in-app source viewer &amp; search), recompile, and sign an APK — plus <b>Frida setup</b>, a <b>custom accent color</b>, and <b>launching emulators from the device bar</b>.</p>
+      </div>
+      <div class="rel">
+        <div class="rel-head"><span class="rel-ver">v2.6.2</span><span class="rel-date">Jun 2026</span></div>
         <p><b>Security &amp; stability hardening</b> — shell-quoted device commands, bounded screen-mirror decoders, and cancelled actions that stop their adb child — plus a <b>leave guard</b> that confirms before discarding an active recording or unsaved edit, and <b>opening an APK from Finder</b> now previews its name, version &amp; SDK before installing.</p>
       </div>
       <div class="rel">

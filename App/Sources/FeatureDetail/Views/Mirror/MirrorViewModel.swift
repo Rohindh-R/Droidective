@@ -56,6 +56,14 @@ final class MirrorViewModel {
     /// encoder emits them rarely.)
     private var screenRecorder: ScreenRecorder?
     private var sendControl: (@Sendable (ScrcpyControlMessage) -> Void)?
+    /// Whether to request device audio. Cleared after one failed start so the
+    /// mirror reconnects video-only on devices that can't capture audio (most
+    /// emulators) — scrcpy aborts the whole session, video included, when its
+    /// audio encoder can't start. See `MirrorAudioFallback`.
+    private var requestAudio = true
+    /// Set once video frames begin flowing; gates the video-only fallback so a
+    /// session that streamed and later stopped isn't silently restarted.
+    private var didStream = false
 
     init(adb: AdbClient, locator: ToolLocator, serial: String) {
         self.adb = adb
@@ -65,6 +73,7 @@ final class MirrorViewModel {
 
     func start() async {
         status = .connecting
+        didStream = false
         // Prefer the bundled server (self-contained); fall back to an installed
         // scrcpy only if the bundled resource is somehow missing.
         let server: ScrcpyServerInfo?
@@ -78,12 +87,13 @@ final class MirrorViewModel {
             return
         }
         self.server = server
-        // Interactive mirror: control + audio on. Cap the size for smooth,
-        // low-latency display. Recording started mid-stream forces a fresh key
-        // frame via RESET_VIDEO (see MirrorSession.startRecording).
+        // Interactive mirror: control on, audio when the device can supply it.
+        // Cap the size for smooth, low-latency display. Recording started
+        // mid-stream forces a fresh key frame via RESET_VIDEO (see
+        // MirrorSession.startRecording).
         let params = ScrcpyServerParams(
             scid: UInt32.random(in: 1 ... 0x7fff_ffff),
-            audio: true, control: true, maxSize: 1280)
+            audio: requestAudio, control: true, maxSize: 1280)
         let config = MirrorTransport.Configuration(
             serial: serial, params: params,
             serverVersion: server.version, localJarPath: server.jarPath)
@@ -136,19 +146,36 @@ final class MirrorViewModel {
                     }
                     if self.status == .connecting {
                         self.status = .streaming
+                        self.didStream = true
                         // The transport (incl. the control socket) is connected
                         // once frames flow — fetch the control sender now, not
                         // right after start() when it isn't wired yet.
                         self.sendControl = await self.session?.controlSender()
                     }
                 }
-                self?.status = .stopped
+                await self?.sessionEnded(failure: nil)
             } catch is CancellationError {
                 // expected on stop()
             } catch {
-                self?.status = .failed(error.localizedDescription)
+                await self?.sessionEnded(failure: error.localizedDescription)
             }
         }
+    }
+
+    /// The display stream ended (the device closed it, or it errored — not a
+    /// user-initiated stop, which cancels the task). If audio was requested and
+    /// no frame ever streamed, scrcpy likely aborted the session because the
+    /// device couldn't capture audio, so reconnect once video-only. Otherwise
+    /// surface the terminal state.
+    private func sessionEnded(failure: String?) async {
+        if MirrorAudioFallback.shouldRetryWithoutAudio(
+            audioRequested: requestAudio, everStreamed: didStream) {
+            requestAudio = false
+            await stop()
+            await start()
+            return
+        }
+        status = failure.map(Status.failed) ?? .stopped
     }
 
     func stop() async {

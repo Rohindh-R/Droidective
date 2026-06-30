@@ -6,9 +6,9 @@
     <description>Most recent Droidective updates.</description>
     <language>en</language>
     <item>
-      <title>Droidective 2.7.0</title>
-      <sparkle:version>189</sparkle:version>
-      <sparkle:shortVersionString>2.7.0</sparkle:shortVersionString>
+      <title>Droidective 2.7.1</title>
+      <sparkle:version>203</sparkle:version>
+      <sparkle:shortVersionString>2.7.1</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
       <description><![CDATA[
 <style>
@@ -24,53 +24,22 @@ pre { background: color-mix(in srgb, currentColor 8%, transparent); padding: .6e
 pre code { background: none; padding: 0; }
 a { color: #2f9e44; }
 </style>
-<p>A feature release that adds a full APK toolchain and Frida setup, a custom accent
-color, and emulator launching from the device bar, plus a round of UI and
-hotkey-recording improvements.</p>
-<h3>New features</h3>
+<p>A bug-fix release: screen mirroring no longer stops when a device can't capture
+audio.</p>
+<h3>Fixes</h3>
 <ul>
 <li>
-<strong>APK Studio</strong> — one workspace over a loaded APK: <strong>Inspect</strong> (manifest,
-permissions, SDK, signing certificates), <strong>Decompile</strong> (<code>jadx</code> for readable
-Java or <code>apktool</code> for smali + resources, with an in-app source viewer, code
-search that jumps to the matched line, and "open in jadx-GUI" / reveal for
-external editing), <strong>Recompile</strong> an edited <code>apktool</code> tree, and <strong>Sign</strong> with the
-debug key, your keystore, or a brand-new keystore created right there. jadx,
-apktool, and a Java runtime are downloaded from their GitHub releases on first
-use and managed in Settings ▸ Tools.</li>
-<li>
-<strong>Frida setup</strong> — matches the device architecture and downloads the right
-<code>frida-server</code> / <code>frida-gadget</code>; on a rooted device it pushes and starts
-frida-server so you can attach with your own frida CLI.</li>
-<li>
-<strong>Custom accent color</strong> — pick your own accent in Settings ▸ Appearance; it
-recolors buttons, toggles, selection, and active icons across the app.</li>
-<li>
-<strong>Launch emulators from the device bar</strong> — start an Android Studio AVD, or open
-the Emulators screen, straight from the device menu.</li>
-</ul>
-<h3>Improvements</h3>
-<ul>
-<li>
-<strong>Settings</strong> is reorganized into <strong>Appearance</strong> and <strong>Privacy</strong> tabs, in a
-roomier window.</li>
-<li>
-<strong>Connect-a-device prompts</strong> — features that need a device (Send Text, the
-quick actions, Frida, Private DNS…) now show a tailored "connect a device"
-message instead of silently disabled controls.</li>
-<li>
-<strong>Hotkey recording</strong> — the sidebar's Set-Hotkey popover starts recording the
-moment it opens, and both it and the Hotkeys settings show the modifiers live
-as you hold them.</li>
-<li>
-<strong>Tools settings</strong> show each downloaded tool's on-disk size, with reveal and
-delete; the decompiled-source cache is reused while the app is open and cleared
-on quit.</li>
+<strong>Screen mirror on emulators</strong> — scrcpy aborts the whole session (video
+included) when its audio encoder can't start, which happens on most emulators,
+where the device can't create an <code>AudioRecord</code>. The in-app mirror requested
+audio unconditionally, so it stopped right after connecting. It now detects an
+audio-only failure — the session ending before the first video frame — and
+reconnects once, video-only, so mirroring keeps working.</li>
 </ul>
 <p>Installed copies update in place via Sparkle.</p>
 ]]></description>
-      <pubDate>Sun, 28 Jun 2026 12:55:43 +0000</pubDate>
-      <enclosure url="https://github.com/Droidective/Droidective/releases/download/v2.7.0/Droidective-v2.7.0.dmg" sparkle:edSignature="nHMwcyBIEupDHgGprsPD5P59I8QSYoHmRkcKML3s4bVHDzH8iSoKEG6Tg4acKgPjmBFzwMMgiyxXR1HC8qceAA==" length="45829497" type="application/octet-stream" />
+      <pubDate>Tue, 30 Jun 2026 12:32:50 +0000</pubDate>
+      <enclosure url="https://github.com/Droidective/Droidective/releases/download/v2.7.1/Droidective-v2.7.1.dmg" sparkle:edSignature="gpOW/Kx2qt5xMVyytVhBs7+vON/fGSB1/9HDxd59cJFa6mYs+nbCOV00cgNwef/N2fkzCmgDL5ch4Pvza0EzAA==" length="45809408" type="application/octet-stream" />
     </item>
   </channel>
 </rss>
