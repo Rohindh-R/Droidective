@@ -175,9 +175,9 @@ import Testing
 }
 
 @Suite struct FeatureRegistryTests {
-    @Test func hasAll53Features() {
-        #expect(FeatureRegistry.all.count == 53)
-        #expect(FeatureRegistry.byID.count == 53)
+    @Test func hasAll54Features() {
+        #expect(FeatureRegistry.all.count == 54)
+        #expect(FeatureRegistry.byID.count == 54)
     }
 
     @Test func everyCatalogFeatureIsEnabledByDefault() {

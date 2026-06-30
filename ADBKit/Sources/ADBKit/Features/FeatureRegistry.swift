@@ -151,6 +151,17 @@ public enum FeatureRegistry {
             ],
             category: .reactNative, icon: "antenna.radiowaves.left.and.right", kind: .view
         ),
+        FeatureDef(
+            id: "js-console", title: "JS Console",
+            subtitle: "Hermes REPL + live console over the Metro debugger",
+            keywords: [
+                "js", "console", "javascript", "repl", "evaluate", "eval", "expression",
+                "hermes", "cdp", "devtools", "debugger", "inspector", "metro", "log",
+                "react native", "rn", "runtime", "8081",
+            ],
+            category: .reactNative, icon: "chevron.left.forwardslash.chevron.right",
+            kind: .view, needsDevice: false
+        ),
 
         // ── Screen & Capture ─────────────────────────────────────────────
         FeatureDef(
@@ -531,7 +542,7 @@ public enum FeatureRegistry {
             "meminfo", "monkey", "scrcpy", "screenshot", "send-text", "custom-commands",
         ],
         .reactNativeDeveloper: [
-            "react-native", "reactotron", "logcat", "crash-catcher", "performance", "network-speed",
+            "react-native", "reactotron", "js-console", "logcat", "crash-catcher", "performance", "network-speed",
             "apps", "install-app", "apk-studio", "frida-console",
             "emulators", "connection", "device-info", "scrcpy", "screenshot", "send-text", "custom-commands",
         ],

@@ -115,6 +115,10 @@ final class AppState {
     /// the feature can keep the connection alive and return to an intact session.
     let reactotronSession: ReactotronSession
 
+    /// The JS Console (Hermes CDP) session — owned here so its log buffer and
+    /// connection survive leaving the feature, like the Reactotron session.
+    let jsConsoleSession: JSConsoleSession
+
     func toggleSidebar() {
         withAnimation(.easeInOut(duration: 0.18)) { sidebarVisible.toggle() }
     }
@@ -260,7 +264,9 @@ final class AppState {
         let savedStep = UserDefaults.standard.object(forKey: "fontScaleStep") as? Int ?? Self.defaultScaleIndex
         fontScaleStep = min(max(savedStep, 0), Self.scales.count - 1)
         reactotronSession = ReactotronSession(client: env.client)
+        jsConsoleSession = JSConsoleSession(adb: env.client)
         reactotronSession.app = self
+        jsConsoleSession.app = self
         Task { await bootstrap() }
     }
 

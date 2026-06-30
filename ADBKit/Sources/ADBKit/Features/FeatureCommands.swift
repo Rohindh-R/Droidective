@@ -144,6 +144,13 @@ extension FeatureRegistry {
                 note: "route the device's localhost:9090 to Droidective's Reactotron server"
             ),
         ],
+        "js-console": [
+            FeatureCommand(
+                "adb reverse tcp:<port> tcp:<port>",
+                note: "USB devices: route the device's Metro port to your Mac so it connects to the dev server"
+            ),
+            FeatureCommand("adb reverse --list", note: "show the active reverse tunnels"),
+        ],
 
         // ── Screen & Capture ─────────────────────────────────────────────
         "scrcpy": [

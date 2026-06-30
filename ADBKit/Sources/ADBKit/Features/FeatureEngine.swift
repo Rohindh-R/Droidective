@@ -117,7 +117,7 @@ public struct FeatureEngine: Sendable {
         "file-explorer", "apps", "apk-studio", "apk-inspector", "apk-sign", "apk-decompile", "frida-console",
         "emulators", "performance", "network-speed",
         "root-status", "wifi", "private-dns", "system-restrictions",
-        "reactotron",
+        "reactotron", "js-console",
     ]
 
     /// Screenshot with an explicit destination (UI asks the user first).
