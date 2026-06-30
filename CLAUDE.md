@@ -88,7 +88,7 @@ spawn adb/scrcpy/emulator/brew).
 - `Devices/`: `DeviceMonitor` (actor, 2s poll, `AsyncStream<[Device]>`),
   `DeviceListParser`, `DeviceProps` (getprop), `DeviceOverview` (RAM/storage/
   battery/CPU/app counts), `DeviceDetails` (picker enrichment).
-- `Features/`: `FeatureRegistry` (53 `FeatureDef`s, declarative; `absorbedByHub`
+- `Features/`: `FeatureRegistry` (54 `FeatureDef`s, declarative; `absorbedByHub`
   maps a hub screen to the features it gathers, flattened to
   `absorbedFeatureIDs`; `catalogFeatureIDs` is the registry minus those),
   `FeatureModel`,
@@ -108,7 +108,15 @@ spawn adb/scrcpy/emulator/brew).
   scrcpy server — no desktop scrcpy), Crash, BugReport, Connection (wireless),
   CustomCommand, ToolDetection, AdbKeyboardInstaller, Emulator, AppIcon,
   Performance (per-core CPU/RAM/FPS/per-process), NetworkSpeed (`/proc/net/dev`
-  throughput), VideoEditService (ffmpeg export). `ScreenTools` holds the
+  throughput), VideoEditService (ffmpeg export). The **`JSConsole/`** trio backs
+  the `js-console` feature — a Hermes Chrome-DevTools-Protocol JS console for RN:
+  `MetroInspector` (host-localhost `GET /json/list` + a pure `parseTargets`),
+  `CDPProtocol` (pure CDP framing + `Runtime.evaluate`/`getProperties`/
+  `consoleAPICalled` decoders), and `JSConsoleClient` (an actor over
+  `URLSessionWebSocketTask` — id↔continuation correlation, heartbeat,
+  reconnect-friendly event stream). No adb path (Metro runs on the Mac); the
+  device only needs `adb reverse tcp:<metroPort>` to reach the dev server.
+  `ScreenTools` holds the
   `ScreenRecordOptions` struct. **Bundled binaries** (scrcpy-server + a static
   GPLv3 ffmpeg) live in `App/Resources/`, resolved by the App-layer `BundledTools`
   (single version source); `scripts/update-bundled-tools.sh` refreshes them. The
@@ -136,12 +144,12 @@ spawn adb/scrcpy/emulator/brew).
   Recompile · Sign tabs (the views take an optional injected APK so they embed in
   the studio and still work standalone via hotkey).
 
-## The 53 features
+## The 54 features
 
 Most `.view` features are full-screen bespoke panels (file-explorer, apps,
 emulators, device-info, logcat, crash-catcher, sandbox-browser, performance,
-network-speed, wifi, root-status, screen-record, scrcpy + the custom-commands/
-catalog system panels). Several are **hub** screens — `react-native`, `simulate`,
+network-speed, wifi, root-status, screen-record, scrcpy, reactotron, js-console
++ the custom-commands/catalog system panels). Several are **hub** screens — `react-native`, `simulate`,
 and `connection` gather related instant-/form-/toggle-actions into one scrollable
 grouped `Form`; `apk-studio` is a tabbed workspace over one loaded APK (Inspect/
 Decompile/Recompile/Sign). (The Apps explorer similarly covers per-app
@@ -158,7 +166,7 @@ Apps hub. They stay hotkey-able (every feature registers a shortcut; the Hotkeys
 tab lists bound members under "Hidden features"). This is a pure display filter —
 no persisted migration — so it also covers a hub that grows later. The rest are generic instant-/form-/toggle-actions
 driven by the registry. The catalog and Home's "All N features" count use
-`catalogFeatureIDs` (32). **Every feature is enabled by default**
+`catalogFeatureIDs` (33). **Every feature is enabled by default**
 (`defaultEnabledIDs == catalogFeatureIDs`); the catalog (Manage features) is for
 turning OFF the ones you don't want, not opting in — there's no Restore button.
 `LayoutState.adoptAllEnabled()` is a one-time migration that turns everything on

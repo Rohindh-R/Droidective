@@ -64,6 +64,8 @@ struct FeatureDetailView: View {
                 ReactNativeView()
             case "reactotron":
                 ReactotronView()
+            case "js-console":
+                JSConsoleView()
             case "simulate":
                 SimulateView()
             case "connection":
