@@ -40,17 +40,7 @@ struct NotificationPanelView: View {
                     .foregroundStyle(.textMuted)
                     .help("Clear all notifications")
             }
-            Button {
-                state.toggleNotifications()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.body)
-                    .frame(width: 22, height: 22)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.textMuted)
-            .help("Close notifications")
+            CloseButton(help: "Close notifications") { state.toggleNotifications() }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 11)
@@ -115,14 +105,7 @@ private struct NotificationRow: View {
             }
             Spacer(minLength: 0)
             if hovering {
-                Button { state.dismissNotification(note.id) } label: {
-                    Image(systemName: "xmark")
-                        .font(.caption)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.textMuted)
-                .help("Dismiss")
+                CloseButton(help: "Dismiss") { state.dismissNotification(note.id) }
             }
         }
         .padding(.horizontal, 14)

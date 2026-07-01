@@ -49,14 +49,7 @@ private struct ToastView: View {
                 .controlSize(.small)
             }
 
-            Button { state.dismissToast(toast.id) } label: {
-                Image(systemName: "xmark")
-                    .font(.caption)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.textMuted)
-            .help("Dismiss")
+            CloseButton(help: "Dismiss") { state.dismissToast(toast.id) }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -71,6 +64,32 @@ private struct ToastView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .shadow(radius: 10, y: 3)
         .transition(.move(edge: .top).combined(with: .opacity))
+    }
+}
+
+/// A quiet dismiss button: an `xmark` that grows a subtle circular hover
+/// highlight over an 18×18 hit target, darkening from muted to the main text
+/// color on hover. Shared by the toasts and the notifications panel so every
+/// close affordance matches.
+struct CloseButton: View {
+    let help: String
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button {
+            action()
+        } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(hovering ? AnyShapeStyle(.textMain) : AnyShapeStyle(.textMuted))
+                .frame(width: 18, height: 18)
+                .background(Circle().fill(.textMuted.opacity(hovering ? 0.18 : 0)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help(help)
     }
 }
 
