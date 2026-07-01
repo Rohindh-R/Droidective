@@ -49,6 +49,13 @@ final class PaletteController {
         panel.isMovableByWindowBackground = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
+        // Lay the SwiftUI content out first so `.preferredContentSize` has
+        // produced the real 520×height frame before we center. Otherwise
+        // `positionInitially` centers the pre-layout placeholder width and the
+        // palette lands off-center.
+        hosting.view.layoutSubtreeIfNeeded()
+        panel.setContentSize(hosting.view.fittingSize)
+
         positionInitially(panel)
         panel.makeKeyAndOrderFront(nil)
 
@@ -57,7 +64,7 @@ final class PaletteController {
         ) { [weak self] _ in MainActor.assumeIsolated { self?.close() } }
         resizeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didResizeNotification, object: panel, queue: .main
-        ) { [weak self] _ in MainActor.assumeIsolated { self?.keepTopAnchored() } }
+        ) { [weak self] _ in MainActor.assumeIsolated { self?.keepCentered() } }
 
         self.panel = panel
     }
@@ -84,12 +91,19 @@ final class PaletteController {
         anchorMaxY = panel.frame.maxY
     }
 
-    private func keepTopAnchored() {
-        guard let panel else { return }
-        var frame = panel.frame
-        if abs(frame.maxY - anchorMaxY) > 0.5 {
-            frame.origin.y = anchorMaxY - frame.height
-            panel.setFrameOrigin(frame.origin)
+    /// Keep the top edge anchored (so the search field doesn't jump as the
+    /// results list grows) while staying horizontally centered on the current
+    /// screen — the results list resizing the panel would otherwise leave a
+    /// first-frame miscenter uncorrected on the X axis.
+    private func keepCentered() {
+        guard let panel, let screen = panel.screen ?? NSScreen.main else { return }
+        var origin = panel.frame.origin
+        let x = screen.visibleFrame.midX - panel.frame.width / 2
+        let y = anchorMaxY - panel.frame.height
+        if abs(origin.x - x) > 0.5 || abs(origin.y - y) > 0.5 {
+            origin.x = x
+            origin.y = y
+            panel.setFrameOrigin(origin)
         }
     }
 }
