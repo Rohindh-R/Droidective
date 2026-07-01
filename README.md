@@ -124,7 +124,7 @@ through Sparkle (and `brew upgrade` defers to that).
 ADBKit/   Swift package — all logic, zero UI dependencies (swift test)
   Exec/         adb process execution, tool location, scoped command log
   Devices/      discovery (2s polling), getprop, hardware/usage overview
-  Features/     declarative 53-feature registry + runners + how-to notes
+  Features/     declarative 54-feature registry + runners + how-to notes
   Services/     logcat streaming, overrides, file/apps explorers, capture,
                 screen record, crash, bug report, wireless, emulators,
                 performance + network monitors, APK inspect/sign/decompile,

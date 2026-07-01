@@ -1,3 +1,48 @@
+## Droidective v2.8.0
+
+A feature release that adds a tabbed workspace with split panes and a React
+Native JS Console, curates the "Run on all devices" toggle, and fixes a round of
+light-mode and layout issues.
+
+### New features
+
+- **Tabbed workspace with split panes** — open features in tabs (up to ten)
+  instead of one detail pane at a time. Tabs stay mounted while hidden, so a
+  screen recording or a live view keeps running in the background. Split the
+  window into two panes and drag tabs between them, reorder tabs by dragging, and
+  navigate with ⌘T, ⌘W, ⌃Tab, and ⌃1–9. The open tabs and the split layout are
+  restored on the next launch.
+- **React Native JS Console** — a console over the Hermes runtime via the Chrome
+  DevTools Protocol: it connects to a Metro target, streams `console.*` output
+  with syntax-highlighted objects, and evaluates expressions against the running
+  app.
+
+### Improvements
+
+- **Curated "Run on all devices"** — the toggle now appears only for the features
+  where running on every device makes sense (send text, React Native, Simulate,
+  install app) and is hidden elsewhere.
+- **Live mirror follows the active device** — switching the device while
+  mirroring re-targets the mirror instead of staying on the previous one.
+- **Command palette opens centered**, the **sidebar search shows all matches** and
+  locks the group/reorder controls while a query is active, and the **close button
+  on toasts and the notification panel** is a single restyled control.
+
+### Fixes
+
+- **Light-mode colors** — named colors resolve per color scheme, and foreground
+  text now picks black or white by the background's luminance, so labels no longer
+  render white-on-white on light or bright-accent backgrounds (device pill,
+  palette rows, copy buttons, toggle styles).
+- **Simulate** shows an empty state when no device is connected; **Home** feature
+  cards keep their height with short text; **System Restrictions** cards are
+  visible in light mode and no longer reload the whole list on each toggle.
+- Fully tappable rows for **Settings** disclosures and **Screen Record** advanced
+  options; **form action pickers** fill the available width; the **notification
+  panel** slide no longer janks the layout.
+
+Installed copies update in place via Sparkle.
+
 ## Droidective v2.7.1
 
 A bug-fix release: screen mirroring no longer stops when a device can't capture
