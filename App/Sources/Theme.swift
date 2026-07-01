@@ -64,4 +64,52 @@ extension Color {
             Int(round(resolved.greenComponent * 255)),
             Int(round(resolved.blueComponent * 255)))
     }
+
+    /// A readable foreground (white or near-black) for text drawn on top of this
+    /// background, resolving the background in the given color scheme first.
+    /// Uses a perceptual luminance estimate — Rec. 709 weights on gamma-encoded
+    /// sRGB, an approximation of WCAG relative luminance (not the linearized form)
+    /// — picking `Color.black.opacity(0.85)` for light backgrounds and `.white` for
+    /// dark ones (threshold: luminance > 0.35). When the background can't be
+    /// resolved, falls back to the scheme's own contrasting default.
+    func contrastingForeground(for scheme: ColorScheme) -> Color {
+        let fallback: Color = scheme == .dark ? .white : Color.black.opacity(0.85)
+        guard let appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua) else { return fallback }
+        var foreground = fallback
+        appearance.performAsCurrentDrawingAppearance {
+            if let resolved = Self.luminanceForeground(of: self) { foreground = resolved }
+        }
+        return foreground
+    }
+
+    /// Resolve a named asset color to a concrete, appearance-independent color
+    /// for a specific scheme.
+    ///
+    /// SwiftUI hosts a `Menu`'s pop-up-button label in a context whose effective
+    /// appearance we don't control (it flattens the label to one tint resolved
+    /// against the control's own — stuck-dark — appearance), so an env-resolved
+    /// asset like `.textMain` renders near-white there in *both* modes, going
+    /// white-on-white in light mode. Feeding the label a pre-resolved concrete
+    /// color sidesteps that. Falls back to the dynamic asset if resolution fails.
+    static func resolved(_ name: String, for scheme: ColorScheme) -> Color {
+        guard let appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua),
+              let dynamic = NSColor(named: name) else { return Color(name) }
+        var flat = dynamic
+        appearance.performAsCurrentDrawingAppearance {
+            flat = dynamic.usingColorSpace(.sRGB) ?? dynamic
+        }
+        return Color(nsColor: flat)
+    }
+
+    /// Same logic without an appearance context — for static (non-adaptive) colors
+    /// built from explicit RGB/HSB values, which have no light/dark variant to resolve.
+    var contrastingForeground: Color { Self.luminanceForeground(of: self) ?? .white }
+
+    /// Returns the contrasting foreground for `color`, or nil if it can't be
+    /// resolved to sRGB (e.g. a catalog color with no current drawing appearance).
+    private static func luminanceForeground(of color: Color) -> Color? {
+        guard let nc = NSColor(color).usingColorSpace(.sRGB) else { return nil }
+        let lum = 0.2126 * nc.redComponent + 0.7152 * nc.greenComponent + 0.0722 * nc.blueComponent
+        return lum > 0.35 ? Color.black.opacity(0.85) : .white
+    }
 }

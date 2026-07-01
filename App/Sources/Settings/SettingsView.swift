@@ -50,6 +50,7 @@ struct GeneralSettingsView: View {
     @Environment(AppState.self) private var state
     @AppStorage("showMenuBarExtra") private var showMenuBar = true
     @State private var openAtLoginOn = false
+    @State private var showMenuItems = false
 
     /// True when the login item is registered (enabled, or pending the user's
     /// approval in System Settings).
@@ -128,7 +129,7 @@ struct GeneralSettingsView: View {
             Section("Menu bar") {
                 Toggle("Show menu bar icon", isOn: $showMenuBar)
                 if showMenuBar {
-                    DisclosureGroup("Items shown in the menu") {
+                    DisclosureGroup(isExpanded: $showMenuItems) {
                         Text("When none are selected, your pinned features (or enabled instant actions) are shown. Screenshot and Mirror Screen always appear.")
                             .font(.footnote)
                             .foregroundStyle(.textMuted)
@@ -141,6 +142,13 @@ struct GeneralSettingsView: View {
                             .toggleStyle(.switch)
                             .controlSize(.small)
                         }
+                    } label: {
+                        Button { showMenuItems.toggle() } label: {
+                            Text("Items shown in the menu")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -310,7 +318,12 @@ struct DoctorSettingsView: View {
             Section { summary }
             Section("Toolchain") {
                 ForEach(Self.checks, id: \.tool) { check in
-                    row(check)
+                    ToolRow(
+                        check: check,
+                        status: report[check.tool],
+                        installingTool: state.installingTool,
+                        onInstall: { state.installTool($0) }
+                    )
                 }
             }
             Section {
@@ -349,73 +362,86 @@ struct DoctorSettingsView: View {
     }
 
     /// One compact row: a status icon + the tool name, expandable to reveal
-    /// version, path, and (when missing) the install action.
-    @ViewBuilder
-    private func row(_ check: Check) -> some View {
-        let status = report[check.tool]
-        DisclosureGroup {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(check.purpose)
-                    .font(.callout)
-                    .foregroundStyle(.textMuted)
-                if let status {
-                    if let version = status.version {
-                        detail("Version", version)
-                    }
-                    if let path = status.path {
-                        detail("Path", path)
-                    }
-                    if !status.installed {
-                        if check.brewInstallable {
-                            Button(state.installingTool == check.tool ? "Installing…" : "Install via Homebrew") {
-                                state.installTool(check.tool)
+    /// version, path, and (when missing) the install action. Uses a separate
+    /// struct so each row owns its own isExpanded state, enabling a full-width
+    /// Button label that makes the entire row tappable (not just the chevron).
+    private struct ToolRow: View {
+        let check: Check
+        let status: ToolStatus?
+        let installingTool: Tool?
+        let onInstall: (Tool) -> Void
+        @State private var isExpanded = false
+
+        var body: some View {
+            DisclosureGroup(isExpanded: $isExpanded) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(check.purpose)
+                        .font(.callout)
+                        .foregroundStyle(.textMuted)
+                    if let status {
+                        if let version = status.version {
+                            detailRow("Version", version)
+                        }
+                        if let path = status.path {
+                            detailRow("Path", path)
+                        }
+                        if !status.installed {
+                            if check.brewInstallable {
+                                Button(installingTool == check.tool ? "Installing…" : "Install via Homebrew") {
+                                    onInstall(check.tool)
+                                }
+                                .disabled(installingTool != nil)
+                            } else {
+                                Text(status.installHint)
+                                    .font(.callout)
+                                    .foregroundStyle(.textMuted)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
-                            .disabled(state.installingTool != nil)
-                        } else {
-                            Text(status.installHint)
-                                .font(.callout)
-                                .foregroundStyle(.textMuted)
-                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
-            }
-            .padding(.vertical, 4)
-        } label: {
-            HStack(spacing: 8) {
-                statusIcon(status)
-                Text(check.name)
-                Spacer()
-                if let status, !status.installed {
-                    Text("not installed")
-                        .font(.caption)
-                        .foregroundStyle(.textMuted)
+                .padding(.vertical, 4)
+            } label: {
+                Button { isExpanded.toggle() } label: {
+                    HStack(spacing: 8) {
+                        statusIcon(status)
+                        Text(check.name)
+                        Spacer()
+                        if let status, !status.installed {
+                            Text("not installed")
+                                .font(.caption)
+                                .foregroundStyle(.textMuted)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
             }
         }
-    }
 
-    @ViewBuilder
-    private func statusIcon(_ status: ToolStatus?) -> some View {
-        if let status {
-            Image(systemName: status.installed ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .foregroundStyle(status.installed ? Color.brandAccent : Color.orange)
-        } else {
-            ProgressView().controlSize(.small)
+        @ViewBuilder
+        private func statusIcon(_ status: ToolStatus?) -> some View {
+            if let status {
+                Image(systemName: status.installed ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .foregroundStyle(status.installed ? Color.brandAccent : Color.orange)
+            } else {
+                ProgressView().controlSize(.small)
+            }
         }
-    }
 
-    @ViewBuilder
-    private func detail(_ label: String, _ value: String) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Text(label)
-                .foregroundStyle(.textMuted)
-                .frame(width: 56, alignment: .leading)
-            Text(value)
-                .textSelection(.enabled)
-                .fixedSize(horizontal: false, vertical: true)
+        @ViewBuilder
+        private func detailRow(_ label: String, _ value: String) -> some View {
+            HStack(alignment: .top, spacing: 8) {
+                Text(label)
+                    .foregroundStyle(.textMuted)
+                    .frame(width: 56, alignment: .leading)
+                Text(value)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .font(.callout)
         }
-        .font(.callout)
     }
 
     private func redetect() async {

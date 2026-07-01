@@ -7,6 +7,7 @@ import SwiftUI
 /// active target is unmistakable.
 struct DeviceBarView: View {
     @Environment(AppState.self) private var state
+    @Environment(\.colorScheme) private var colorScheme
     @State private var showBundleManager = false
     @State private var showInstalledApps = false
     @State private var refreshSpin = 0.0
@@ -167,15 +168,33 @@ struct DeviceBarView: View {
         } label: {
             devicePill
         }
+        // Borderless (not the default pop-up button) so the label renders as
+        // real SwiftUI content: a pop-up button flattens its title to the
+        // control's own tint and ignores `.foregroundStyle`, leaving the title
+        // white-on-white in light mode. The pill background + border below give
+        // back the boxed button affordance the borderless style drops — both
+        // derived from the resolved title color, so they adapt to light and dark.
+        .menuStyle(.borderlessButton)
         .fixedSize()
         .controlSize(.large)
+        .foregroundStyle(pillTextColor)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(pillTextColor.opacity(0.06), in: RoundedRectangle(cornerRadius: 7))
+        .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(pillTextColor.opacity(0.18)))
         .disabled(state.effectiveRunOnAll || state.recordingActive)
         .help(state.recordingActive ? "Stop the recording to change the device" : "Switch the active device")
         .task(id: state.devices.map(\.serial).joined()) { await state.refreshAvds() }
     }
 
-    /// macOS popup buttons flatten their label to one tint, so the status
-    /// color lives on the leading icon (outside the menu) instead of a dot.
+    /// Title/chevron color for the device pill, pre-resolved to a concrete value
+    /// for the current scheme so it stays visible in both modes — see
+    /// `Color.resolved(_:for:)`.
+    private var pillTextColor: Color { Color.resolved("TextMain", for: colorScheme) }
+
+    /// The status color lives on the leading icon (outside the menu); the title
+    /// here is just the device label. Its color comes from `pillTextColor` on
+    /// the menu so the chevron matches too.
     private var devicePill: some View {
         Text(selectedDevice.map(state.deviceTitle) ?? "No device connected")
             .fontWeight(.semibold)

@@ -158,6 +158,8 @@ struct FormActionView: View {
                 }
             }
             .labelsHidden()
+            .pickerStyle(.menu)
+            .frame(maxWidth: .infinity)
         case .switch:
             SwitchRow(field.label, isOn: boolBinding(for: field))
         case .slider:

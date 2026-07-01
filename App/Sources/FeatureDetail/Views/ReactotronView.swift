@@ -1969,6 +1969,7 @@ private struct CopyButton: View {
     var icon = "doc.on.doc"
     let provider: () -> String
     @State private var copied = false
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Button {
@@ -1982,7 +1983,7 @@ private struct CopyButton: View {
                 Text(copied ? "Copied" : label)
             }
             .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(copied ? Color.white : Color.primary)
+            .foregroundStyle(copied ? Color.green.contrastingForeground(for: colorScheme) : Color.primary)
             .padding(.horizontal, 11)
             .padding(.vertical, 5)
             .background(copied ? Color.green : Color.secondary.opacity(0.18), in: Capsule())

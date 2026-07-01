@@ -14,6 +14,7 @@ struct RootView: View {
     @AppStorage("telemetryConsentAsked") private var consentAsked = false
     @AppStorage("launchCount") private var launchCount = 0
     @AppStorage("starPromptShown") private var starPromptShown = false
+    @AppStorage("theme") private var theme = "dark"
     @State private var presentConsent = false
     @State private var presentStar = false
     /// True only while the *first-run* role picker is up, so its dismissal
@@ -36,6 +37,38 @@ struct RootView: View {
     /// Launches before the one-time GitHub-star nudge (shown after consent).
     private let starPromptAfterLaunches = 10
 
+    /// Theme color-sync needs two modifiers because they reach different layers,
+    /// and neither alone is enough:
+    ///
+    /// - `.preferredColorScheme(preferredScheme)` sets the hosting NSWindow's
+    ///   appearance, so the *native* menus/popovers presented from this window
+    ///   (the device-picker dropdown, the overrides menu) render in the matching
+    ///   appearance instead of always light.
+    /// - `.environment(\.colorScheme, injectedColorScheme)` forces the value the
+    ///   *SwiftUI-drawn* content resolves named asset colors against. A `Menu`'s
+    ///   label is hosted in a context that doesn't reliably inherit the window
+    ///   appearance for asset resolution, so without this the device-picker title
+    ///   (`.textMain`) renders white-on-white in light mode even though the bar's
+    ///   `.bgSurface` background resolves correctly.
+    ///
+    /// `nil` / system pass-through for "auto" keeps both following the system
+    /// appearance live.
+    private var preferredScheme: ColorScheme? {
+        switch theme {
+        case "light": return .light
+        case "dark": return .dark
+        default: return nil  // "auto" → follow the system appearance
+        }
+    }
+
+    private var injectedColorScheme: ColorScheme {
+        switch theme {
+        case "light": return .light
+        case "auto": return colorScheme
+        default: return .dark
+        }
+    }
+
     private var shouldPromptConsent: Bool {
         LaunchPrompt.consentDue(
             consentAsked: consentAsked, launchCount: launchCount,
@@ -53,6 +86,8 @@ struct RootView: View {
         // (the exitGuard alone is often unchanged), driving the leave dialog.
         let showExitDialog = state.pendingExit.map { !$0.saving } ?? false
         return zoomedContent
+            .environment(\.colorScheme, injectedColorScheme)
+            .preferredColorScheme(preferredScheme)
             .background(WindowAccessor { window in
                 // Tag the main window so the ⌘W monitor can tell it apart from
                 // Settings / the palette panel.
