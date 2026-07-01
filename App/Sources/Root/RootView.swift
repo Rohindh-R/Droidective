@@ -269,6 +269,16 @@ struct RootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .foregroundStyle(.textMain)
+        // A tab drag released over dead space (the sidebar, device bar, an empty
+        // strip area — anything that isn't a pane/chip/split target) never fires
+        // a drop delegate, which would leave `draggingTabID` set and the
+        // split-create overlay stuck blocking the pane. Catch those here and
+        // clear it. Only a target while a tab drag is in flight; returns false so
+        // it never swallows a real drop (inner targets are hit first).
+        .onDrop(of: [.text], delegate: TabDragCancelCatch(
+            isDragging: state.draggingTabID != nil,
+            clear: { state.draggingTabID = nil }
+        ))
     }
 
     /// The editor area: one pane, or two side by side split by a draggable seam.
@@ -391,6 +401,22 @@ struct TabPaneDrop: DropDelegate {
         guard let id = draggingID else { return false }
         onDrop(id)
         return true
+    }
+}
+
+/// Root-level catch for a tab drag released over dead space: clears the drag
+/// state so the split-create overlay can't get stuck. A target only while a tab
+/// drag is in flight (so it never interferes with sidebar reordering, which
+/// leaves `draggingTabID` nil), and returns false so real drops on inner targets
+/// still win.
+struct TabDragCancelCatch: DropDelegate {
+    let isDragging: Bool
+    let clear: () -> Void
+
+    func validateDrop(info: DropInfo) -> Bool { isDragging }
+    func performDrop(info: DropInfo) -> Bool {
+        clear()
+        return false
     }
 }
 
