@@ -126,7 +126,12 @@ struct TabStripView: View {
     }
 
     private var newTabButton: some View {
-        Button { state.openPalette?() } label: {
+        Button {
+            // Focus this pane first so the chosen feature opens here, not in
+            // whichever pane happened to be focused.
+            state.focusGroup(group)
+            state.openPalette?()
+        } label: {
             Image(systemName: "plus")
                 .font(.callout.weight(.medium))
                 .foregroundStyle(.textMuted)

@@ -599,6 +599,12 @@ final class AppState {
         closeTab(id)
     }
 
+    /// Give an editor group keyboard focus — its `+` button focuses it so a new
+    /// tab lands in that pane; new tabs, ⌘W, and ⌃⇥ act on the focused group.
+    func focusGroup(_ index: Int) {
+        if groups.indices.contains(index) { focusedGroup = index }
+    }
+
     func selectNextTab() {
         guard groups.indices.contains(focusedGroup) else { return }
         groups[focusedGroup].activateNext()
@@ -631,9 +637,14 @@ final class AppState {
     func moveTab(_ id: String, toGroup dest: Int) {
         guard let src = groupIndex(of: id), src != dest, groups.indices.contains(dest) else { return }
         groups[src].close(id)
-        groups[dest].open(id)
+        guard groups[dest].open(id) else {
+            // Destination is full — undo the close so the tab isn't lost. Only
+            // reachable if the total cap was somehow already exceeded.
+            groups[src].open(id)
+            return
+        }
         if groups[src].openTabs.isEmpty { groups.remove(at: src) }
-        focusedGroup = groupIndex(of: id) ?? 0
+        focusedGroup = groupIndex(of: id) ?? focusedGroup
         persistTabs()
     }
 
@@ -687,12 +698,19 @@ final class AppState {
     private func restoreTabs(from layout: LayoutState) {
         var restored: [TabState] = []
         var seen = Set<String>()
-        for group in layout.tabGroups ?? [] {
+        var budget = TabState.maxTabs
+        // At most two groups (panes), globally-unique ids, and no more than
+        // `maxTabs` total — trimmed here so a hand-edited or legacy layout can't
+        // restore an over-cap state (which would later strand a tab in moveTab).
+        for group in (layout.tabGroups ?? []).prefix(2) {
+            guard budget > 0 else { break }
             let valid = group.tabs.filter { Self.isValidTabID($0) && seen.insert($0).inserted }
-            guard !valid.isEmpty else { continue }
-            restored.append(TabState(openTabs: valid, activeTab: group.activeTab))
+            let kept = Array(valid.prefix(budget))
+            guard !kept.isEmpty else { continue }
+            budget -= kept.count
+            restored.append(TabState(openTabs: kept, activeTab: group.activeTab))
         }
-        groups = restored.isEmpty ? [TabState(openTabs: ["home"], activeTab: "home")] : Array(restored.prefix(2))
+        groups = restored.isEmpty ? [TabState(openTabs: ["home"], activeTab: "home")] : restored
         focusedGroup = min(max(layout.focusedGroup ?? 0, 0), groups.count - 1)
     }
 
