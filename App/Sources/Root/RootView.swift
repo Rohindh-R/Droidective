@@ -305,15 +305,18 @@ struct RootView: View {
             TabStripView(group: index)
             TabHostView(group: index)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Split-drop zone lives over the CONTENT only — never over the
+                // tab strip — so dragging a tab within the strip reorders it and
+                // only a drag down into the content's right half splits.
+                .overlay(alignment: .trailing) {
+                    if !state.isSplit, state.draggingTabID != nil { splitCreateZone }
+                }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onDrop(of: [.text], delegate: TabPaneDrop(
             draggingID: state.draggingTabID,
             onDrop: { id in state.dropTab(id, intoGroup: index, before: nil); state.draggingTabID = nil }
         ))
-        .overlay(alignment: .trailing) {
-            if !state.isSplit, state.draggingTabID != nil { splitCreateZone }
-        }
     }
 
     /// Right-half drop zone shown on the sole pane while dragging a tab — drop
