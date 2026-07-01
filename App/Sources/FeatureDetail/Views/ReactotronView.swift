@@ -403,8 +403,6 @@ struct ReactotronView: View {
         VStack(spacing: 0) {
             topTabs
             Divider()
-            statusBar
-            Divider()
             content
         }
         // The session is owned by AppState, so it persists across feature
@@ -435,7 +433,15 @@ struct ReactotronView: View {
     // MARK: - Tabs
 
     private var topTabs: some View {
-        HStack {
+        HStack(spacing: 8) {
+            // Connection state folded in here as a dot (full status on hover) —
+            // the detailed "Listening on :9090…" guidance lives in the timeline's
+            // empty state, so a dedicated status bar would just repeat it.
+            Circle()
+                .fill(session.connection.color)
+                .frame(width: 7, height: 7)
+                .help(session.connection.text(app: session.connectedApp))
+
             Picker("View", selection: $tab) {
                 Text("Timeline").tag(RtTab.timeline)
                 Text(session.commands.isEmpty ? "Commands" : "Commands (\(session.commands.count))").tag(RtTab.commands)
@@ -445,7 +451,24 @@ struct ReactotronView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .frame(maxWidth: 320)
+
             Spacer()
+
+            if session.clients.count > 1 {
+                Picker("App", selection: Binding(
+                    get: { session.selectedClient },
+                    set: { session.selectedClient = $0 }
+                )) {
+                    Text("All apps").tag(Int?.none)
+                    ForEach(session.clients) { client in
+                        Text(client.label).tag(Int?.some(client.id))
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .controlSize(.small)
+                .fixedSize()
+            }
             RestartAppMenu()
                 .controlSize(.small)
                 .help("Force-stop and relaunch an app so it reconnects")
@@ -469,6 +492,10 @@ struct ReactotronView: View {
     private var timelineControls: some View {
         HStack(spacing: 12) {
             Spacer()
+
+            Text("\(session.displayedItems.count) events")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
 
             Button {
                 split.toggle()
@@ -512,41 +539,6 @@ struct ReactotronView: View {
             showOnboarding: showOnboarding,
             onExport: { session.export($0) }
         )
-    }
-
-    private var statusBar: some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(session.connection.color)
-                .frame(width: 7, height: 7)
-            Text(session.connection.text(app: session.connectedApp))
-                .font(.caption)
-                .foregroundStyle(.textMuted)
-            if session.clients.count > 1 {
-                Picker("App", selection: Binding(
-                    get: { session.selectedClient },
-                    set: { session.selectedClient = $0 }
-                )) {
-                    Text("All apps").tag(Int?.none)
-                    ForEach(session.clients) { client in
-                        Text(client.label).tag(Int?.some(client.id))
-                    }
-                }
-                .pickerStyle(.menu)
-                .labelsHidden()
-                .controlSize(.small)
-                .fixedSize()
-            }
-            Spacer()
-            if tab == .timeline {
-                Text("\(session.displayedItems.count) events")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 4)
-        .background(Color.bgSurface)
     }
 
     // MARK: - Custom commands
