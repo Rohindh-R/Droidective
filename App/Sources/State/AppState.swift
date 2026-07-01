@@ -74,47 +74,31 @@ final class AppState {
     /// through results moves a highlight without opening a tab per keystroke —
     /// only ⏎ / click / ⌘<n> opens one.
     var searchHighlightID: String?
-    /// The open editor groups (VS Code-style split panes): one group = no split,
-    /// two = a left/right split. Each group owns its tabs and active tab. A
-    /// feature is open in at most one group, so dragging a tab between panes
-    /// MOVES it. Mutate via the tab methods below (never directly) so changes
-    /// persist and the `TabState.maxTabs` total cap holds. Tabs stay mounted, so
-    /// switching within a pane never destroys in-flight work — the leave guard
-    /// fires on *closing* a tab (or quitting), not on switching.
-    private(set) var groups: [TabState] = [TabState(openTabs: ["home"], activeTab: "home")]
-
-    /// Which group has keyboard focus — new tabs, ⌘W, and ⌃⇥ act on it.
-    private(set) var focusedGroup = 0
+    /// The editor-group workspace (VS Code-style split panes): one pane = no
+    /// split, two = a left/right split. Each pane owns its tabs and active tab; a
+    /// feature is open in at most one pane, so dragging a tab between panes MOVES
+    /// it. All the multi-pane rules (collapse, cap, uniqueness, focus, never
+    /// empty) live in the pure, tested `Workspace`; mutate via the methods below
+    /// so each change persists. Tabs stay mounted, so switching within a pane
+    /// never destroys in-flight work — the leave guard fires on *closing* a tab
+    /// (or quitting), not on switching.
+    private(set) var workspace = Workspace(fallback: "home")
 
     /// The tab id being dragged in a strip, or nil when no drag is in flight —
     /// shared so a pane can offer a drop target for moving/splitting tabs.
     var draggingTabID: String?
 
-    /// The focused group's active tab: drives the device bar, sidebar highlight,
+    /// The focused pane's active tab: drives the device bar, sidebar highlight,
     /// and window title.
-    var activeTabID: String? {
-        groups.indices.contains(focusedGroup) ? groups[focusedGroup].activeTab : nil
-    }
-
+    var activeTabID: String? { workspace.activeTab }
     /// Both panes' active tabs — the sidebar highlights all of them.
-    var activeTabIDs: Set<String> { Set(groups.compactMap(\.activeTab)) }
-
+    var activeTabIDs: Set<String> { workspace.activeTabs }
     /// True when the workspace is split into two panes.
-    var isSplit: Bool { groups.count > 1 }
-
-    /// The open tabs of group `index` (empty if that group doesn't exist).
-    func openTabIDs(inGroup index: Int) -> [String] {
-        groups.indices.contains(index) ? groups[index].openTabs : []
-    }
-    /// The active tab of group `index`.
-    func activeTab(inGroup index: Int) -> String? {
-        groups.indices.contains(index) ? groups[index].activeTab : nil
-    }
-
-    private var totalOpenTabs: Int { groups.reduce(0) { $0 + $1.openTabs.count } }
-    private func groupIndex(of id: String) -> Int? {
-        groups.firstIndex { $0.openTabs.contains(id) }
-    }
+    var isSplit: Bool { workspace.isSplit }
+    /// The open tabs of pane `index` (empty if that pane doesn't exist).
+    func openTabIDs(inGroup index: Int) -> [String] { workspace.openTabs(inGroup: index) }
+    /// The active tab of pane `index`.
+    func activeTab(inGroup index: Int) -> String? { workspace.activeTab(inGroup: index) }
     var layout = LayoutState()
     /// Per-feature usage tally (persisted), used to re-rank the launchpad's
     /// curated feature order by how the user actually works.
@@ -567,22 +551,16 @@ final class AppState {
     /// stay mounted), so there's no leave guard — only the `TabState.maxTabs`
     /// total cap, which surfaces a toast when a new tab can't open.
     func requestFeature(_ id: String) {
-        if let group = groupIndex(of: id) {
-            focusedGroup = group
-            groups[group].open(id)
-        } else {
-            guard totalOpenTabs < TabState.maxTabs else {
-                showToast(Toast(
-                    message: "You can have up to \(TabState.maxTabs) tabs open — close one first.",
-                    ok: false))
-                return
-            }
-            groups[focusedGroup].open(id)
+        guard workspace.open(id) else {
+            showToast(Toast(
+                message: "You can have up to \(Workspace.maxTabs) tabs open — close one first.",
+                ok: false))
+            return
         }
         persistTabs()
     }
 
-    /// Close a tab (in whichever group holds it). A tab whose view holds losable
+    /// Close a tab (in whichever pane holds it). A tab whose view holds losable
     /// work routes through the leave confirmation first, since closing unmounts
     /// the view (which would destroy that work). Closing any other is immediate.
     func closeTab(_ id: String) {
@@ -593,125 +571,65 @@ final class AppState {
         }
     }
 
-    /// Close the focused group's active tab (⌘W).
+    /// Close the focused pane's active tab (⌘W).
     func closeActiveTab() {
-        guard groups.indices.contains(focusedGroup), let id = groups[focusedGroup].activeTab else { return }
-        closeTab(id)
+        if let id = workspace.activeTab { closeTab(id) }
     }
 
-    /// Give an editor group keyboard focus — its `+` button focuses it so a new
-    /// tab lands in that pane; new tabs, ⌘W, and ⌃⇥ act on the focused group.
-    func focusGroup(_ index: Int) {
-        if groups.indices.contains(index) { focusedGroup = index }
-    }
+    /// Give a pane keyboard focus — its `+` focuses it so a new tab lands there.
+    func focusGroup(_ index: Int) { workspace.focus(index); persistTabs() }
 
-    func selectNextTab() {
-        guard groups.indices.contains(focusedGroup) else { return }
-        groups[focusedGroup].activateNext()
-        persistTabs()
-    }
-    func selectPreviousTab() {
-        guard groups.indices.contains(focusedGroup) else { return }
-        groups[focusedGroup].activatePrevious()
-        persistTabs()
-    }
-    /// Activate the tab at a 0-based index in the focused group (⌃1–⌃9).
-    func selectTab(index: Int) {
-        guard groups.indices.contains(focusedGroup) else { return }
-        groups[focusedGroup].activate(index: index)
-        persistTabs()
-    }
+    func selectNextTab() { workspace.cycleForward(); persistTabs() }
+    func selectPreviousTab() { workspace.cycleBackward(); persistTabs() }
+    /// Activate the tab at a 0-based index in the focused pane (⌃1–⌃9).
+    func selectTab(index: Int) { workspace.activate(index: index); persistTabs() }
 
-    /// Drag-reorder a tab within its own group so it sits before `targetID`
-    /// (nil = to the end).
+    /// Drag-reorder a tab within its own pane so it sits before `targetID`.
     func reorderTab(_ id: String, before targetID: String?) {
-        guard let group = groupIndex(of: id) else { return }
-        let order = targetID.map { SidebarOrdering.move(id, before: $0, in: groups[group].openTabs) }
-            ?? SidebarOrdering.moveToEnd(id, in: groups[group].openTabs)
-        groups[group].reorder(order)
+        workspace.reorder(id, before: targetID)
         persistTabs()
     }
 
-    /// Move `id` into group `dest` (append + activate there) — dragging a tab to
-    /// the other pane. Collapses the source group if it empties.
+    /// Move `id` into pane `dest` — dragging a tab to the other pane.
     func moveTab(_ id: String, toGroup dest: Int) {
-        guard let src = groupIndex(of: id), src != dest, groups.indices.contains(dest) else { return }
-        groups[src].close(id)
-        guard groups[dest].open(id) else {
-            // Destination is full — undo the close so the tab isn't lost. Only
-            // reachable if the total cap was somehow already exceeded.
-            groups[src].open(id)
-            return
-        }
-        if groups[src].openTabs.isEmpty { groups.remove(at: src) }
-        focusedGroup = groupIndex(of: id) ?? focusedGroup
+        workspace.move(id, toGroup: dest)
         persistTabs()
     }
 
-    /// Resolve a strip/pane drop: reorder within the same group, or move to the
-    /// other group and then position it at the drop target.
+    /// Resolve a strip/pane drop: reorder within the same pane, or move to the
+    /// other pane and position it at the drop target.
     func dropTab(_ id: String, intoGroup dest: Int, before targetID: String?) {
-        guard let src = groupIndex(of: id) else { return }
-        if src == dest {
-            if let targetID { reorderTab(id, before: targetID) }
-        } else {
-            moveTab(id, toGroup: dest)
-            if let targetID { reorderTab(id, before: targetID) }
-        }
+        workspace.drop(id, intoGroup: dest, before: targetID)
+        persistTabs()
     }
 
-    /// Split the workspace: move `id` into a new second pane. Requires its group
-    /// to hold more than one tab (something must stay behind). No-op if already
-    /// split.
+    /// Split the workspace: move `id` into a new second pane.
     func splitTab(_ id: String) {
-        guard groups.count == 1, let src = groupIndex(of: id), groups[src].openTabs.count > 1 else { return }
-        groups[src].close(id)
-        groups.append(TabState(openTabs: [id], activeTab: id))
-        focusedGroup = 1
+        workspace.split(id)
         persistTabs()
     }
 
     private func performClose(_ id: String) {
-        guard let group = groupIndex(of: id) else { return }
-        groups[group].close(id)
-        if groups[group].openTabs.isEmpty {
-            if groups.count > 1 {
-                groups.remove(at: group)
-                focusedGroup = min(focusedGroup, groups.count - 1)
-            } else {
-                groups[group].open("home") // never leave the workspace empty
-            }
-        }
+        workspace.close(id)
         persistTabs()
     }
 
     private func persistTabs() {
-        layout.tabGroups = groups.map { TabGroupState(tabs: $0.openTabs, activeTab: $0.activeTab) }
-        layout.focusedGroup = focusedGroup
+        layout.tabGroups = workspace.groups.map { TabGroupState(tabs: $0.openTabs, activeTab: $0.activeTab) }
+        layout.focusedGroup = workspace.focusedGroup
         persistLayout()
     }
 
-    /// Reopen persisted editor groups (idle — live sessions don't resume),
-    /// dropping ids no longer in the registry, enforcing global uniqueness across
-    /// panes, and seeding a single Home tab when there's nothing valid to restore
-    /// (new users / layouts written before tabs existed).
+    /// Reopen persisted panes (idle — live sessions don't resume). All the
+    /// trimming/validation invariants live in `Workspace`; this just supplies the
+    /// registry validity check and the Home fallback.
     private func restoreTabs(from layout: LayoutState) {
-        var restored: [TabState] = []
-        var seen = Set<String>()
-        var budget = TabState.maxTabs
-        // At most two groups (panes), globally-unique ids, and no more than
-        // `maxTabs` total — trimmed here so a hand-edited or legacy layout can't
-        // restore an over-cap state (which would later strand a tab in moveTab).
-        for group in (layout.tabGroups ?? []).prefix(2) {
-            guard budget > 0 else { break }
-            let valid = group.tabs.filter { Self.isValidTabID($0) && seen.insert($0).inserted }
-            let kept = Array(valid.prefix(budget))
-            guard !kept.isEmpty else { continue }
-            budget -= kept.count
-            restored.append(TabState(openTabs: kept, activeTab: group.activeTab))
-        }
-        groups = restored.isEmpty ? [TabState(openTabs: ["home"], activeTab: "home")] : restored
-        focusedGroup = min(max(layout.focusedGroup ?? 0, 0), groups.count - 1)
+        workspace = Workspace(
+            restoring: layout.tabGroups ?? [],
+            focusedGroup: layout.focusedGroup,
+            fallback: "home",
+            isValidID: Self.isValidTabID
+        )
     }
 
     /// Ids that can back a tab: every registry feature plus the standalone
@@ -1013,11 +931,8 @@ final class AppState {
         }
         roleChosenThisSession = true
         // Start the freshly-chosen role on a single Home tab, no split.
-        groups = [TabState(openTabs: ["home"], activeTab: "home")]
-        focusedGroup = 0
-        layout.tabGroups = [TabGroupState(tabs: ["home"], activeTab: "home")]
-        layout.focusedGroup = 0
-        persistLayout()
+        workspace.reset()
+        persistTabs()
         presentRolePicker = false
     }
 
