@@ -7,6 +7,7 @@ import SwiftUI
 /// charted, and exportable as JSON + CSV.
 struct PerformanceView: View {
     @Environment(AppState.self) private var state
+    @Environment(\.tabFeatureID) private var tabFeatureID
 
     enum Phase { case idle, recording, paused }
     enum SortKey: String, CaseIterable { case ram = "RAM", cpu = "CPU", name = "Name" }
@@ -86,13 +87,13 @@ struct PerformanceView: View {
                 state.clearExitGuard(exitGuardID)
             } else {
                 state.setExitGuard(.init(
-                    id: exitGuardID, style: .recording,
+                    id: exitGuardID, featureID: tabFeatureID, style: .recording,
                     title: "Recording not exported",
                     message: "This performance recording hasn’t been exported. Save it first, or discard it."))
             }
         }
         .onChange(of: state.pendingExit?.saving) { _, saving in
-            guard saving == true else { return }
+            guard saving == true, state.pendingExitConcerns(tabFeatureID) else { return }
             stop()
             if samples.isEmpty || export() { state.finishExitSave() } else { state.cancelExit() }
         }

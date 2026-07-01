@@ -69,10 +69,52 @@ final class AppState {
     private(set) var selectedSerial: String?
     var runOnAll = false
     var searchText = ""
-    /// Switch via `requestFeature(_:)`, not direct assignment — that routes the
-    /// change through the leave guard so an active recording / unsaved edit isn't
-    /// silently discarded.
-    private(set) var selectedFeatureID: String?
+    /// The sidebar/palette's keyboard-navigation highlight (↑/↓ while searching).
+    /// Transient (not persisted) and separate from the active tab, so arrowing
+    /// through results moves a highlight without opening a tab per keystroke —
+    /// only ⏎ / click / ⌘<n> opens one.
+    var searchHighlightID: String?
+    /// The open editor groups (VS Code-style split panes): one group = no split,
+    /// two = a left/right split. Each group owns its tabs and active tab. A
+    /// feature is open in at most one group, so dragging a tab between panes
+    /// MOVES it. Mutate via the tab methods below (never directly) so changes
+    /// persist and the `TabState.maxTabs` total cap holds. Tabs stay mounted, so
+    /// switching within a pane never destroys in-flight work — the leave guard
+    /// fires on *closing* a tab (or quitting), not on switching.
+    private(set) var groups: [TabState] = [TabState(openTabs: ["home"], activeTab: "home")]
+
+    /// Which group has keyboard focus — new tabs, ⌘W, and ⌃⇥ act on it.
+    private(set) var focusedGroup = 0
+
+    /// The tab id being dragged in a strip, or nil when no drag is in flight —
+    /// shared so a pane can offer a drop target for moving/splitting tabs.
+    var draggingTabID: String?
+
+    /// The focused group's active tab: drives the device bar, sidebar highlight,
+    /// and window title.
+    var activeTabID: String? {
+        groups.indices.contains(focusedGroup) ? groups[focusedGroup].activeTab : nil
+    }
+
+    /// Both panes' active tabs — the sidebar highlights all of them.
+    var activeTabIDs: Set<String> { Set(groups.compactMap(\.activeTab)) }
+
+    /// True when the workspace is split into two panes.
+    var isSplit: Bool { groups.count > 1 }
+
+    /// The open tabs of group `index` (empty if that group doesn't exist).
+    func openTabIDs(inGroup index: Int) -> [String] {
+        groups.indices.contains(index) ? groups[index].openTabs : []
+    }
+    /// The active tab of group `index`.
+    func activeTab(inGroup index: Int) -> String? {
+        groups.indices.contains(index) ? groups[index].activeTab : nil
+    }
+
+    private var totalOpenTabs: Int { groups.reduce(0) { $0 + $1.openTabs.count } }
+    private func groupIndex(of id: String) -> Int? {
+        groups.firstIndex { $0.openTabs.contains(id) }
+    }
     var layout = LayoutState()
     /// Per-feature usage tally (persisted), used to re-rank the launchpad's
     /// curated feature order by how the user actually works.
@@ -100,12 +142,14 @@ final class AppState {
     /// device and bundle pickers so the captured series stays consistent.
     var recordingActive = false
 
-    /// Registered by a view holding work that navigating away would destroy —
-    /// an active screen recording or unsaved editor edits. While set,
-    /// feature/device switches and app-quit route through `pendingExit` instead
-    /// of proceeding. See `setExitGuard` / `requestFeature`.
-    private(set) var exitGuard: ExitGuard?
-    /// A navigation deferred until the user resolves the active `exitGuard`.
+    /// Views holding losable work (an active recording, unsaved editor edits)
+    /// register a guard here, keyed by the owning tab's feature id, so closing
+    /// that tab — or switching device / quitting — routes through `pendingExit`
+    /// for confirmation instead of silently discarding the work. Open tabs stay
+    /// mounted, so switching tabs is always safe and never consults this.
+    private(set) var exitGuards: [String: ExitGuard] = [:]
+    /// A navigation deferred until the user resolves the relevant `exitGuards`
+    /// entry (close a guarded tab, switch device, or quit with work in flight).
     private(set) var pendingExit: PendingExit?
     /// The command bar's Terminal tab — a real PTY-backed shell, shared
     /// app-wide so it persists across features.
@@ -275,9 +319,6 @@ final class AppState {
         selectedSerial = prefs.selectedSerial
         runOnAll = prefs.runOnAll
         selectedBundleId = prefs.selectedBundleId
-        // The launchpad (Home) is the consistent entry point — land there on
-        // every launch rather than reopening the last-used feature.
-        selectedFeatureID = "home"
         let loadedLayout = await env.stores.layout.load()
         // A brand-new user can pick a role — which seeds `layout` — while these
         // async store loads are still in flight; don't clobber that seed.
@@ -289,6 +330,10 @@ final class AppState {
             if layoutChanged {
                 persistLayout()
             }
+            // Reopen the tabs from the last session (idle — recordings/streams
+            // don't resume). Falls back to a single Home tab for a new user or a
+            // layout written before tabs existed.
+            restoreTabs(from: layout)
         }
         usageStats = await env.stores.usage.load()
         bundles = await env.stores.bundles.load()
@@ -459,6 +504,9 @@ final class AppState {
     struct ExitGuard: Equatable, Identifiable {
         enum Style: Equatable { case recording, edits }
         let id: UUID
+        /// The feature id of the tab that owns this guard, so closing a tab can
+        /// tell whether *its* work is the work at stake.
+        var featureID: String
         var style: Style
         var title: String
         var message: String
@@ -466,7 +514,7 @@ final class AppState {
 
     /// A navigation held back until the user resolves the active `ExitGuard`.
     struct PendingExit: Equatable {
-        enum Target: Equatable { case feature(String), device(String), quit }
+        enum Target: Equatable { case closeTab(String), device(String), quit }
         var target: Target
         /// Flips true when the user chooses "Stop & save": the active view runs
         /// its own save, then calls `finishExitSave()`. The dialog hides while
@@ -474,33 +522,191 @@ final class AppState {
         var saving = false
     }
 
-    /// Register (or replace) the active leave guard. A protected view calls this
-    /// when losable work begins, and `clearExitGuard` when it ends.
-    func setExitGuard(_ value: ExitGuard) { exitGuard = value }
+    /// Register (or replace) the leave guard for a tab. A protected view calls
+    /// this when losable work begins, and `clearExitGuard` when it ends.
+    func setExitGuard(_ value: ExitGuard) { exitGuards[value.featureID] = value }
 
-    /// Clear the guard only if it's still the one identified by `id`, so a
-    /// torn-down view can't wipe a guard a newer view just registered.
+    /// Clear the guard identified by `id`, wherever it's keyed — so a torn-down
+    /// view can't wipe a guard a newer view just registered (ids are unique).
     func clearExitGuard(_ id: UUID) {
-        if exitGuard?.id == id { exitGuard = nil }
+        exitGuards = exitGuards.filter { $0.value.id != id }
     }
 
-    /// Switch the selected feature, or hold the switch behind a confirmation
-    /// when a leave guard is active. Every feature switch (sidebar, palette,
-    /// menu, hotkeys) routes through here.
-    func requestFeature(_ id: String) {
-        guard id != selectedFeatureID else { return }
-        if exitGuard == nil {
-            selectedFeatureID = id
-        } else {
-            pendingExit = PendingExit(target: .feature(id))
+    /// The guard the pending leave confirmation is about: the closing tab's
+    /// guard, or any active guard when switching device / quitting.
+    var pendingGuard: ExitGuard? {
+        switch pendingExit?.target {
+        case .closeTab(let id): return exitGuards[id]
+        case .device, .quit: return exitGuards.values.first
+        case nil: return nil
         }
+    }
+
+    /// Whether the pending leave would destroy `featureID`'s work — true for a
+    /// close of that exact tab, or any device-switch / quit (which leaves every
+    /// tab). A guarded view's save-on-leave gates on this so closing one tab
+    /// can't make a different tab save.
+    func pendingExitConcerns(_ featureID: String) -> Bool {
+        switch pendingExit?.target {
+        case .closeTab(let id): return id == featureID
+        case .device, .quit: return true
+        case nil: return false
+        }
+    }
+
+    /// Whether a tab is actively recording — drives its red pulse in the tab
+    /// strip. A `.recording` guard is registered exactly while screen/mirror
+    /// recording or while a performance/network capture holds unexported samples.
+    func tabIsRecording(_ id: String) -> Bool {
+        exitGuards[id]?.style == .recording
+    }
+
+    /// Open `id`, or refocus it wherever it's already open. Every feature open
+    /// (sidebar, palette, menu, hotkeys, Finder) routes through here; a not-yet-
+    /// open feature lands in the focused group. Switching is always safe (tabs
+    /// stay mounted), so there's no leave guard — only the `TabState.maxTabs`
+    /// total cap, which surfaces a toast when a new tab can't open.
+    func requestFeature(_ id: String) {
+        if let group = groupIndex(of: id) {
+            focusedGroup = group
+            groups[group].open(id)
+        } else {
+            guard totalOpenTabs < TabState.maxTabs else {
+                showToast(Toast(
+                    message: "You can have up to \(TabState.maxTabs) tabs open — close one first.",
+                    ok: false))
+                return
+            }
+            groups[focusedGroup].open(id)
+        }
+        persistTabs()
+    }
+
+    /// Close a tab (in whichever group holds it). A tab whose view holds losable
+    /// work routes through the leave confirmation first, since closing unmounts
+    /// the view (which would destroy that work). Closing any other is immediate.
+    func closeTab(_ id: String) {
+        if exitGuards[id] != nil {
+            pendingExit = PendingExit(target: .closeTab(id))
+        } else {
+            performClose(id)
+        }
+    }
+
+    /// Close the focused group's active tab (⌘W).
+    func closeActiveTab() {
+        guard groups.indices.contains(focusedGroup), let id = groups[focusedGroup].activeTab else { return }
+        closeTab(id)
+    }
+
+    func selectNextTab() {
+        guard groups.indices.contains(focusedGroup) else { return }
+        groups[focusedGroup].activateNext()
+        persistTabs()
+    }
+    func selectPreviousTab() {
+        guard groups.indices.contains(focusedGroup) else { return }
+        groups[focusedGroup].activatePrevious()
+        persistTabs()
+    }
+    /// Activate the tab at a 0-based index in the focused group (⌃1–⌃9).
+    func selectTab(index: Int) {
+        guard groups.indices.contains(focusedGroup) else { return }
+        groups[focusedGroup].activate(index: index)
+        persistTabs()
+    }
+
+    /// Drag-reorder a tab within its own group so it sits before `targetID`
+    /// (nil = to the end).
+    func reorderTab(_ id: String, before targetID: String?) {
+        guard let group = groupIndex(of: id) else { return }
+        let order = targetID.map { SidebarOrdering.move(id, before: $0, in: groups[group].openTabs) }
+            ?? SidebarOrdering.moveToEnd(id, in: groups[group].openTabs)
+        groups[group].reorder(order)
+        persistTabs()
+    }
+
+    /// Move `id` into group `dest` (append + activate there) — dragging a tab to
+    /// the other pane. Collapses the source group if it empties.
+    func moveTab(_ id: String, toGroup dest: Int) {
+        guard let src = groupIndex(of: id), src != dest, groups.indices.contains(dest) else { return }
+        groups[src].close(id)
+        groups[dest].open(id)
+        if groups[src].openTabs.isEmpty { groups.remove(at: src) }
+        focusedGroup = groupIndex(of: id) ?? 0
+        persistTabs()
+    }
+
+    /// Resolve a strip/pane drop: reorder within the same group, or move to the
+    /// other group and then position it at the drop target.
+    func dropTab(_ id: String, intoGroup dest: Int, before targetID: String?) {
+        guard let src = groupIndex(of: id) else { return }
+        if src == dest {
+            if let targetID { reorderTab(id, before: targetID) }
+        } else {
+            moveTab(id, toGroup: dest)
+            if let targetID { reorderTab(id, before: targetID) }
+        }
+    }
+
+    /// Split the workspace: move `id` into a new second pane. Requires its group
+    /// to hold more than one tab (something must stay behind). No-op if already
+    /// split.
+    func splitTab(_ id: String) {
+        guard groups.count == 1, let src = groupIndex(of: id), groups[src].openTabs.count > 1 else { return }
+        groups[src].close(id)
+        groups.append(TabState(openTabs: [id], activeTab: id))
+        focusedGroup = 1
+        persistTabs()
+    }
+
+    private func performClose(_ id: String) {
+        guard let group = groupIndex(of: id) else { return }
+        groups[group].close(id)
+        if groups[group].openTabs.isEmpty {
+            if groups.count > 1 {
+                groups.remove(at: group)
+                focusedGroup = min(focusedGroup, groups.count - 1)
+            } else {
+                groups[group].open("home") // never leave the workspace empty
+            }
+        }
+        persistTabs()
+    }
+
+    private func persistTabs() {
+        layout.tabGroups = groups.map { TabGroupState(tabs: $0.openTabs, activeTab: $0.activeTab) }
+        layout.focusedGroup = focusedGroup
+        persistLayout()
+    }
+
+    /// Reopen persisted editor groups (idle — live sessions don't resume),
+    /// dropping ids no longer in the registry, enforcing global uniqueness across
+    /// panes, and seeding a single Home tab when there's nothing valid to restore
+    /// (new users / layouts written before tabs existed).
+    private func restoreTabs(from layout: LayoutState) {
+        var restored: [TabState] = []
+        var seen = Set<String>()
+        for group in layout.tabGroups ?? [] {
+            let valid = group.tabs.filter { Self.isValidTabID($0) && seen.insert($0).inserted }
+            guard !valid.isEmpty else { continue }
+            restored.append(TabState(openTabs: valid, activeTab: group.activeTab))
+        }
+        groups = restored.isEmpty ? [TabState(openTabs: ["home"], activeTab: "home")] : Array(restored.prefix(2))
+        focusedGroup = min(max(layout.focusedGroup ?? 0, 0), groups.count - 1)
+    }
+
+    /// Ids that can back a tab: every registry feature plus the standalone
+    /// Home / About / Catalog screens.
+    private static func isValidTabID(_ id: String) -> Bool {
+        FeatureRegistry.byID[id] != nil || ["home", "about", "catalog"].contains(id)
     }
 
     /// Switch the active device, or hold it behind a confirmation when a guard
     /// is active.
     func requestDevice(_ serial: String) {
         guard serial != selectedSerial else { return }
-        if exitGuard == nil {
+        if exitGuards.isEmpty {
             selectedSerial = serial
             persistSelection()
         } else {
@@ -512,15 +718,23 @@ final class AppState {
     /// means losable work is in flight — the leave prompt is shown and the
     /// resolution drives termination (see `quitNow` / `cancelExit`).
     func requestQuit() -> Bool {
-        guard exitGuard != nil else { return true }
+        guard !exitGuards.isEmpty else { return true }
         pendingExit = PendingExit(target: .quit)
         return false
     }
 
-    /// "Discard" / "Discard changes": drop the work and run the deferred
-    /// navigation. The leaving view's `.onDisappear` aborts recorders / frees
-    /// edits, so nothing extra is needed here.
-    func discardAndExit() { performPendingExit() }
+    /// "Discard" / "Discard changes": drop the at-risk work and run the deferred
+    /// navigation. A tab close clears just that tab's guard (and its view aborts
+    /// in `.onDisappear` as it unmounts); a device-switch / quit leaves every
+    /// tab, so clear them all and let each view abort.
+    func discardAndExit() {
+        switch pendingExit?.target {
+        case .closeTab(let id): exitGuards[id] = nil
+        case .device, .quit: exitGuards.removeAll()
+        case nil: break
+        }
+        performPendingExit()
+    }
 
     /// "Keep recording" / "Keep editing": abandon the pending navigation.
     func cancelExit() {
@@ -538,10 +752,9 @@ final class AppState {
 
     private func performPendingExit() {
         guard let pending = pendingExit else { return }
-        exitGuard = nil
         pendingExit = nil
         switch pending.target {
-        case .feature(let id): selectedFeatureID = id
+        case .closeTab(let id): performClose(id)
         case .device(let serial): selectedSerial = serial; persistSelection()
         case .quit: quitNow()
         }
@@ -781,9 +994,13 @@ final class AppState {
             layout.seedEverything()
         }
         roleChosenThisSession = true
+        // Start the freshly-chosen role on a single Home tab, no split.
+        groups = [TabState(openTabs: ["home"], activeTab: "home")]
+        focusedGroup = 0
+        layout.tabGroups = [TabGroupState(tabs: ["home"], activeTab: "home")]
+        layout.focusedGroup = 0
         persistLayout()
         presentRolePicker = false
-        selectedFeatureID = "home"
     }
 
     /// The user's current role, nil when they chose "show me everything".

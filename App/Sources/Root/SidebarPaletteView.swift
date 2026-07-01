@@ -234,8 +234,11 @@ struct SidebarPaletteView: View {
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
-            .onChange(of: state.selectedFeatureID) { _, id in
-                proxy.scrollTo(id, anchor: .center)
+            .onChange(of: state.searchHighlightID) { _, id in
+                if let id { proxy.scrollTo(id, anchor: .center) }
+            }
+            .onChange(of: state.activeTabID) { _, id in
+                if let id { proxy.scrollTo(id, anchor: .center) }
             }
             }
 
@@ -245,6 +248,17 @@ struct SidebarPaletteView: View {
         .background(.bgSurface)
         .background { shortcutButtons }
         .onChange(of: state.focusSearchToken) { searchFocused = true }
+        // Keyboard highlight: keep the top result highlighted as the query
+        // changes, and drop the highlight when the field loses focus (only the
+        // active tab's pill remains).
+        .onChange(of: state.searchText) { state.searchHighlightID = orderedMatches.first?.id }
+        .onChange(of: searchFocused) { _, focused in
+            if focused {
+                if state.searchHighlightID == nil { state.searchHighlightID = orderedMatches.first?.id }
+            } else {
+                state.searchHighlightID = nil
+            }
+        }
         .onAppear {
             // Track ⌘ so the row hints can appear/disappear as it's held.
             flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
@@ -269,7 +283,7 @@ struct SidebarPaletteView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(state.selectedFeatureID == "home" ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMuted))
+            .foregroundStyle(state.activeTabID == "home" ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMuted))
             .help("Home — overview & getting started")
 
             Button {
@@ -283,7 +297,7 @@ struct SidebarPaletteView: View {
                 .lineLimit(1)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(state.selectedFeatureID == "catalog" ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMuted))
+            .foregroundStyle(state.activeTabID == "catalog" ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMuted))
 
             Spacer()
 
@@ -296,7 +310,7 @@ struct SidebarPaletteView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(state.selectedFeatureID == "about" ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMuted))
+            .foregroundStyle(state.activeTabID == "about" ? AnyShapeStyle(.brandAccent) : AnyShapeStyle(.textMuted))
             .help("About & Feedback — version, report an issue, star on GitHub")
 
             SettingsLink {
@@ -553,7 +567,7 @@ struct SidebarPaletteView: View {
     /// ⏎ in the search field: fire the top instant action with no screen, else
     /// open the top match's detail.
     private func runTopMatch() {
-        let target = orderedMatches.first { $0.id == state.selectedFeatureID } ?? orderedMatches.first
+        let target = orderedMatches.first { $0.id == state.searchHighlightID } ?? orderedMatches.first
         guard let target else { return }
         if target.firesWithoutScreen {
             Task { await state.run(feature: target, params: [:]) }
@@ -563,12 +577,15 @@ struct SidebarPaletteView: View {
         }
     }
 
+    /// Move the keyboard highlight through the results — does *not* open a tab
+    /// per keystroke (that would spawn a tab for every arrow press); ⏎ opens the
+    /// highlighted one.
     private func moveSelection(by offset: Int) {
         let matches = orderedMatches
         guard !matches.isEmpty else { return }
-        let currentIndex = matches.firstIndex { $0.id == state.selectedFeatureID }
+        let currentIndex = matches.firstIndex { $0.id == state.searchHighlightID }
         let next = ((currentIndex ?? -1) + offset + matches.count) % matches.count
-        state.requestFeature(matches[next].id)
+        state.searchHighlightID = matches[next].id
     }
 }
 
@@ -603,7 +620,11 @@ struct FeatureRowView: View {
 
     private var isPinned: Bool { state.layout.favorites.contains(feature.id) }
     private var isEnabled: Bool { state.layout.effectiveEnabledIDs.contains(feature.id) }
-    private var isSelected: Bool { state.selectedFeatureID == feature.id }
+    /// Highlighted when it's the front tab of either pane, or the keyboard-nav
+    /// highlight while searching.
+    private var isSelected: Bool {
+        state.activeTabIDs.contains(feature.id) || state.searchHighlightID == feature.id
+    }
 
     /// Clicking a row selects it — except an instant action that fires without
     /// a screen, which just runs (feedback is the toast + clipboard) and leaves

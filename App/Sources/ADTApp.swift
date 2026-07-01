@@ -51,6 +51,9 @@ struct ADTApp: App {
     /// re-keys RootView (`.id`), forcing every `.brandAccent` to re-resolve.
     @AppStorage(accentColorDefaultsKey) private var accentHex = ""
 
+    /// ⌃1…⌃9 accelerators for jumping straight to a tab by position.
+    private static let tabDigitKeys: [KeyEquivalent] = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+
     /// The sidebar and notifications panel are fixed-width, so opening the
     /// notifications panel on a narrow window would otherwise crush the detail
     /// pane to uselessness (the welcome title wrapping one letter per line).
@@ -96,6 +99,35 @@ struct ADTApp: App {
         .windowStyle(.automatic)
         .commands {
             ScreenshotEditCommandsMenu()
+
+            CommandMenu("Tab") {
+                // ⌘T / ⌘K both open the search palette; the chosen feature opens
+                // in a tab (a new one, or refocuses it if already open).
+                Button("New Tab") {
+                    appState.activateMainWindow()
+                    appState.openPalette?()
+                }
+                .keyboardShortcut("t", modifiers: .command)
+
+                Button("Close Tab") { appState.closeActiveTab() }
+                    .keyboardShortcut("w", modifiers: .command)
+
+                Divider()
+
+                // Control-based so they don't fight the form fields' Tab focus
+                // traversal or the palette's ⌘1–9 result jumps.
+                Button("Next Tab") { appState.selectNextTab() }
+                    .keyboardShortcut(.tab, modifiers: .control)
+                Button("Previous Tab") { appState.selectPreviousTab() }
+                    .keyboardShortcut(.tab, modifiers: [.control, .shift])
+
+                Divider()
+
+                ForEach(Array(Self.tabDigitKeys.enumerated()), id: \.offset) { index, key in
+                    Button("Show Tab \(index + 1)") { appState.selectTab(index: index) }
+                        .keyboardShortcut(key, modifiers: .control)
+                }
+            }
 
             CommandGroup(replacing: .appInfo) {
                 Button("About Droidective") {

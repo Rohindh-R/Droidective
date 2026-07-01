@@ -79,6 +79,7 @@ struct EditToggleStyle: ToggleStyle {
 /// uses the native player UI. Nothing is written until Export.
 struct VideoEditorPane: View {
     @Environment(AppState.self) private var state
+    @Environment(\.tabFeatureID) private var tabFeatureID
     let source: VideoSource
     let onClose: () -> Void
 
@@ -136,7 +137,7 @@ struct VideoEditorPane: View {
         .onChange(of: hasUnsavedEdits) { _, dirty in
             if dirty {
                 state.setExitGuard(.init(
-                    id: exitGuardID, style: .edits,
+                    id: exitGuardID, featureID: tabFeatureID, style: .edits,
                     title: "Unsaved video edits",
                     message: "Your trim, rotate, crop, and other edits haven’t been exported. Leaving discards them."))
             } else {

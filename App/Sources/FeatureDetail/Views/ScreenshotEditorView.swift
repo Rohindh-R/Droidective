@@ -7,6 +7,7 @@ import SwiftUI
 /// to disk until the user saves or copies.
 struct ScreenshotEditorView: View {
     @Environment(AppState.self) private var state
+    @Environment(\.tabFeatureID) private var tabFeatureID
     /// Discard the current capture and return to the capture controls.
     let onClose: () -> Void
 
@@ -149,7 +150,7 @@ struct ScreenshotEditorView: View {
         .onChange(of: dirty) { _, isDirty in
             if isDirty {
                 state.setExitGuard(.init(
-                    id: exitGuardID, style: .edits,
+                    id: exitGuardID, featureID: tabFeatureID, style: .edits,
                     title: "Unsaved screenshot",
                     message: "Your annotations and edits haven’t been saved. Leaving discards them."))
             } else {

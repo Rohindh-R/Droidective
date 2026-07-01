@@ -8,16 +8,17 @@ struct FeatureDetailView: View {
     let featureID: String?
 
     var body: some View {
+        // The window title is set once by the tab host from the active tab —
+        // not here — because every open tab is mounted at once and per-view
+        // `.navigationTitle`s would fight over the one window title.
         if featureID == "home" {
             HomeView()
         } else if featureID == "about" {
             AboutView()
         } else if featureID == "catalog" {
             CatalogView()
-                .navigationTitle("Feature Catalog")
         } else if let featureID, let feature = FeatureRegistry.byID[featureID] {
             featureBody(for: feature)
-                .navigationTitle(feature.title)
         } else {
             HomeView()
         }

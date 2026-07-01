@@ -228,7 +228,7 @@ struct DeviceBarView: View {
     /// commands (commands may require one) and logcat (its app filter is
     /// driven by saved bundles) are included.
     private var bundleRowVisible: Bool {
-        guard let id = state.selectedFeatureID,
+        guard let id = state.activeTabID,
               let feature = FeatureRegistry.byID[id] else { return false }
         return feature.needsBundle
             || feature.id == "custom-commands"

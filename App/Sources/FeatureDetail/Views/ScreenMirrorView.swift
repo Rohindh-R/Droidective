@@ -6,6 +6,8 @@ import SwiftUI
 /// (→ video editor on stop) without interrupting the live, controllable mirror.
 struct ScreenMirrorView: View {
     @Environment(AppState.self) private var state
+    @Environment(\.tabFeatureID) private var tabFeatureID
+    @Environment(\.tabIsActive) private var tabIsActive
     @State private var model: MirrorViewModel?
     /// Identifies this view's leave guard so a stale clear can't wipe another's.
     @State private var exitGuardID = UUID()
@@ -38,7 +40,20 @@ struct ScreenMirrorView: View {
         .recordingDecision(url: pendingRecording) { url in model?.finishedRecording = url }
         .imageDecision(image: pendingScreenshot) { image in model?.editingScreenshot = image }
         .task(id: state.targetSerials.first) {
-            await reconnect(to: state.targetSerials.first)
+            // Only stream while this tab is on screen; a hidden mirror is heavy
+            // video encode for nothing. (Returning re-keys via tabIsActive below.)
+            if tabIsActive { await reconnect(to: state.targetSerials.first) }
+        }
+        .onChange(of: tabIsActive) { _, active in
+            if active {
+                if model == nil { Task { await reconnect(to: state.targetSerials.first) } }
+            } else if model?.isRecording != true {
+                // Pause the live mirror while hidden — unless it's recording,
+                // which must keep capturing.
+                let leaving = model
+                model = nil
+                Task { await leaving?.stop() }
+            }
         }
         .onChange(of: model?.recordingError) { _, message in
             guard let message else { return }
@@ -48,7 +63,7 @@ struct ScreenMirrorView: View {
         .onChange(of: model?.isRecording) { _, recording in
             if recording == true {
                 state.setExitGuard(.init(
-                    id: exitGuardID, style: .recording,
+                    id: exitGuardID, featureID: tabFeatureID, style: .recording,
                     title: "Recording in progress",
                     message: "Leaving will stop the screen recording. Save it first, or discard it."))
             } else {
@@ -56,7 +71,9 @@ struct ScreenMirrorView: View {
             }
         }
         .onChange(of: state.pendingExit?.saving) { _, saving in
-            if saving == true, model?.isRecording == true { Task { await saveRecordingForLeave() } }
+            if saving == true, model?.isRecording == true, state.pendingExitConcerns(tabFeatureID) {
+                Task { await saveRecordingForLeave() }
+            }
         }
         .onDisappear {
             state.clearExitGuard(exitGuardID)

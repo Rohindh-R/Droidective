@@ -7,6 +7,8 @@ import SwiftUI
 /// a per-interface breakdown, and JSON/CSV export.
 struct NetworkView: View {
     @Environment(AppState.self) private var state
+    @Environment(\.tabFeatureID) private var tabFeatureID
+    @Environment(\.tabIsActive) private var tabIsActive
 
     struct Sample: Identifiable {
         let id = UUID()
@@ -46,18 +48,22 @@ struct NetworkView: View {
                 setLive(false)
                 setLive(true)
             }
+            // Pause the live sampler when this tab is hidden (a recording keeps
+            // sampling — it's capturing data the user wants), and resume when it
+            // comes back to the foreground.
+            .onChange(of: tabIsActive) { syncSampler() }
             .onChange(of: recorded.isEmpty) { _, empty in
                 if empty {
                     state.clearExitGuard(exitGuardID)
                 } else {
                     state.setExitGuard(.init(
-                        id: exitGuardID, style: .recording,
+                        id: exitGuardID, featureID: tabFeatureID, style: .recording,
                         title: "Recording not exported",
                         message: "This network recording hasn’t been exported. Save it first, or discard it."))
                 }
             }
             .onChange(of: state.pendingExit?.saving) { _, saving in
-                guard saving == true else { return }
+                guard saving == true, state.pendingExitConcerns(tabFeatureID) else { return }
                 stopRecording()
                 if recorded.isEmpty || export() { state.finishExitSave() } else { state.cancelExit() }
             }
@@ -286,7 +292,9 @@ struct NetworkView: View {
 
     // MARK: - Live / recording
 
-    /// Toggle the live stream. Turning it off also stops any recording.
+    /// Toggle the live stream (user intent). Turning it off also stops any
+    /// recording. The sampler itself is driven by `syncSampler`, which also
+    /// accounts for whether this tab is on screen.
     private func setLive(_ on: Bool) {
         if on {
             guard serial != nil, !isLive else { return }
@@ -294,10 +302,25 @@ struct NetworkView: View {
             liveStart = Date()
             liveSamples = []
             interfaces = []
-            launchSampler()
         } else {
             stopRecording()
             isLive = false
+        }
+        syncSampler()
+    }
+
+    /// The sampler runs while recording (capture must continue even when the tab
+    /// is hidden) or while live *and* this tab is on screen — a hidden live view
+    /// pauses to spare the device.
+    private var shouldSample: Bool {
+        serial != nil && (isRecording || (isLive && tabIsActive))
+    }
+
+    /// Start or stop the polling Task to match `shouldSample`.
+    private func syncSampler() {
+        if shouldSample {
+            if sampler == nil { launchSampler() }
+        } else {
             sampler?.cancel()
             sampler = nil
         }

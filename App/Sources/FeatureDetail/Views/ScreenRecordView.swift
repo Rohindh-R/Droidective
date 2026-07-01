@@ -8,6 +8,7 @@ import SwiftUI
 /// in the video editor.
 struct ScreenRecordView: View {
     @Environment(AppState.self) private var state
+    @Environment(\.tabFeatureID) private var tabFeatureID
     @State private var recorder: ScreenRecorder?
     @State private var isRecording = false
     @State private var isPaused = false
@@ -50,7 +51,9 @@ struct ScreenRecordView: View {
         }
         .recordingDecision(url: $decisionURL) { recordedURL = $0 }
         .onChange(of: state.pendingExit?.saving) { _, saving in
-            if saving == true, isRecording { Task { await saveRecordingForLeave() } }
+            if saving == true, isRecording, state.pendingExitConcerns(tabFeatureID) {
+                Task { await saveRecordingForLeave() }
+            }
         }
         .onDisappear {
             limitTask?.cancel()
@@ -235,7 +238,7 @@ struct ScreenRecordView: View {
             // mounted on a device switch, so .onDisappear never fires to abort it).
             state.recordingActive = true
             state.setExitGuard(.init(
-                id: exitGuardID, style: .recording,
+                id: exitGuardID, featureID: tabFeatureID, style: .recording,
                 title: "Recording in progress",
                 message: "Leaving will stop the screen recording. Save it first, or discard it."))
             scheduleTimeLimit(options.timeLimitSeconds)
